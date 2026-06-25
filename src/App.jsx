@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { supabase } from './lib/supabase'
+import { getMyProfile, createOrg } from './lib/api'
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
 const C = {
@@ -927,9 +929,25 @@ function EventHome({onLaunch, onCreateEvent}) {
 
 // ── Login Screen (auth only) ──────────────────────────────────────────────────
 function LoginScreen({onLogin}) {
-  const [email,setEmail] = useState("demo@siemens.com");
+  const [email,setEmail]       = useState("test@fingoh.com");
+  const [password,setPassword] = useState("");
+  const [loading,setLoading]   = useState(false);
+  const [error,setError]       = useState(null);
+
   const iD = {width:"100%",background:C.light,border:"1px solid #E2E8F0",borderRadius:8,padding:"10px 13px",color:C.dark,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"};
   const lD = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:.08};
+
+  const handleSignIn = async () => {
+    if(!email || !password){ setError("Please enter your email and password"); return; }
+    setLoading(true); setError(null);
+    try {
+      const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+      const { error: authError } = await sb.auth.signInWithPassword({ email, password });
+      if(authError){ setError(authError.message); setLoading(false); }
+      else { onLogin(); }
+    } catch(e){ setError("Sign in failed. Please try again."); setLoading(false); }
+  };
 
   return (
     <div style={{minHeight:"100vh",background:C.white,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
@@ -945,9 +963,11 @@ function LoginScreen({onLogin}) {
           <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:4}}>Sign in</h2>
           <p style={{fontSize:12,color:C.muted,marginBottom:24}}>Exhibitor platform — know your buyers before they arrive</p>
           <div style={{marginBottom:14}}><label style={lD}>Work email</label><input value={email} onChange={e=>setEmail(e.target.value)} style={iD}/></div>
-          <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" defaultValue="password" style={iD}/></div>
-          <button onClick={onLogin} style={{width:"100%",padding:13,background:C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F}}>Sign in →</button>
-          <p style={{textAlign:"center",marginTop:14,fontSize:11,color:C.muted2}}>Demo account · no password required</p>
+          <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={iD}/></div>
+          {error && <p style={{color:C.red,fontSize:12,marginBottom:12,textAlign:"center"}}>{error}</p>}
+          <button onClick={handleSignIn} disabled={loading} style={{width:"100%",padding:13,background:loading?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:F}}>
+            {loading ? "Signing in..." : "Sign in →"}
+          </button>
         </div>
       </div>
     </div>
@@ -3759,16 +3779,51 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
 // ═══════════════════════════════════════════════════════════════════
 // ROOT
 // ═══════════════════════════════════════════════════════════════════
-export default function App() {
-  const [screen,setScreen]   = useState("login");
-  const [ex,setEx]           = useState(null);
-  const [selP,setSelP]       = useState(null);
-  const [agentOpen,setAgentOpen] = useState(false);
-  const agentQueue = INITIAL_QUEUE.length;
+  export default function App() {
+  const [screen, setScreen]     = useState("login");
+  const [ex, setEx]             = useState(null);
+  const [selP, setSelP]         = useState(null);
+  const [agentOpen, setAgentOpen] = useState(false);
 
+  // Real auth state
+  const [authUser, setAuthUser]   = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [profile, setProfile]     = useState(null);
+
+  // Init auth on mount
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthUser(session?.user ?? null)
+      setAuthLoading(false)
+      if (session?.user) {
+        getMyProfile().then(setProfile).catch(() => {})
+        setScreen("events")
+      }
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthUser(session?.user ?? null)
+      if (session?.user) {
+        getMyProfile().then(setProfile).catch(() => {})
+        setScreen("events")
+      } else {
+        setScreen("login")
+        setProfile(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const agentQueue = INITIAL_QUEUE.length
+
+  if (authLoading) return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"DM Sans, sans-serif",fontSize:14,color:"#64748B"}}>
+      Loading...
+    </div>
+  )
   if(screen==="login")
     return <LoginScreen onLogin={()=>setScreen("events")}/>;
-
   if(screen==="events")
     return <EventHome
       onLaunch={cfg=>{setEx(cfg);setScreen("audience");}}
