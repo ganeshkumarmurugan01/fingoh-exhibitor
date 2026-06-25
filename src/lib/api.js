@@ -1,8 +1,6 @@
 import { supabase } from './supabase'
 
-// Force https — never allow http in production
-const RAW_URL = import.meta.env.VITE_API_URL || ''
-const BASE_URL = RAW_URL.replace('http://', 'https://')
+const BASE_URL = 'https://web-production-93e78d.up.railway.app'
 
 async function apiFetch(path, options = {}) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -27,13 +25,11 @@ async function apiFetch(path, options = {}) {
 export const getMyProfile   = ()        => apiFetch('/api/v1/onboarding/me')
 export const createOrg      = (payload) => apiFetch('/api/v1/onboarding/organisation', { method: 'POST', body: JSON.stringify(payload) })
 export const updateProfile  = (payload) => apiFetch('/api/v1/onboarding/me', { method: 'PATCH', body: JSON.stringify(payload) })
-
 export const getEvents      = ()        => apiFetch('/api/v1/events')
 export const getEvent       = (id)      => apiFetch(`/api/v1/events/${id}`)
 export const createEvent    = (payload) => apiFetch('/api/v1/events', { method: 'POST', body: JSON.stringify(payload) })
 export const updateEvent    = (id, d)   => apiFetch(`/api/v1/events/${id}`, { method: 'PATCH', body: JSON.stringify(d) })
 export const deleteEvent    = (id)      => apiFetch(`/api/v1/events/${id}`, { method: 'DELETE' })
-
 export const getStaff       = ()        => apiFetch('/api/v1/staff')
 export const addStaff       = (payload) => apiFetch('/api/v1/staff', { method: 'POST', body: JSON.stringify(payload) })
 export const updateStaff    = (id, d)   => apiFetch(`/api/v1/staff/${id}`, { method: 'PATCH', body: JSON.stringify(d) })
