@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from './lib/supabase'
-import { getMyProfile, createOrg } from './lib/api'
+import { supabase } from "./lib/supabase.js";
+import { getEvents, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile } from "./lib/api.js";
+
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
 const C = {
@@ -352,15 +353,40 @@ function CreateEventWizard({onBack, onCreated}) {
   const intentSignals = parseIntentSignals(intentWhy);
   const buyerSignals  = parseBuyerSignals(intentBuyers);
 
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
+  const [created, setCreated] = useState(false);
+  const [createdEvent, setCreatedEvent] = useState(null);
+
   const handleCreate = () => {
+    setCreating(true); setCreateError(null);
+    apiCreateEvent({
+      name: evName, type: evType, type_label: selType.label,
+      date_from: dateFrom, date_to: dateTo, venue, country,
+      company: coName, product, website, booth_size: boothSize,
+      categories: selCats.length ? selCats : selType.cats,
+      icp_roles: icpRole, icp_company_sizes: icpSize, icp_visit_reasons: icpReason,
+      intent_why: intentWhy, intent_buyers: intentBuyers,
+      intent_signals: intentSignals, buyer_signals: buyerSignals,
+    })
+    .then(newEvent => {
+      setCreating(false);
+      setCreated(true);
+      setCreatedEvent(newEvent);
+    })
+    .catch(err => { setCreateError(err.message); setCreating(false); });
+  };
+
+  const handleLaunch = () => {
+    if(!createdEvent) return;
     onCreated({
-      name: evName, type: selType.label, id: evType,
+      name: createdEvent.name, type: createdEvent.type, id: createdEvent.id,
       cats: selCats.length ? selCats : selType.cats,
-      dateFrom, dateTo, venue, country,
-      company: coName, product, website, boothSize,
+      dateFrom: createdEvent.date_from, dateTo: createdEvent.date_to,
+      venue: createdEvent.venue, country: createdEvent.country,
+      company: createdEvent.company, product: createdEvent.product,
+      intentWhy, intentBuyers, intentSignals, buyerSignals,
       icpRole, icpSize, icpReason,
-      intentWhy, intentBuyers,
-      intentSignals, buyerSignals,
     });
   };
 
@@ -656,10 +682,27 @@ function CreateEventWizard({onBack, onCreated}) {
                 Next →
               </button>
             ) : (
-              <button onClick={handleCreate}
-                style={{padding:"9px 22px",background:C.green,color:C.white,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-                Create & Launch ↗
-              </button>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                {createError && <p style={{fontSize:11,color:C.red,margin:0}}>{createError}</p>}
+                {!created ? (
+                  <button onClick={handleCreate} disabled={creating}
+                    style={{padding:"9px 22px",background:creating?"#CBD5E1":C.green,color:C.white,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:creating?"not-allowed":"pointer",fontFamily:F}}>
+                    {creating ? "Creating event..." : "Create & Launch ↗"}
+                  </button>
+                ) : (
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:12,color:C.green,fontWeight:600}}>✓ Event created successfully!</span>
+                    <button onClick={onBack}
+                      style={{padding:"9px 16px",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                      ← Back to events
+                    </button>
+                    <button onClick={handleLaunch}
+                      style={{padding:"9px 22px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      Open Fingoh ↗
+                    </button>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -675,19 +718,49 @@ function EventHome({onLaunch, onCreateEvent}) {
   const [hovered, setHovered] = useState(null);
   const [showTeam, setShowTeam] = useState(false);
 
-  // My Team — global to all events, not per-event
-  const [staffList, setStaffList]   = useState(DEFAULT_STAFF);
-  const [staffForm, setStaffForm]   = useState({name:"",email:"",title:"",responsibility:""});
-  const [staffSaved, setStaffSaved] = useState(false);
+  // Real API state
+  const [myEvents, setMyEvents]         = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(true);
+  const [staffList, setStaffList]       = useState([]);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [staffForm, setStaffForm]       = useState({name:"",email:"",title:"",responsibility:""});
+  const [staffSaved, setStaffSaved]     = useState(false);
+  const [staffError, setStaffError]     = useState(null);
+
   const sfUpd = (k,v) => setStaffForm(p=>({...p,[k]:v}));
   const sfReady = staffForm.name && staffForm.email && staffForm.title;
+
+  const refreshEvents = () => {
+    setEventsLoading(true);
+    getEvents()
+      .then(data => { setMyEvents(data || []); setEventsLoading(false); })
+      .catch(() => setEventsLoading(false));
+  };
+
+  useEffect(() => {
+    getEvents()
+      .then(data => { setMyEvents(data || []); setEventsLoading(false); })
+      .catch(() => setEventsLoading(false));
+    getStaff()
+      .then(data => { setStaffList(data || []); setStaffLoading(false); })
+      .catch(() => setStaffLoading(false));
+  }, []);
+
   const addStaff = () => {
     if(!sfReady) return;
-    setStaffList(p=>[...p,{id:`s${Date.now()}`,...staffForm}]);
-    setStaffForm({name:"",email:"",title:"",responsibility:""});
-    setStaffSaved(true); setTimeout(()=>setStaffSaved(false),2000);
+    setStaffError(null);
+    apiAddStaff(staffForm)
+      .then(s => {
+        setStaffList(p=>[...p,s]);
+        setStaffForm({name:"",email:"",title:"",responsibility:""});
+        setStaffSaved(true); setTimeout(()=>setStaffSaved(false),2000);
+      })
+      .catch(err => setStaffError(err.message));
   };
-  const removeStaff = id => setStaffList(p=>p.filter(s=>s.id!==id));
+
+  const removeStaff = id => {
+    apiRemoveStaff(id).then(() => setStaffList(p=>p.filter(s=>s.id!==id)));
+  };
 
   const iS = {width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none",background:C.white};
   const lS = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:.08};
@@ -812,7 +885,12 @@ function EventHome({onLaunch, onCreateEvent}) {
         <div style={{marginBottom:32}}>
           <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:12}}>My active events</p>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-            {EVENT_CATALOGUE.slice(0,2).map(ev=>{
+            {eventsLoading ? null : myEvents.length===0 ? (
+            <div style={{gridColumn:"1/-1",padding:20,textAlign:"center",color:C.muted,fontSize:12}}>
+              No events yet — create your first event
+            </div>
+          ) : null}
+          {myEvents.slice(0,2).map(ev=>{
               const st = statusStyle[ev.status];
               return (
                 <div key={ev.id} style={{background:C.white,border:`2px solid ${C.navy}`,borderRadius:14,padding:18,cursor:"pointer",transition:"all .15s",position:"relative"}}
@@ -820,14 +898,14 @@ function EventHome({onLaunch, onCreateEvent}) {
                   onMouseOut={e=>{e.currentTarget.style.boxShadow="none";}}>
                   <div style={{position:"absolute",top:14,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#DBEAFE",color:C.blue,fontWeight:700}}>REGISTERED</div>
                   <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                    <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{ev.icon}</div>
+                    <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{EX_TYPES.find(t=>t.id===ev.type)?.icon||"🎪"}</div>
                     <div>
                       <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0,lineHeight:1.3}}>{ev.name}</p>
-                      <p style={{fontSize:11,color:C.muted,margin:0}}>{ev.dateFrom} – {ev.dateTo}</p>
+                      <p style={{fontSize:11,color:C.muted,margin:0}}>{ev.date_from} – {ev.date_to}</p>
                     </div>
                   </div>
                   <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
-                  <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.dateFrom,dateTo:ev.dateTo,venue:ev.venue,company:"Siemens Healthineers",product:"Diagnostic imaging & AI-powered radiology solutions"})}
+                  <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product})}
                     style={{width:"100%",padding:"9px 0",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                     Open Fingoh ↗
                   </button>
@@ -3832,7 +3910,10 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
   if(screen==="create-event")
     return <CreateEventWizard
       onBack={()=>setScreen("events")}
-      onCreated={cfg=>{setEx(cfg);setScreen("audience");}}/>;
+      onCreated={cfg=>{
+      setEx(cfg);
+      setScreen("events");
+    }}/>;
 
   return (
     <>
