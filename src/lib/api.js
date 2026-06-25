@@ -1,12 +1,10 @@
 import { supabase } from './supabase'
 
-const BASE_URL = 'https://web-production-93e78d.up.railway.app'
-
 async function apiFetch(path, options = {}) {
   const { data: { session } } = await supabase.auth.getSession()
   const token = session?.access_token
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(path, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
