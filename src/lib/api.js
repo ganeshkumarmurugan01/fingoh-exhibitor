@@ -1,6 +1,8 @@
 import { supabase } from './supabase'
 
-const BASE_URL = import.meta.env.VITE_API_URL || ''
+// Force https — never allow http in production
+const RAW_URL = import.meta.env.VITE_API_URL || ''
+const BASE_URL = RAW_URL.replace('http://', 'https://')
 
 async function apiFetch(path, options = {}) {
   const { data: { session } } = await supabase.auth.getSession()
