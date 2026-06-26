@@ -1,5 +1,10 @@
 export default async function handler(req, res) {
-  const target = 'https://web-production-93e78d.up.railway.app' + req.url
+  // When rewrite /api/(.*) → /api/proxy, original path is in req.url still
+  // but we need to reconstruct it from the query slug
+  const slug = req.query.slug || []
+  const path = '/api/' + (Array.isArray(slug) ? slug.join('/') : slug)
+  const qs = new URL(req.url, 'http://localhost').search
+  const target = 'https://web-production-93e78d.up.railway.app' + path + qs
 
   const headers = {}
   if (req.headers['authorization']) headers['authorization'] = req.headers['authorization']
