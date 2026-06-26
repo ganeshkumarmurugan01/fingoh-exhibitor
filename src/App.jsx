@@ -1770,7 +1770,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
-  const staffNames = ["All", ...DEFAULT_STAFF.map(s=>s.name)];
+  const staffNames = ["All", ...staffList.map(s=>s.name)];
 
   const filtered = VISITORS
     .map(v=>({...v, liveScore: v.id===1 ? live : v.score}))
@@ -2147,11 +2147,15 @@ function StaffApp({ex}) {
   const demoIdx  = React.useRef(0);
 
   // ── Handlers ─────────────────────────────────────────────────────
-  const handleStaffLogin = () => {
-    const found = DEFAULT_STAFF.find(s => s.email.toLowerCase() === staffEmail.trim().toLowerCase());
-    if(found) { setActiveStaff(found); setLoginError(false); }
-    else { setLoginError(true); }
-  };
+  const handleStaffLogin = async () => {
+  try {
+    const result = await verifyStaff({ email: staffEmail.trim(), event_id: ex.id });
+    setActiveStaff(result);
+    setLoginError(false);
+  } catch {
+    setLoginError(true);
+  }
+};
 
   const scoreL={1:"Pass-through",2:"Polite interest",3:"Engaged",4:"Strong evaluator",5:"Active buyer"};
   const scoreC={1:"#94A3B8",2:"#64748B",3:C.yellow,4:C.blue,5:C.green};
@@ -2315,7 +2319,7 @@ Rules:
           </button>
           <div style={{marginTop:20,padding:"12px 14px",background:C.light,borderRadius:8}}>
             <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0,marginBottom:6}}>Registered team</p>
-            {DEFAULT_STAFF.map(s=>(
+            {staffList.map(s=>(
               <div key={s.id} onClick={()=>{setStaffEmail(s.email);setLoginError(false);}}
                 style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9",cursor:"pointer"}}
                 onMouseOver={e=>e.currentTarget.style.opacity=".7"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
