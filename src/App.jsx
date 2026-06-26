@@ -1144,21 +1144,44 @@ function AudienceUpload({ex, onNext}) {
                       </div>
                     ))}
                   </div>
-                  <div onClick={()=>{setUploadDone(true);setTotalRecords(p=>p+847);}}
-                    style={{border:"2px dashed #CBD5E1",borderRadius:12,padding:48,textAlign:"center",cursor:"pointer",transition:"all .15s"}}
-                    onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background="#F8FBFF";}}
-                    onMouseOut={e=>{e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.background="transparent";}}>
-                    <div style={{fontSize:40,marginBottom:10}}>⬆</div>
-                    <p style={{fontSize:14,fontWeight:600,color:C.muted,marginBottom:4}}>Drop CSV / Excel here or click to browse</p>
-                    <p style={{fontSize:11,color:C.muted2}}>Max 10,000 rows · .csv or .xlsx · UTF-8 encoding</p>
-                  </div>
-                </div>
+                  <div style={{border:"2px dashed #CBD5E1",borderRadius:12,padding:48,textAlign:"center",transition:"all .15s"}}
+                      onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background="#F8FBFF";}}
+                      onMouseOut={e=>{e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.background="transparent";}}>
+                  <div style={{fontSize:40,marginBottom:10}}>⬆</div>
+                   <p style={{fontSize:14,fontWeight:600,color:C.muted,marginBottom:4}}>Drop CSV / Excel here or click to browse</p>
+                  <p style={{fontSize:11,color:C.muted2,marginBottom:16}}>Max 10,000 rows · .csv or .xlsx · UTF-8 encoding</p>
+  <input type="file" accept=".csv,.xlsx"
+    style={{display:"none"}} id="csv-upload"
+    onChange={async e=>{
+      const file = e.target.files[0];
+      if(!file || !ex?.id) return;
+      const form = new FormData();
+      form.append("file", file);
+      const { data:{ session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/v1/audience/upload/${ex.id}`, {
+        method:"POST",
+        headers:{ Authorization:`Bearer ${token}` },
+        body: form,
+      });
+      if(res.ok){
+        const data = await res.json();
+        setUploadDone(true);
+        setTotalRecords(data.uploaded || 0);
+      }
+    }}
+  />
+  <label htmlFor="csv-upload"
+    style={{display:"inline-block",padding:"9px 22px",background:C.blue,color:C.white,borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+    Choose file
+  </label>
+</div>
               ) : (
                 <div>
                   <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"14px 18px",marginBottom:20,display:"flex",gap:12,alignItems:"center"}}>
                     <span style={{fontSize:24}}>✓</span>
                     <div>
-                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>847 contacts imported from CSV</p>
+                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{totalRecords} contacts imported from CSV</p>
                       <p style={{fontSize:11,color:"#166534",margin:0}}>Enrichment running · IEI analysis queued · Cox PH model will process once profiles are complete</p>
                     </div>
                   </div>
