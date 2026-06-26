@@ -3945,7 +3945,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
   return (
     <>
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueue} onBackToEvents={()=>{setScreen("events");setSelP(null);}}>
-        {screen==="audience"    && <AudienceUpload ex={ex} onNext={()=>setScreen("iei")}/>}
+        {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")}/>}
         {screen==="iei"         && <IEIAnalysis ex={ex}/>}
         {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
