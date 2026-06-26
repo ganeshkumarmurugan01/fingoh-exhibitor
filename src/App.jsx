@@ -2117,7 +2117,7 @@ function ParticipantDetail({p, onBack}) {
 // ═══════════════════════════════════════════════════════════════════
 // SCREEN 6 — Staff App  (expanded 41-signal IEI capture)
 // ═══════════════════════════════════════════════════════════════════
-function StaffApp({ex}) {
+function StaffApp({ex, verifyStaff}) {
   // ── ALL hooks must be declared before any conditional render ─────
   const [staffEmail, setStaffEmail]   = useState("");
   const [activeStaff, setActiveStaff] = useState(null);
@@ -3929,7 +3929,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
         {screen==="outcomes"    && <OutcomesDashboard ex={ex}/>}
         {screen==="export"      && <LeadExport ex={ex}/>}
-        {screen==="staff"       && <StaffApp ex={ex}/>}
+        {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
         {screen==="event-setup" && <EventSetup ex={ex}/>}
       </NavShell>
       {agentOpen && <AgentPanel ex={ex} onClose={()=>setAgentOpen(false)}/>}
