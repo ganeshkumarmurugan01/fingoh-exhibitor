@@ -841,7 +841,7 @@ function EventHome({onLaunch, onCreateEvent}) {
                   {staffList.map(s=>(
                     <div key={s.id} style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
                       <div style={{width:40,height:40,borderRadius:"50%",background:C.navy,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>
-                        {s.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
+                        {(s.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}
                       </div>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2,flexWrap:"wrap"}}>
@@ -2320,7 +2320,7 @@ Rules:
                 style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9",cursor:"pointer"}}
                 onMouseOver={e=>e.currentTarget.style.opacity=".7"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
                 <div style={{width:24,height:24,borderRadius:"50%",background:C.navy,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,flexShrink:0}}>
-                  {s.name.split(" ").map(n=>n[0]).join("").slice(0,2)}
+                  {(s.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}
                 </div>
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.name}</div>
