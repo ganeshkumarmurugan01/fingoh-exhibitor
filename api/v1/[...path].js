@@ -1,15 +1,11 @@
 export default async function handler(req, res) {
-  // req.url is like /api/v1/staff - forward as-is to Railway
   const target = 'https://web-production-93e78d.up.railway.app' + req.url
 
   const headers = {}
   if (req.headers['authorization']) headers['authorization'] = req.headers['authorization']
   if (req.headers['content-type']) headers['content-type'] = req.headers['content-type']
 
-  let body = undefined
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    body = JSON.stringify(req.body)
-  }
+  const body = ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body)
 
   try {
     const upstream = await fetch(target, { method: req.method, headers, body, redirect: 'follow' })
