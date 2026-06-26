@@ -1,5 +1,7 @@
 export default async function handler(req, res) {
-  const target = 'https://web-production-93e78d.up.railway.app' + req.url
+  // Vercel strips /api prefix for functions in /api folder
+  // req.url = /v1/staff, but Railway expects /api/v1/staff
+  const target = 'https://web-production-93e78d.up.railway.app/api' + req.url
 
   const headers = {}
   if (req.headers['authorization']) headers['authorization'] = req.headers['authorization']
