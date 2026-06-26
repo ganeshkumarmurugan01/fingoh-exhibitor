@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // req.url = /api/v1/staff → forward as-is to Railway
   const target = 'https://web-production-93e78d.up.railway.app' + req.url
 
   const headers = {}
