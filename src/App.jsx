@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./lib/supabase.js";
-import { getEvents, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile } from "./lib/api.js";
+import { getEvents, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
 
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
