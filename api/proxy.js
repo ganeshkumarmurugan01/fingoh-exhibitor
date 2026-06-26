@@ -1,25 +1,18 @@
-export const config = { runtime: 'edge' }
+export default async function handler(req, res) {
+  const target = 'https://web-production-93e78d.up.railway.app' + req.url.replace('/api', '/api')
 
-export default async function handler(req) {
-  const url = new URL(req.url)
-  const target = 'https://web-production-93e78d.up.railway.app' + url.pathname + url.search
+  const headers = { 'content-type': 'application/json' }
+  if (req.headers.authorization) headers['authorization'] = req.headers.authorization
 
-  const proxyHeaders = {
-    'content-type': req.headers.get('content-type') || 'application/json',
+  let body = undefined
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    body = JSON.stringify(req.body)
   }
 
-  const auth = req.headers.get('authorization')
-  if (auth) proxyHeaders['authorization'] = auth
+  const upstream = await fetch(target, { method: req.method, headers, body, redirect: 'follow' })
+  const data = await upstream.text()
 
-  const res = await fetch(target, {
-    method: req.method,
-    headers: proxyHeaders,
-    body: ['GET', 'HEAD'].includes(req.method) ? undefined : req.body,
-    redirect: 'follow',
-  })
-
-  return new Response(res.body, {
-    status: res.status,
-    headers: { 'content-type': res.headers.get('content-type') || 'application/json' },
-  })
+  res.status(upstream.status)
+    .setHeader('content-type', upstream.headers.get('content-type') || 'application/json')
+    .send(data)
 }
