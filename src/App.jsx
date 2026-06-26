@@ -2152,7 +2152,8 @@ function StaffApp({ex}) {
     const result = await verifyStaff({ email: staffEmail.trim(), event_id: ex.id });
     setActiveStaff(result);
     setLoginError(false);
-  } catch {
+  } catch(err) {
+    console.error("[staff]", err?.message, "ex.id:", ex?.id);
     setLoginError(true);
   }
 };
