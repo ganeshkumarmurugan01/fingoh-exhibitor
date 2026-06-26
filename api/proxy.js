@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   try {
     const slug = req.query.slug || []
     const path = '/api/' + (Array.isArray(slug) ? slug.join('/') : slug)
-    const target = 'https://web-production-93e78d.up.railway.app' + path + (path.endsWith('/') ? '' : '/')
+    const target = 'https://web-production-93e78d.up.railway.app' + path 
 
     const auth = req.headers['authorization'] || ''
     const headers = { 'content-type': 'application/json', 'x-fingoh-auth': auth }
