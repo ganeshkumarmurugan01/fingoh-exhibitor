@@ -9,17 +9,25 @@ export default async function handler(req, res) {
     'x-fingoh-auth': auth,
   }
 
-  // req.body is already parsed by Vercel - stringify it once
   let body = undefined
   if (!['GET', 'HEAD'].includes(req.method)) {
-    body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body)
+    // req.body is auto-parsed by Vercel when content-type is application/json
+    body = JSON.stringify(req.body ?? {})
+    console.log('BODY:', body)
   }
 
   try {
     const upstream = await fetch(target, { method: req.method, headers, body, redirect: 'follow' })
     const data = await upstream.text()
+    console.log('STATUS:', upstream.status, 'PATH:', path)
     res.status(upstream.status).setHeader('content-type', 'application/json').send(data)
   } catch (err) {
     res.status(502).json({ detail: 'Proxy error: ' + err.message })
   }
+}
+
+export const config = {
+  api: {
+    bodyParser: true,
+  },
 }
