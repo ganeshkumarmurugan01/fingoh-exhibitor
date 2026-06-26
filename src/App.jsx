@@ -838,7 +838,7 @@ function EventHome({onLaunch, onCreateEvent}) {
               <div>
                 <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:10}}>{staffList.length} members · active across all events</p>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                  {staffList.map(s=>(
+                  {DEFAULT_STAFF.map(s=>(
                     <div key={s.id} style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
                       <div style={{width:40,height:40,borderRadius:"50%",background:C.navy,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0}}>
                         {(s.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}
@@ -1770,7 +1770,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
-  const staffNames = ["All", ...staffList.map(s=>s.name)];
+  const staffNames = ["All", ...DEFAULT_STAFF.map(s=>s.name)];
 
   const filtered = VISITORS
     .map(v=>({...v, liveScore: v.id===1 ? live : v.score}))
@@ -2319,7 +2319,7 @@ Rules:
           </button>
           <div style={{marginTop:20,padding:"12px 14px",background:C.light,borderRadius:8}}>
             <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0,marginBottom:6}}>Registered team</p>
-            {staffList.map(s=>(
+            {DEFAULT_STAFF.map(s=>(
               <div key={s.id} onClick={()=>{setStaffEmail(s.email);setLoginError(false);}}
                 style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9",cursor:"pointer"}}
                 onMouseOver={e=>e.currentTarget.style.opacity=".7"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
