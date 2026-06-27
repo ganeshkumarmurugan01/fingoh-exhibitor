@@ -1062,9 +1062,9 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords) {
   form.append("file", file);
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token || "";
-  const res = await fetch(`https://web-production-93e78d.up.railway.app/api/v1/audience/upload/${ex.id}`, {
+  const res = await fetch(`/api/upload?event_id=${ex.id}`, {
     method: "POST",
-    headers: { "x-fingoh-auth": `Bearer ${token}` },
+    headers: { authorization: `Bearer ${token}` },
     body: form,
   });
   if (res.ok) {
