@@ -1062,7 +1062,7 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords) {
   form.append("file", file);
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token || "";
-  const res = await fetch(`/api/upload?event_id=${ex.id}`, {
+  const res = await fetch(`/api/upload.cjs?event_id=${ex.id}`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}` },
     body: form,

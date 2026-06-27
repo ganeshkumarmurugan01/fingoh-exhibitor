@@ -3,7 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/api/upload", "destination": "/api/upload.cjs" },
     { "source": "/api/:slug*", "destination": "/api/proxy?slug=:slug*" }
-  ]
+  ],
+  "functions": {
+    "api/upload.cjs": { "memory": 512 }
+  }
 }
