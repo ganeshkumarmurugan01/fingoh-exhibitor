@@ -1129,29 +1129,41 @@ function VisitorList({eventId, refreshKey}) {
   );
 }
 
-async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords) {
+async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading) {
   const file = e.target.files[0];
   if (!file || !ex?.id) return;
+  setUploading(true);
   const form = new FormData();
   form.append("file", file);
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token || "";
-  const res = await fetch(`/api/upload?event_id=${ex.id}`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${token}` },
-    body: form,
-  });
-  if (res.ok) {
-    const data = await res.json();
-    setUploadDone(true);
-    setTotalRecords(data.uploaded || 0);
+  try {
+    const res = await fetch(`/api/upload?event_id=${ex.id}`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setUploadDone(true);
+      setTotalRecords(data.uploaded || 0);
+    }
+  } finally {
+    setUploading(false);
   }
 }
 function AudienceUpload({ex, onNext}) {
+  React.useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
+    document.head.appendChild(style);
+    return () => document.head.removeChild(style);
+  }, []);
   const [source, setSource] = useState("upload");
   const [uploadDone, setUploadDone]   = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
   const [regLive, setRegLive]         = useState(false);
+  const [uploading, setUploading]     = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
 
 
@@ -1243,12 +1255,21 @@ function AudienceUpload({ex, onNext}) {
                     <p style={{fontSize:14,fontWeight:600,color:C.muted,marginBottom:4}}>Drop CSV / Excel here or click to browse</p>
                     <p style={{fontSize:11,color:C.muted2,marginBottom:16}}>Max 10,000 rows · .csv or .xlsx · UTF-8 encoding</p>
                     <input type="file" accept=".csv,.xlsx" style={{display:"none"}} id="csv-upload"
-                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords)}
+                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading)}
+                      disabled={uploading}
                     />
-                    <label htmlFor="csv-upload"
-                      style={{display:"inline-block",padding:"9px 22px",background:C.blue,color:C.white,borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                      Choose file
-                    </label>
+                    {uploading ? (
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+                        <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.blue}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                        <p style={{fontSize:12,color:C.blue,fontWeight:600,margin:0}}>Analysing visitors with IEI framework…</p>
+                        <p style={{fontSize:11,color:C.muted,margin:0}}>Claude is enriching profiles · XGBoost scoring 41 signals · This may take 20–30 seconds</p>
+                      </div>
+                    ) : (
+                      <label htmlFor="csv-upload"
+                        style={{display:"inline-block",padding:"9px 22px",background:C.blue,color:C.white,borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                        Choose file
+                      </label>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -1256,17 +1277,9 @@ function AudienceUpload({ex, onNext}) {
                   <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"14px 18px",marginBottom:20,display:"flex",gap:12,alignItems:"center"}}>
                     <span style={{fontSize:24}}>✓</span>
                     <div>
-                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{totalRecords} contacts imported from CSV</p>
-                      <p style={{fontSize:11,color:"#166534",margin:0}}>Enrichment running · IEI analysis queued · Cox PH model will process once profiles are complete</p>
+                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{totalRecords} contacts imported · IEI scoring complete</p>
+                      <p style={{fontSize:11,color:"#166534",margin:0}}>Claude enrichment complete · XGBoost scored 41 signals per visitor</p>
                     </div>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                    {[["Profile completeness","234 full · 411 partial · 202 basic"],["ICP match","312 Perfect · 289 Good · 246 Weak"],["Enrichment","619 enriched via LinkedIn · 228 pending"],["IEI queue","847 queued · Hot leads processed first"]].map(([t,v])=>(
-                      <div key={t} style={{background:C.light,borderRadius:8,padding:"10px 14px"}}>
-                        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0,marginBottom:3}}>{t}</p>
-                        <p style={{fontSize:12,color:C.dark,margin:0,fontWeight:500}}>{v}</p>
-                      </div>
-                    ))}
                   </div>
                   <VisitorList eventId={ex?.id} refreshKey={uploadDone}/>
                 </div>
