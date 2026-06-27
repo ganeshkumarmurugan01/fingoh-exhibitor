@@ -11,7 +11,10 @@ export default async function handler(req, res) {
     console.log('[proxy] body:', JSON.stringify(req.body))
 
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
-    const headers = { 'content-type': 'application/json', 'x-fingoh-auth': auth }
+    const isMultipart = (req.headers['content-type'] || '').includes('multipart')
+    const headers = isMultipart
+      ? { 'x-fingoh-auth': auth, 'content-type': req.headers['content-type'] }
+      : { 'content-type': 'application/json', 'x-fingoh-auth': auth }
     const body = ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body ?? {})
 
     const upstream = await fetch(target, { method: req.method, headers, body, redirect: 'manual' })
