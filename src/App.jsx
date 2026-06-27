@@ -1245,6 +1245,8 @@ function AudienceUpload({ex, onNext}) {
     {id:"upload",       icon:"⬆",  label:"Upload list",             sub:"CSV / Excel import"},
     {id:"database",     icon:"🗄️", label:"Contact database",        sub:"CRM or data warehouse"},
     {id:"registration", icon:"🔗", label:"Live registration feed",  sub:"Registration system API"},
+    {id:"manual",       icon:"✏️", label:"Manual entry",            sub:"Add single contact"},
+    {id:"visitors",     icon:"👥", label:"Visitor list",            sub:"All contacts · IEI scored"},
   ];
 
   return (
@@ -1345,7 +1347,6 @@ function AudienceUpload({ex, onNext}) {
                       <p style={{fontSize:11,color:"#166534",margin:0}}>Claude enrichment complete · XGBoost scored 41 signals per visitor</p>
                     </div>
                   </div>
-                  <VisitorList eventId={ex?.id} refreshKey={uploadDone}/>
                 </div>
               )}
             </div>
@@ -1421,6 +1422,24 @@ function AudienceUpload({ex, onNext}) {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* ── MANUAL ENTRY ── */}
+          {source==="manual" && (
+            <div style={{padding:28}}>
+              <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>Add a contact manually</p>
+              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>Enter a single visitor's details. Fingoh will enrich the profile with Claude and score against your IEI framework automatically.</p>
+              <ManualEntryForm eventId={ex?.id} onSaved={()=>setSource("visitors")}/>
+            </div>
+          )}
+
+          {/* ── VISITOR LIST ── */}
+          {source==="visitors" && (
+            <div style={{padding:28}}>
+              <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>All contacts · unified view</p>
+              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:16}}>All contacts from CSV uploads, database connections, registration feeds and manual entries — deduplicated and IEI scored.</p>
+              <VisitorList eventId={ex?.id} refreshKey={source}/>
             </div>
           )}
 
