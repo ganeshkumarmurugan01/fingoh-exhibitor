@@ -10,7 +10,7 @@ export default async function handler(req, res) {
     console.log('[proxy] target:', target)
     console.log('[proxy] body:', JSON.stringify(req.body))
 
-    const auth = req.headers['authorization'] || ''
+    const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
     const headers = { 'content-type': 'application/json', 'x-fingoh-auth': auth }
     const body = ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body ?? {})
 
