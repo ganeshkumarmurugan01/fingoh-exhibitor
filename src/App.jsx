@@ -1055,6 +1055,80 @@ function LoginScreen({onLogin}) {
 // ═══════════════════════════════════════════════════════════════════
 // SCREEN — Audience Upload & Analysis (Pre-event)
 // ═══════════════════════════════════════════════════════════════════
+
+function VisitorList({eventId, refreshKey}) {
+  const [contacts, setContacts] = React.useState([]);
+  const [loading, setLoading]   = React.useState(true);
+  const [tier, setTier]         = React.useState("All");
+
+  const TIER_COLORS = {Hot:"#ef4444",Warm:"#f97316",Cool:"#3b82f6",Cold:"#9ca3af"};
+
+  React.useEffect(() => {
+    if (!eventId) return;
+    setLoading(true);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token || "";
+      fetch(`/api/v1/audience/contacts/${eventId}`, {
+        headers: { "x-fingoh-auth": `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+    });
+  }, [eventId, refreshKey]);
+
+  const filtered = tier === "All" ? contacts : contacts.filter(c => c.iei_tier === tier);
+  const counts = ["Hot","Warm","Cool","Cold"].reduce((a,t) => {
+    a[t] = contacts.filter(c => c.iei_tier === t).length; return a;
+  }, {});
+
+  if (loading) return <p style={{fontSize:12,color:C.muted,padding:16}}>Loading contacts…</p>;
+  if (contacts.length === 0) return null;
+
+  return (
+    <div style={{marginTop:20}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0}}>{contacts.length} contacts scored</p>
+        <div style={{display:"flex",gap:5}}>
+          {["All","Hot","Warm","Cool","Cold"].map(t => (
+            <button key={t} onClick={() => setTier(t)}
+              style={{padding:"3px 10px",borderRadius:99,border:`1.5px solid ${TIER_COLORS[t]||C.navy}`,background:tier===t?(TIER_COLORS[t]||C.navy):"transparent",color:tier===t?C.white:(TIER_COLORS[t]||C.navy),fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+              {t}{t!=="All"?` (${counts[t]||0})`:""}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #E2E8F0"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:"#F8FAFC"}}>
+              {["Name","Company","Designation","City","IEI Score","Tier"].map(h => (
+                <th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((c,i) => (
+              <tr key={c.id} style={{background:i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
+                <td style={{padding:"8px 12px",fontWeight:600,color:C.dark}}>{c.name||"—"}</td>
+                <td style={{padding:"8px 12px",color:C.muted}}>{c.company||"—"}</td>
+                <td style={{padding:"8px 12px",color:C.muted}}>{c.designation||"—"}</td>
+                <td style={{padding:"8px 12px",color:C.muted}}>{c.city||"—"}</td>
+                <td style={{padding:"8px 12px"}}>
+                  <span style={{fontSize:15,fontWeight:800,color:c.iei_score>=75?"#16a34a":c.iei_score>=50?"#2563eb":c.iei_score>=25?"#d97706":"#dc2626"}}>{c.iei_score?.toFixed(1)||"—"}</span>
+                </td>
+                <td style={{padding:"8px 12px"}}>
+                  {c.iei_tier && <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:`${TIER_COLORS[c.iei_tier]}18`,color:TIER_COLORS[c.iei_tier],fontWeight:700,border:`1px solid ${TIER_COLORS[c.iei_tier]}30`}}>{c.iei_tier}</span>}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords) {
   const file = e.target.files[0];
   if (!file || !ex?.id) return;
@@ -1194,6 +1268,7 @@ function AudienceUpload({ex, onNext}) {
                       </div>
                     ))}
                   </div>
+                  <VisitorList eventId={ex?.id} refreshKey={uploadDone}/>
                 </div>
               )}
             </div>
