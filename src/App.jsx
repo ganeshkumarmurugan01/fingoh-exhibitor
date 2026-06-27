@@ -1064,7 +1064,7 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords) {
   const token = session?.access_token || "";
   const res = await fetch(`/api/v1/audience/upload/${ex.id}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { 'x-fingoh-auth': token },
     body: form,
   });
   if (res.ok) {
