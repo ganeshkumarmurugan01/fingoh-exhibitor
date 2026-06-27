@@ -1,12 +1,18 @@
-const getRawBody = require('raw-body')
+export const config = { api: { bodyParser: false } }
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ detail: 'Method not allowed' })
   }
 
   try {
-    const buffer = await getRawBody(req)
+    const chunks = []
+    await new Promise((resolve, reject) => {
+      req.on('data', chunk => chunks.push(chunk))
+      req.on('end', resolve)
+      req.on('error', reject)
+    })
+    const buffer = Buffer.concat(chunks)
     const contentType = req.headers['content-type'] || ''
     const eventId = req.query.event_id
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
@@ -26,5 +32,3 @@ module.exports = async function handler(req, res) {
     res.status(500).json({ detail: err.message })
   }
 }
-
-module.exports.config = { api: { bodyParser: false } }
