@@ -1056,6 +1056,72 @@ function LoginScreen({onLogin}) {
 // SCREEN — Audience Upload & Analysis (Pre-event)
 // ═══════════════════════════════════════════════════════════════════
 
+function ManualEntryForm({eventId, onSaved}) {
+  const [form, setForm] = React.useState({
+    first_name:"", last_name:"", email:"", job_title:"", company:"",
+    country:"", phone:"", city:"", categories_interest:"", primary_reason:"",
+  });
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError]   = React.useState("");
+
+  const iS = {width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none",background:"#fff"};
+  const lS = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.06};
+
+  async function handleSave() {
+    if (!form.email || !form.company || !form.job_title) {
+      setError("Email, company and job title are required."); return;
+    }
+    setSaving(true); setError("");
+    try {
+      const csv = `first_name,last_name,email,job_title,company,country,phone,city,categories_interest,primary_reason\n${Object.values(form).map(v=>`"${(v||"").replace(/"/g,'""')}"`).join(",")}`;
+      const fd = new FormData();
+      fd.append("file", new Blob([csv], {type:"text/csv"}), "manual.csv");
+      const { data:{ session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/upload?event_id=${eventId}`, {
+        method:"POST", headers:{authorization:`Bearer ${token}`}, body:fd,
+      });
+      if (res.ok) { onSaved && onSaved(); }
+      else { const d = await res.json(); setError(d.detail || "Save failed"); }
+    } catch(e) { setError(e.message); }
+    finally { setSaving(false); }
+  }
+
+  const REASONS = ["Sourcing new suppliers","Evaluating technology","Market research","Networking","Attending sessions","Meeting existing suppliers","Other"];
+
+  return (
+    <div>
+      {error && <div style={{background:"#FFF0F0",border:"1px solid #FFCCCC",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#C00",marginBottom:14}}>{error}</div>}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        {[["first_name","First name","e.g. Wei"],["last_name","Last name","e.g. Zhang"]].map(([k,l,p])=>(
+          <div key={k}><label style={lS}>{l}</label><input style={iS} placeholder={p} value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}/></div>
+        ))}
+        {[["email","Email *","e.g. wei@foxconn.com"],["job_title","Job title *","e.g. VP Procurement"],["company","Company *","e.g. Foxconn Technology"],["country","Country","e.g. Taiwan"],["city","City","e.g. Taipei"],["phone","Phone","e.g. +886 2 1234 5678"]].map(([k,l,p])=>(
+          <div key={k}><label style={lS}>{l}</label><input style={iS} placeholder={p} value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}/></div>
+        ))}
+        <div style={{gridColumn:"span 2"}}>
+          <label style={lS}>Primary reason for attending</label>
+          <select style={{...iS,appearance:"none"}} value={form.primary_reason} onChange={e=>setForm(f=>({...f,primary_reason:e.target.value}))}>
+            <option value="">Select reason</option>
+            {REASONS.map(r=><option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <div style={{gridColumn:"span 2"}}>
+          <label style={lS}>Categories of interest</label>
+          <input style={iS} placeholder="e.g. Electronic Components, Connectors, PCB" value={form.categories_interest} onChange={e=>setForm(f=>({...f,categories_interest:e.target.value}))}/>
+        </div>
+      </div>
+      <div style={{background:"#F0F7FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 14px",fontSize:11,color:"#1E40AF",marginBottom:16}}>
+        ✦ Claude will enrich this contact and score against your IEI framework automatically
+      </div>
+      <button onClick={handleSave} disabled={saving}
+        style={{padding:"10px 24px",background:saving?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8}}>
+        {saving ? <><div style={{width:14,height:14,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Enriching + scoring…</> : "Save contact →"}
+      </button>
+    </div>
+  );
+}
+
 function VisitorList({eventId, refreshKey}) {
   const [contacts, setContacts] = React.useState([]);
   const [loading, setLoading]   = React.useState(true);
