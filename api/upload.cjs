@@ -1,8 +1,6 @@
-import getRawBody from 'raw-body'
+const getRawBody = require('raw-body')
 
-export const config = { api: { bodyParser: false } }
-
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ detail: 'Method not allowed' })
   }
@@ -28,3 +26,5 @@ export default async function handler(req, res) {
     res.status(500).json({ detail: err.message })
   }
 }
+
+module.exports.config = { api: { bodyParser: false } }
