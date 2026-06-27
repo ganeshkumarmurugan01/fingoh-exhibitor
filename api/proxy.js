@@ -5,27 +5,15 @@ export default async function handler(req, res) {
     const target = 'https://web-production-93e78d.up.railway.app' + path
 
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
-    const isMultipart = (req.headers['content-type'] || '').includes('multipart')
+    const headers = { 'content-type': 'application/json', 'x-fingoh-auth': auth }
+    const body = ['GET', 'HEAD'].includes(req.method) ? undefined : JSON.stringify(req.body ?? {})
 
-    const headers = { 'x-fingoh-auth': auth }
-    if (!isMultipart) headers['content-type'] = 'application/json'
-    if (isMultipart) headers['content-type'] = req.headers['content-type']
-
-    let body = undefined
-    if (!['GET', 'HEAD'].includes(req.method)) {
-      if (isMultipart) {
-        body = req
-      } else {
-        body = JSON.stringify(req.body ?? {})
-      }
-    }
-
-    const upstream = await fetch(target, { method: req.method, headers, body, redirect: 'manual', duplex: 'half' })
+    const upstream = await fetch(target, { method: req.method, headers, body, redirect: 'manual' })
 
     if (upstream.status === 307 || upstream.status === 308) {
       const location = upstream.headers.get('location')
       const httpsLocation = location.replace('http://', 'https://')
-      const upstream2 = await fetch(httpsLocation, { method: req.method, headers, body, duplex: 'half' })
+      const upstream2 = await fetch(httpsLocation, { method: req.method, headers, body })
       const data2 = await upstream2.text()
       return res.status(upstream2.status).setHeader('content-type', 'application/json').send(data2)
     }
@@ -38,4 +26,4 @@ export default async function handler(req, res) {
   }
 }
 
-export const config = { api: { bodyParser: false } }
+export const config = { api: { bodyParser: true } }
