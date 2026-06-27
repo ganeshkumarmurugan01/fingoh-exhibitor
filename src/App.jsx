@@ -1134,33 +1134,65 @@ function VisitorList({eventId, refreshKey}) {
 function ContactStats({contacts}) {
   if (!contacts || contacts.length === 0) return null;
 
-  // Profile completeness
   const full    = contacts.filter(c => c.name && c.email && c.company && c.designation && c.country && (c.phone || c.city)).length;
   const partial = contacts.filter(c => c.name && c.email && c.company && c.designation && !(c.country && (c.phone || c.city))).length;
   const basic   = contacts.length - full - partial;
+  const hot     = contacts.filter(c => c.iei_tier === "Hot").length;
+  const warm    = contacts.filter(c => c.iei_tier === "Warm").length;
+  const cool    = contacts.filter(c => c.iei_tier === "Cool").length;
+  const cold    = contacts.filter(c => c.iei_tier === "Cold").length;
+  const avg     = (contacts.reduce((s,c) => s + (c.iei_score||0), 0) / contacts.length).toFixed(1);
 
-  // IEI tier counts
-  const hot  = contacts.filter(c => c.iei_tier === "Hot").length;
-  const warm = contacts.filter(c => c.iei_tier === "Warm").length;
-  const cool = contacts.filter(c => c.iei_tier === "Cool").length;
-  const cold = contacts.filter(c => c.iei_tier === "Cold").length;
+  const TOOLTIPS = {
+    "Full":    "Has name, email, company, job title, country, and at least one of phone or city",
+    "Partial": "Has name, email, company, and job title — missing location or contact details",
+    "Basic":   "Has name and email only — minimal profile data",
+    "Hot":     "IEI score ≥ 75 — active buyer, high purchase intent",
+    "Warm":    "IEI score 50–74 — evaluating, moderate intent",
+    "Cool":    "IEI score 25–49 — researching, low intent",
+    "Cold":    "IEI score < 25 — passive, very low intent",
+  };
 
-  // Avg IEI score
-  const avg = contacts.reduce((s,c) => s + (c.iei_score||0), 0) / contacts.length;
+  function StatItem({label, value, color, tip}) {
+    const [show, setShow] = React.useState(false);
+    return (
+      <div style={{textAlign:"center",position:"relative"}}>
+        <div style={{fontSize:22,fontWeight:800,color:color||C.dark,letterSpacing:"-0.02em"}}>{value.toLocaleString()}</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3,marginTop:2}}>
+          <span style={{fontSize:10,fontWeight:600,color:C.muted}}>{label}</span>
+          {tip && <span
+            onMouseEnter={()=>setShow(true)}
+            onMouseLeave={()=>setShow(false)}
+            style={{width:13,height:13,borderRadius:"50%",background:"#E2E8F0",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:C.muted,cursor:"help"}}>?</span>}
+        </div>
+        {show && tip && (
+          <div style={{position:"absolute",bottom:"110%",left:"50%",transform:"translateX(-50%)",background:C.dark,color:C.white,fontSize:10,padding:"6px 10px",borderRadius:6,whiteSpace:"nowrap",zIndex:100,lineHeight:1.5,maxWidth:200,whiteSpace:"normal",textAlign:"left"}}>
+            {tip}
+            <div style={{position:"absolute",top:"100%",left:"50%",transform:"translateX(-50%)",width:0,height:0,borderLeft:"5px solid transparent",borderRight:"5px solid transparent",borderTop:`5px solid ${C.dark}`}}/>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-      <div style={{background:C.light,borderRadius:8,padding:"10px 14px"}}>
-        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0,marginBottom:3}}>Profile completeness</p>
-        <p style={{fontSize:12,color:C.dark,margin:0,fontWeight:500}}>{full} full · {partial} partial · {basic} basic</p>
-        <p style={{fontSize:10,color:C.muted,margin:"3px 0 0"}}>Full = name+email+company+role+country+contact</p>
+      <div style={{background:C.light,borderRadius:10,padding:"14px 18px"}}>
+        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 12px"}}>Profile completeness</p>
+        <div style={{display:"flex",justifyContent:"space-around"}}>
+          <StatItem label="Full"    value={full}    color={C.green}  tip={TOOLTIPS["Full"]}/>
+          <StatItem label="Partial" value={partial} color={C.blue}   tip={TOOLTIPS["Partial"]}/>
+          <StatItem label="Basic"   value={basic}   color={C.yellow} tip={TOOLTIPS["Basic"]}/>
+        </div>
       </div>
-      <div style={{background:C.light,borderRadius:8,padding:"10px 14px"}}>
-        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0,marginBottom:3}}>IEI tier distribution</p>
-        <p style={{fontSize:12,color:C.dark,margin:0,fontWeight:500}}>
-          <span style={{color:"#ef4444"}}>{hot} Hot</span> · <span style={{color:"#f97316"}}>{warm} Warm</span> · <span style={{color:"#3b82f6"}}>{cool} Cool</span> · <span style={{color:"#9ca3af"}}>{cold} Cold</span>
-        </p>
-        <p style={{fontSize:10,color:C.muted,margin:"3px 0 0"}}>Avg IEI score: {avg.toFixed(1)}</p>
+      <div style={{background:C.light,borderRadius:10,padding:"14px 18px"}}>
+        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 12px"}}>IEI tier distribution · avg {avg}</p>
+        <div style={{display:"flex",justifyContent:"space-around"}}>
+          <StatItem label="Hot"  value={hot}  color="#ef4444" tip={TOOLTIPS["Hot"]}/>
+          <StatItem label="Warm" value={warm} color="#f97316" tip={TOOLTIPS["Warm"]}/>
+          <StatItem label="Cool" value={cool} color="#3b82f6" tip={TOOLTIPS["Cool"]}/>
+          <StatItem label="Cold" value={cold} color="#9ca3af" tip={TOOLTIPS["Cold"]}/>
+        </div>
       </div>
     </div>
   );
@@ -1231,9 +1263,6 @@ function AudienceUpload({ex, onNext}) {
 
       {/* Stats strip if data loaded */}
       {hasData && (()=>{
-        const full    = Math.round(totalRecords * 0.276);
-        const partial = Math.round(totalRecords * 0.485);
-        const basic   = totalRecords - full - partial;
         return (
           <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:12,padding:"14px 20px",marginBottom:20,display:"flex",gap:32,alignItems:"center"}}>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1244,12 +1273,10 @@ function AudienceUpload({ex, onNext}) {
               </div>
             </div>
             <div style={{display:"flex",gap:16,marginLeft:"auto"}}>
-              {[[totalRecords.toLocaleString(),"Total",C.navy],[full.toLocaleString(),"Full profile",C.green],[partial.toLocaleString(),"Partial",C.blue],[basic.toLocaleString(),"Basic",C.yellow]].map(([v,l,c])=>(
-                <div key={l} style={{textAlign:"center"}}>
-                  <div style={{fontSize:18,fontWeight:800,color:c}}>{v}</div>
-                  <div style={{fontSize:10,color:"#14532D"}}>{l}</div>
-                </div>
-              ))}
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:18,fontWeight:800,color:C.navy}}>{totalRecords.toLocaleString()}</div>
+                <div style={{fontSize:10,color:"#14532D"}}>Total</div>
+              </div>
             </div>
           </div>
         );
