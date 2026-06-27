@@ -1087,6 +1087,7 @@ function VisitorList({eventId, refreshKey}) {
 
   return (
     <div style={{marginTop:20}}>
+      <ContactStats contacts={contacts}/>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0}}>{contacts.length} contacts scored</p>
         <div style={{display:"flex",gap:5}}>
@@ -1124,6 +1125,42 @@ function VisitorList({eventId, refreshKey}) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+
+function ContactStats({contacts}) {
+  if (!contacts || contacts.length === 0) return null;
+
+  // Profile completeness
+  const full    = contacts.filter(c => c.name && c.email && c.company && c.designation && c.country && (c.phone || c.city)).length;
+  const partial = contacts.filter(c => c.name && c.email && c.company && c.designation && !(c.country && (c.phone || c.city))).length;
+  const basic   = contacts.length - full - partial;
+
+  // IEI tier counts
+  const hot  = contacts.filter(c => c.iei_tier === "Hot").length;
+  const warm = contacts.filter(c => c.iei_tier === "Warm").length;
+  const cool = contacts.filter(c => c.iei_tier === "Cool").length;
+  const cold = contacts.filter(c => c.iei_tier === "Cold").length;
+
+  // Avg IEI score
+  const avg = contacts.reduce((s,c) => s + (c.iei_score||0), 0) / contacts.length;
+
+  return (
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+      <div style={{background:C.light,borderRadius:8,padding:"10px 14px"}}>
+        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0,marginBottom:3}}>Profile completeness</p>
+        <p style={{fontSize:12,color:C.dark,margin:0,fontWeight:500}}>{full} full · {partial} partial · {basic} basic</p>
+        <p style={{fontSize:10,color:C.muted,margin:"3px 0 0"}}>Full = name+email+company+role+country+contact</p>
+      </div>
+      <div style={{background:C.light,borderRadius:8,padding:"10px 14px"}}>
+        <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0,marginBottom:3}}>IEI tier distribution</p>
+        <p style={{fontSize:12,color:C.dark,margin:0,fontWeight:500}}>
+          <span style={{color:"#ef4444"}}>{hot} Hot</span> · <span style={{color:"#f97316"}}>{warm} Warm</span> · <span style={{color:"#3b82f6"}}>{cool} Cool</span> · <span style={{color:"#9ca3af"}}>{cold} Cold</span>
+        </p>
+        <p style={{fontSize:10,color:C.muted,margin:"3px 0 0"}}>Avg IEI score: {avg.toFixed(1)}</p>
       </div>
     </div>
   );
