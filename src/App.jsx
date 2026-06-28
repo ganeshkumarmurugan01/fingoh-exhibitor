@@ -1555,6 +1555,8 @@ function IEIAnalysis({ex}) {
   const [extras,setExtras]   = useState([]);
   const [dbContacts,setDbContacts] = useState([]);
   const [dbLoading,setDbLoading]   = useState(true);
+  const [researchData,setResearchData] = useState({});
+  const [researchLoading,setResearchLoading] = useState(false);
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
 
   // Load real contacts from audience_contacts
@@ -1571,6 +1573,7 @@ function IEIAnalysis({ex}) {
           // Map audience_contacts shape → VISITORS shape
           const mapped = data.map((c,i)=>({
             id:       1000+i,
+            contactId: c.id,
             name:     c.name || `${c.email}`,
             company:  c.company || "—",
             title:    c.designation || "—",
@@ -1698,11 +1701,32 @@ function IEIAnalysis({ex}) {
     }),650);
   };
 
+  // Fetch full IEI research for a contact
+  const fetchResearch = async (contactId) => {
+    if (!contactId || contactId < 1000) return; // skip demo visitors
+    if (researchData[contactId]) return; // already fetched
+    setResearchLoading(true);
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/v1/audience/research/${contactId}`, {
+        headers: {"x-fingoh-auth": `Bearer ${token}`}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setResearchData(prev => ({...prev, [contactId]: data}));
+      }
+    } catch(e) { console.error("research fetch failed", e); }
+    finally { setResearchLoading(false); }
+  };
+
   // Use real DB contacts if available, fall back to demo VISITORS
   const baseList = dbContacts.length > 0 ? dbContacts : VISITORS;
   const all = [...baseList,...extras];
   const visible = filter==="All"?all:all.filter(v=>v.ieiTier===filter);
   const p = selId!==null ? all.find(x=>x.id===selId) : null;
+  const rd = p?.contactId && researchData[p.contactId] ? researchData[p.contactId] : null;
+  const intel = rd || p?.iei || null;
 
   const renderIntelPanel = ()=>{
     if(!p) return (
@@ -1710,6 +1734,13 @@ function IEIAnalysis({ex}) {
         <div style={{fontSize:40}}>◎</div>
         <p style={{fontSize:14,fontWeight:500,color:C.muted}}>Select a visitor to view IEI intelligence</p>
         <p style={{fontSize:12,color:C.muted2}}>Or click "+ Add visitor" to profile anyone</p>
+      </div>
+    );
+    if(researchLoading && !rd) return (
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:400}}>
+        <div style={{width:44,height:44,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+        <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research…</p>
+        <p style={{fontSize:11,color:C.muted,margin:0}}>Claude is researching {p.name} · {p.company} with web search</p>
       </div>
     );
     return (
@@ -1823,12 +1854,12 @@ function IEIAnalysis({ex}) {
           })()}
 
           {/* LAYERS */}
-          {tab==="layers" && (p.iei ? <>
+          {tab==="layers" && (intel ? <>
             <div style={{background:"linear-gradient(135deg,#111827,#1E2A3A)",borderRadius:10,padding:"14px 18px",marginBottom:14}}>
               <p style={{fontSize:10,letterSpacing:.1,textTransform:"uppercase",color:"rgba(255,255,255,0.3)",marginBottom:7}}>Synthesised intent</p>
-              <p style={{fontSize:13,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{p.iei.synth}</p>
+              <p style={{fontSize:13,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{rd?.synthesised_intent || intel?.synth || ""}</p>
             </div>
-            {p.iei.layers.map((l,i)=>(
+            {(rd?.intelligence_layers ? rd.intelligence_layers.map(l=>({color:l.color==="purple"?C.purple:l.color==="teal"?C.tealIEI:l.color==="amber"?C.amber:C.coral,lt:l.color==="purple"?C.ltpur:l.color==="teal"?C.tealLt:l.color==="amber"?C.amberLt:C.coralLt,title:l.layer,signals:l.signals,inference:l.inference})) : intel?.layers || []).map((l,i)=>(
               <div key={i} style={{background:l.lt,borderLeft:`3px solid ${l.color}`,borderRadius:"0 9px 9px 0",padding:"11px 14px",marginBottom:9}}>
                 <p style={{fontSize:10,fontWeight:700,color:l.color,textTransform:"uppercase",letterSpacing:.07,marginBottom:6}}>{l.title}</p>
                 <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:7}}>
@@ -1852,7 +1883,7 @@ function IEIAnalysis({ex}) {
               <p style={{fontSize:12,fontWeight:600,color:"#1E3A8A",marginBottom:3}}>Visitor match recommendations</p>
               <p style={{fontSize:11,color:"#1E3A8A",margin:0,lineHeight:1.6}}>Other registered visitors with similar intent, category interests, or sourcing timelines. Use these to identify buying groups, consortium opportunities, and peer reference introductions.</p>
             </div>
-            {(p.iei.recommendations||[]).map((r,i)=>(
+            {(rd?.exhibitor_matches ? rd.exhibitor_matches.map(m=>({name:m.name,company:m.type,match:m.match_score,reason:m.reason})) : intel?.recommendations || []).map((r,i)=>(
               <div key={i} style={{background:C.white,border:`${i===0?"1.5px":"1px"} solid ${i===0?C.tealIEI:"#E2E8F0"}`,borderRadius:11,padding:"12px 16px",marginBottom:9,display:"flex",alignItems:"flex-start",gap:12}}>
                 <div style={{width:36,height:36,borderRadius:9,background:i===0?C.tealIEI:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:i===0?C.white:C.muted,flexShrink:0}}>{i+1}</div>
                 <div style={{flex:1}}>
@@ -1873,7 +1904,7 @@ function IEIAnalysis({ex}) {
 
           {/* BRIEF */}
           {tab==="brief" && (p.iei ? <>
-            {[["Company context",p.iei.brief.context],["Pain points",p.iei.brief.painPoints],["What they want",p.iei.brief.whatTheyWant]].map(([lbl,body])=>(
+            {[["Company context",rd?.exhibitor_brief?.context||intel?.brief?.context],["Pain points",rd?.exhibitor_brief?.pain_points||intel?.brief?.painPoints],["What they want",rd?.exhibitor_brief?.what_they_want||intel?.brief?.whatTheyWant]].map(([lbl,body])=>(
               <div key={lbl} style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 16px",marginBottom:9}}>
                 <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:6}}>{lbl}</p>
                 <p style={{fontSize:12,lineHeight:1.65,color:C.dark,margin:0}}>{body}</p>
@@ -1881,18 +1912,18 @@ function IEIAnalysis({ex}) {
             ))}
             <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:10,padding:"12px 16px",marginBottom:9}}>
               <p style={{fontSize:10,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:.1,marginBottom:6}}>⚠ Don't do this</p>
-              <p style={{fontSize:12,lineHeight:1.6,color:"#7A4500",margin:0}}>{p.iei.brief.dontDo}</p>
+              <p style={{fontSize:12,lineHeight:1.6,color:"#7A4500",margin:0}}>{rd?.exhibitor_brief?.dont_do||intel?.brief?.dontDo}</p>
             </div>
             <div style={{background:"linear-gradient(135deg,#F0EEFE,#EAF4FE)",borderRadius:10,padding:"14px 18px",borderLeft:`3px solid ${C.purple}`}}>
               <p style={{fontSize:10,fontWeight:700,color:C.purple,textTransform:"uppercase",letterSpacing:.1,marginBottom:8}}>Suggested opening line</p>
-              <p style={{fontFamily:"Georgia,serif",fontSize:14,fontStyle:"italic",lineHeight:1.65,color:"#26215C",margin:0}}>{p.iei.brief.openingLine}</p>
+              <p style={{fontFamily:"Georgia,serif",fontSize:14,fontStyle:"italic",lineHeight:1.65,color:"#26215C",margin:0}}>{rd?.exhibitor_brief?.opening_line||intel?.brief?.openingLine}</p>
             </div>
           </> : <p style={{fontSize:13,color:C.muted,padding:16}}>Run IEI analysis to see exhibitor brief.</p>)}
 
           {/* DIMS */}
           {tab==="dims" && (p.iei ? (
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {p.iei.dims.map((d,i)=>(
+              {(rd?.intent_dimensions ? rd.intent_dimensions.map(d=>({type:d.type,label:d.label,tags:d.tags,desc:d.description})) : intel?.dims || []).map((d,i)=>(
                 <div key={i} style={{background:C.light,border:"1px solid #E2E8F0",borderRadius:10,padding:12}}>
                   <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.08,marginBottom:5}}>{d.type}</p>
                   <p style={{fontSize:13,fontWeight:600,color:C.navy,marginBottom:5}}>{d.label}</p>
@@ -1970,7 +2001,7 @@ function IEIAnalysis({ex}) {
           </div>
           <div style={{overflowY:"auto",maxHeight:560}}>
             {visible.map(v=>(
-              <div key={v.id} onClick={()=>{setSelId(v.id);setTab("layers");setShowAdd(false);}}
+              <div key={v.id} onClick={()=>{setSelId(v.id);setTab("layers");setShowAdd(false);fetchResearch(v.contactId||v.id);}}
                 style={{padding:"10px 13px",borderBottom:"1px solid #F8FAFC",cursor:"pointer",background:selId===v.id?"#F0F4FF":C.white,borderLeft:`3px solid ${selId===v.id?C.navy:v.id>=100?"#A855F7":"transparent"}`,transition:"all .12s"}}
                 onMouseOver={e=>{if(selId!==v.id)e.currentTarget.style.background="#FAFAFA";}}
                 onMouseOut={e=>{if(selId!==v.id)e.currentTarget.style.background=C.white;}}>
@@ -2396,9 +2427,9 @@ function ParticipantDetail({p, onBack}) {
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <div style={{background:"linear-gradient(135deg,#111827,#1E2A3A)",borderRadius:10,padding:"13px 16px"}}>
               <p style={{fontSize:10,letterSpacing:.1,textTransform:"uppercase",color:"rgba(255,255,255,0.3)",marginBottom:6}}>Synthesised intent</p>
-              <p style={{fontSize:12,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{p.iei.synth}</p>
+              <p style={{fontSize:12,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{rd?.synthesised_intent || intel?.synth || ""}</p>
             </div>
-            {[["Pain points",p.iei.brief.painPoints],["What they want",p.iei.brief.whatTheyWant]].map(([l,b])=>(
+            {[["Pain points",rd?.exhibitor_brief?.pain_points||intel?.brief?.painPoints],["What they want",rd?.exhibitor_brief?.what_they_want||intel?.brief?.whatTheyWant]].map(([l,b])=>(
               <div key={l} style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
                 <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>{l}</p>
                 <p style={{fontSize:12,lineHeight:1.65,color:C.dark,margin:0}}>{b}</p>
@@ -2408,16 +2439,16 @@ function ParticipantDetail({p, onBack}) {
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:9,padding:"11px 14px"}}>
               <p style={{fontSize:10,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>⚠ Don't do this</p>
-              <p style={{fontSize:12,lineHeight:1.6,color:"#7A4500",margin:0}}>{p.iei.brief.dontDo}</p>
+              <p style={{fontSize:12,lineHeight:1.6,color:"#7A4500",margin:0}}>{rd?.exhibitor_brief?.dont_do||intel?.brief?.dontDo}</p>
             </div>
             <div style={{background:"linear-gradient(135deg,#F0EEFE,#EAF4FE)",borderRadius:9,padding:"13px 16px",borderLeft:`3px solid ${C.purple}`}}>
               <p style={{fontSize:10,fontWeight:700,color:C.purple,textTransform:"uppercase",letterSpacing:.1,marginBottom:8}}>Opening line</p>
-              <p style={{fontFamily:"Georgia,serif",fontSize:14,fontStyle:"italic",lineHeight:1.65,color:"#26215C",margin:0}}>{p.iei.brief.openingLine}</p>
+              <p style={{fontFamily:"Georgia,serif",fontSize:14,fontStyle:"italic",lineHeight:1.65,color:"#26215C",margin:0}}>{rd?.exhibitor_brief?.opening_line||intel?.brief?.openingLine}</p>
             </div>
-            {(p.iei.recommendations||[]).length>0&&(
+            {((rd?.exhibitor_matches||intel?.recommendations||[]).length>0)&&(
               <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
                 <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:8}}>Top visitor match</p>
-                {p.iei.recommendations.slice(0,1).map(r=>(
+                {(rd?.exhibitor_matches ? rd.exhibitor_matches.map(m=>({name:m.name,company:m.type,match:m.match_score,reason:m.reason})) : intel?.recommendations||[]).slice(0,1).map(r=>(
                   <div key={r.name}>
                     <p style={{fontSize:13,fontWeight:600,color:C.dark,margin:0,marginBottom:2}}>{r.name}</p>
                     <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:4}}>{r.company} · {r.match}% match</p>
