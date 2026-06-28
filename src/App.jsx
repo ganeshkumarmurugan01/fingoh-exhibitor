@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 import { getEvents, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
 
