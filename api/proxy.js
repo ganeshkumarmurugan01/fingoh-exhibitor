@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   try {
     const { slug, ...restQuery } = req.query
-    const path = '/api/' + (Array.isArray(slug) ? slug.join('/') : slug || '')
+    const path = '/api/v1/' + (Array.isArray(slug) ? slug.join('/') : slug || '')
     
     // Forward remaining query params
     const qString = new URLSearchParams(restQuery).toString()
