@@ -1701,16 +1701,36 @@ function IEIAnalysis({ex}) {
     }),650);
   };
 
-  // Fetch full IEI research for a contact
-  const fetchResearch = async (contactId) => {
-    if (!contactId || contactId < 1000) return; // skip demo visitors
+  // Fetch full IEI research for a contact via Cloudflare Worker
+  const WORKER_URL = "https://fingoh-scorer-worker.fingoh.workers.dev";
+
+  const fetchResearch = async (contactId, visitor) => {
+    if (!contactId) return;
     if (researchData[contactId]) return; // already fetched
     setResearchLoading(true);
     try {
-      const {data:{session}} = await supabase.auth.getSession();
-      const token = session?.access_token || "";
-      const res = await fetch(`/api/v1/audience/research/${contactId}`, {
-        headers: {"x-fingoh-auth": `Bearer ${token}`}
+      const res = await fetch(`${WORKER_URL}/api/research`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          visitor: {
+            name:     visitor.name || "",
+            title:    visitor.title || "",
+            company:  visitor.company || "",
+            industry: visitor.cats?.join(", ") || "",
+            goals:    visitor.reason || "",
+            location: visitor.country || "",
+          },
+          exhibition: {
+            name:        ex?.name || "",
+            industry:    ex?.cats?.join(", ") || "",
+            description: ex?.product || "",
+            date:        ex?.dateFrom || "",
+            jobFunctions: [],
+            companyTypes: [],
+            customCriteria: `Exhibitor: ${ex?.company || ""}. Products: ${ex?.product || ""}`,
+          }
+        })
       });
       if (res.ok) {
         const data = await res.json();
@@ -2001,7 +2021,7 @@ function IEIAnalysis({ex}) {
           </div>
           <div style={{overflowY:"auto",maxHeight:560}}>
             {visible.map(v=>(
-              <div key={v.id} onClick={()=>{setSelId(v.id);setTab("layers");setShowAdd(false);fetchResearch(v.contactId||v.id);}}
+              <div key={v.id} onClick={()=>{setSelId(v.id);setTab("layers");setShowAdd(false);fetchResearch(v.contactId||v.id, v);}}
                 style={{padding:"10px 13px",borderBottom:"1px solid #F8FAFC",cursor:"pointer",background:selId===v.id?"#F0F4FF":C.white,borderLeft:`3px solid ${selId===v.id?C.navy:v.id>=100?"#A855F7":"transparent"}`,transition:"all .12s"}}
                 onMouseOver={e=>{if(selId!==v.id)e.currentTarget.style.background="#FAFAFA";}}
                 onMouseOut={e=>{if(selId!==v.id)e.currentTarget.style.background=C.white;}}>
