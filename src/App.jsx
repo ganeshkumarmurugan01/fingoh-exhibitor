@@ -2064,7 +2064,18 @@ function IEIAnalysis({ex}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <h1 style={{fontSize:20,fontWeight:700,color:C.navy,letterSpacing:"-0.02em",marginBottom:3}}>IEI pre-event intelligence</h1>
-          <p style={{fontSize:13,color:C.muted}}>{ex.company} · {ex.name} · AI-powered visitor profiling before the event opens</p>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <p style={{fontSize:13,color:C.muted,margin:0}}>{ex.company} · {ex.name} · AI-powered visitor profiling before the event opens</p>
+            {prefetchStatus==="fetching" && (
+              <span style={{fontSize:10,color:C.blue,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                <div style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid #93C5FD",borderTopColor:C.blue,animation:"spin 1s linear infinite"}}/>
+                Analysing top visitors…
+              </span>
+            )}
+            {prefetchStatus==="done" && (
+              <span style={{fontSize:10,color:"#16a34a",fontWeight:600}}>✓ Intelligence ready</span>
+            )}
+          </div>
         </div>
         <button onClick={()=>{setShowAdd(!showAdd);if(!showAdd)setSelId(null);}}
           style={{padding:"9px 18px",background:showAdd?"transparent":C.navy,color:showAdd?C.navy:C.white,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>
