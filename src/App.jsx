@@ -1765,8 +1765,8 @@ function IEIAnalysis({ex}) {
     finally { setResearchLoading(false); }
   };
 
-  // Use real DB contacts if available, fall back to demo VISITORS
-  const baseList = dbContacts.length > 0 ? dbContacts : VISITORS;
+  // Use real DB contacts only — no demo fallback
+  const baseList = dbContacts;
   const all = [...baseList,...extras];
   const visible = filter==="All"?all:all.filter(v=>v.ieiTier===filter);
   const p = selId!==null ? all.find(x=>x.id===selId) : null;
