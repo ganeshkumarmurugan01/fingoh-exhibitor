@@ -1553,7 +1553,87 @@ function IEIAnalysis({ex}) {
   const [analysing,setAnalysing] = useState(false);
   const [aStep,setAStep]     = useState(0);
   const [extras,setExtras]   = useState([]);
+  const [dbContacts,setDbContacts] = useState([]);
+  const [dbLoading,setDbLoading]   = useState(true);
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
+
+  // Load real contacts from audience_contacts
+  React.useEffect(()=>{
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token || "";
+      fetch(`/api/v1/audience/contacts/${ex.id}`, {
+        headers:{"x-fingoh-auth":`Bearer ${token}`}
+      })
+      .then(r=>r.json())
+      .then(data=>{
+        if (Array.isArray(data)) {
+          // Map audience_contacts shape → VISITORS shape
+          const mapped = data.map((c,i)=>({
+            id:       1000+i,
+            name:     c.name || `${c.email}`,
+            company:  c.company || "—",
+            title:    c.designation || "—",
+            country:  c.country || "—",
+            ieiTier:  c.iei_tier || "Cool",
+            ieiScore: Math.round(c.iei_score || 0),
+            tier:     c.iei_tier==="Hot"?"T1":c.iei_tier==="Warm"?"T2":c.iei_tier==="Cool"?"T3":"T4",
+            score:    Math.round(c.iei_score || 0),
+            role:     (() => {
+              const t = (c.designation||"").toLowerCase();
+              if (t.includes("ceo")||t.includes("cto")||t.includes("chief")||t.includes("president")) return "EXECUTIVE";
+              if (t.includes("vp")||t.includes("vice")||t.includes("director")||t.includes("head")) return "SENIOR";
+              if (t.includes("manager")||t.includes("senior")||t.includes("lead")) return "MID";
+              return "JUNIOR";
+            })(),
+            icp:      c.iei_score>=75?"Perfect":c.iei_score>=50?"Good":c.iei_score>=25?"Partial":"Poor",
+            reason:   c.raw_data?.primary_reason || "",
+            timeline: c.raw_data?.timeline || "",
+            cats:     c.raw_data?.categories_interest ? c.raw_data.categories_interest.split(",").map(s=>s.trim()) : [],
+            signals:  0,
+            lastSig:  "IEI scored",
+            time:     "",
+            regProb:  Math.round((c.reg_prob||0)*100),
+            // No full iei intelligence layers for CSV contacts — show summary
+            iei: {
+              synth: `${c.name} from ${c.company} — ${c.designation}. IEI scored at ${Math.round(c.iei_score||0)} (${c.iei_tier}) based on 41 signals including role seniority, ICP fit, and exhibitor relevance.`,
+              layers: [
+                {color:C.purple, lt:C.ltpur, title:"Professional profile",
+                  signals:[c.designation||"Role not specified", c.company||"Company not specified", c.country||"Country not specified"],
+                  inference:`Scored via Claude enrichment. Seniority mapped from role title.`},
+                {color:C.tealIEI, lt:C.tealLt, title:"Company intelligence",
+                  signals:[c.company||"—", `ICP fit: ${c.iei_score>=75?"Perfect match":c.iei_score>=50?"Good match":c.iei_score>=25?"Partial match":"Weak match"}`],
+                  inference:`Company matched against your ICP definition from event setup.`},
+                {color:C.amber, lt:C.amberLt, title:"Key projects & initiatives",
+                  signals:[c.raw_data?.primary_reason?`Visit reason: ${c.raw_data.primary_reason}`:"No visit reason declared",
+                           c.raw_data?.categories_interest?`Interests: ${c.raw_data.categories_interest}`:"No categories declared"],
+                  inference:`Signals derived from registration data and Claude web research.`},
+                {color:C.coral, lt:C.coralLt, title:"Need gap analysis",
+                  signals:[`IEI score: ${Math.round(c.iei_score||0)} — ${c.iei_tier} intent`,
+                           `Registration probability: ${Math.round((c.reg_prob||0)*100)}%`],
+                  inference:`Score computed from 41 signals across registration, firmographic, and contextual dimensions.`},
+              ],
+              dims:[
+                {type:"Primary", label:c.raw_data?.primary_reason||"Attending", tags:c.raw_data?.categories_interest?.split(",").slice(0,2)||[], desc:"Based on registration data."},
+                {type:"Secondary", label:"Market evaluation", tags:["Research"], desc:"Secondary intent inferred from profile."},
+              ],
+              recommendations:[],
+              brief:{
+                context:`${c.designation} at ${c.company} (${c.country}). IEI score: ${Math.round(c.iei_score||0)}.`,
+                painPoints:"Enrich further by adding on-site signals via the Staff App.",
+                whatTheyWant:c.raw_data?.categories_interest?`Interested in: ${c.raw_data.categories_interest}`:"Categories not declared.",
+                dontDo:"Don't treat this as a cold lead — they're already scored and ranked.",
+                openingLine:`"Welcome to ${ex?.name||"the event"}. I see you're interested in ${c.raw_data?.categories_interest?.split(",")[0]||"our area"} — what are you currently using?"`
+              }
+            }
+          }));
+          setDbContacts(mapped);
+        }
+        setDbLoading(false);
+      })
+      .catch(()=>setDbLoading(false));
+    });
+  },[ex?.id]);
   const nvUpd = (k,v)=>setNv(p=>({...p,[k]:v}));
   const nvReady = nv.name&&nv.title&&nv.company;
   const cS = a=>({padding:"5px 10px",border:`1.5px solid ${a?C.navy:"#E2E8F0"}`,borderRadius:99,fontSize:11,fontWeight:500,cursor:"pointer",background:a?C.navy:C.white,color:a?C.white:C.muted,fontFamily:F});
@@ -1618,7 +1698,9 @@ function IEIAnalysis({ex}) {
     }),650);
   };
 
-  const all = [...VISITORS,...extras];
+  // Use real DB contacts if available, fall back to demo VISITORS
+  const baseList = dbContacts.length > 0 ? dbContacts : VISITORS;
+  const all = [...baseList,...extras];
   const visible = filter==="All"?all:all.filter(v=>v.ieiTier===filter);
   const p = selId!==null ? all.find(x=>x.id===selId) : null;
 
