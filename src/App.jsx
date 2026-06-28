@@ -2642,7 +2642,7 @@ function StaffApp({ex}) {
   const searchVisitors = async (q) => {
     if (!q || q.length < 2) { setVisitors([]); return; }
     try {
-      const res = await fetch(`/api/proxy?slug=audience/visitors/${ex.id}&q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/proxy?slug=v1/audience/visitors/${ex.id}&q=${encodeURIComponent(q)}`);
       const data = await res.json();
       setVisitors(Array.isArray(data) ? data : (data.visitors || []));
     } catch(e) { setVisitors([]); }
@@ -2652,7 +2652,7 @@ function StaffApp({ex}) {
     setSel(v); setVisitors([]); setQuery(v.name);
     // Check if signal already logged today
     try {
-      const res = await fetch(`${API}audience/check-signal/${v.id}`);
+      const res = await fetch(`/api/proxy?slug=v1/audience/check-signal/${v.id}`);
       if (res.ok) {
         const data = await res.json();
         if (data.already_logged) {
@@ -2723,7 +2723,7 @@ function StaffApp({ex}) {
     if(!sel) { alert("Please select a visitor first."); return; }
     setAiLoading(true); setAiAnalysis(null);
     try {
-      const res = await fetch(`${API}audience/ai/analyse-conversation`,{
+      const res = await fetch(`/api/proxy?slug=v1/audience/ai/analyse-conversation`,{
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ visitor:{name:sel.name,company:sel.company,iei_score:sel.iei_score,iei_tier:sel.iei_tier}, conversation:src })
       });
@@ -2753,7 +2753,7 @@ function StaffApp({ex}) {
         ai_buying_signals: aiAnalysis?.buyingSignals || [],
         ai_score_delta: aiAnalysis?.scoreDelta || null,
       };
-      const res = await fetch(`${API}audience/log-signal/${ex.id}`,{
+      const res = await fetch(`/api/proxy?slug=v1/audience/log-signal/${ex.id}`,{
         method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)
       });
       const data = await res.json();
