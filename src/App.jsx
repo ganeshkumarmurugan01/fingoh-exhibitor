@@ -2659,14 +2659,14 @@ function StaffApp({ex}) {
           setDuplicateWarning(`${v.name} already has a signal logged today by ${data.logged_by||"another staff member"}. You can still add another.`);
         } else { setDuplicateWarning(""); }
       }
-    } catch(e) { setDuplicateWarning(""); }
+    } catch(e) { console.error("[check-signal]", e); setDuplicateWarning(""); }
   };
 
   const resetForm = () => {
     setSel(null); setScore(null); setQTypes([]); setRet(false); setDemo(false);
     setBadge(false); setBg(false); setMtg(false); setColl(""); setUrgency("");
     setNotes(""); setConvText(""); setAiAnalysis(null); setTranscript("");
-    setQuery(""); setVoiceMode("text"); setSubmitErr("");
+    setQuery(""); setVoiceMode("text"); setSubmitErr(""); setDuplicateWarning("");
     finalTranscriptRef.current = "";
   };
 
