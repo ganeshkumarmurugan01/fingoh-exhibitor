@@ -1557,6 +1557,7 @@ function IEIAnalysis({ex}) {
   const [dbLoading,setDbLoading]   = useState(true);
   const [researchData,setResearchData] = useState({});
   const [researchLoading,setResearchLoading] = useState(false);
+  const [prefetchStatus,setPrefetchStatus] = useState("");
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
 
   // Load real contacts from audience_contacts
