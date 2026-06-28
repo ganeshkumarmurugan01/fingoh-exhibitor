@@ -2605,7 +2605,7 @@ function ParticipantDetail({p, onBack}) {
 // ═══════════════════════════════════════════════════════════════════
 
 function StaffApp({ex}) {
-  const API = "https://web-production-93e78d.up.railway.app/api/v1";
+  const API = "/api/proxy?slug=";
 
   // State
   const [query, setQuery]         = useState("");
@@ -2626,6 +2626,7 @@ function StaffApp({ex}) {
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState("");
   const [done, setDone]           = useState(null);
   const [submitErr, setSubmitErr] = useState("");
   const [recActive, setRecActive] = useState(false);
@@ -2641,14 +2642,24 @@ function StaffApp({ex}) {
   const searchVisitors = async (q) => {
     if (!q || q.length < 2) { setVisitors([]); return; }
     try {
-      const res = await fetch(`${API}/audience/visitors/${ex.id}?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`${API}audience/visitors/${ex.id}?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setVisitors(data.visitors || []);
+      setVisitors(Array.isArray(data) ? data : (data.visitors || []));
     } catch(e) { setVisitors([]); }
   };
 
-  const selectVisitor = (v) => {
+  const selectVisitor = async (v) => {
     setSel(v); setVisitors([]); setQuery(v.name);
+    // Check if signal already logged today
+    try {
+      const res = await fetch(`${API}audience/check-signal/${v.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.already_logged) {
+          setDuplicateWarning(`${v.name} already has a signal logged today by ${data.logged_by||"another staff member"}. You can still add another.`);
+        } else { setDuplicateWarning(""); }
+      }
+    } catch(e) { setDuplicateWarning(""); }
   };
 
   const resetForm = () => {
@@ -2712,7 +2723,7 @@ function StaffApp({ex}) {
     if(!sel) { alert("Please select a visitor first."); return; }
     setAiLoading(true); setAiAnalysis(null);
     try {
-      const res = await fetch(`${API}/audience/ai/analyse-conversation`,{
+      const res = await fetch(`${API}audience/ai/analyse-conversation`,{
         method:"POST", headers:{"Content-Type":"application/json"},
         body:JSON.stringify({ visitor:{name:sel.name,company:sel.company,iei_score:sel.iei_score,iei_tier:sel.iei_tier}, conversation:src })
       });
@@ -2742,7 +2753,7 @@ function StaffApp({ex}) {
         ai_buying_signals: aiAnalysis?.buyingSignals || [],
         ai_score_delta: aiAnalysis?.scoreDelta || null,
       };
-      const res = await fetch(`${API}/audience/log-signal/${ex.id}`,{
+      const res = await fetch(`${API}audience/log-signal/${ex.id}`,{
         method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)
       });
       const data = await res.json();
@@ -2821,6 +2832,12 @@ function StaffApp({ex}) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        {duplicateWarning && (
+          <div style={{marginTop:8,background:"#FEF3C7",border:"1px solid #FCD34D",borderRadius:10,padding:"10px 13px",fontSize:12,color:"#92400E",display:"flex",gap:8,alignItems:"flex-start"}}>
+            <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+            <span>{duplicateWarning}</span>
           </div>
         )}
         {sel && (
