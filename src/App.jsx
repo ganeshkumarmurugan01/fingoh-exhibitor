@@ -2603,597 +2603,463 @@ function ParticipantDetail({p, onBack}) {
 // ═══════════════════════════════════════════════════════════════════
 // SCREEN 6 — Staff App  (expanded 41-signal IEI capture)
 // ═══════════════════════════════════════════════════════════════════
-function StaffApp({ex, verifyStaff}) {
-  // ── ALL hooks must be declared before any conditional render ─────
-  const [staffEmail, setStaffEmail]   = useState("");
-  const [activeStaff, setActiveStaff] = useState(null);
-  const [loginError, setLoginError]   = useState(false);
 
-  const [query,setQuery]       = useState("");
-  const [sel,setSel]           = useState(null);
-  const [score,setScore]       = useState(null);
-  const [qTypes,setQTypes]     = useState([]);
-  const [ret,setRet]           = useState(false);
-  const [demo,setDemo]         = useState(false);
-  const [badgeScan,setBadge]   = useState(false);
-  const [collateral,setColl]   = useState("");
-  const [meetingBooked,setMtg] = useState(false);
-  const [buyingGroup,setBG]    = useState(false);
-  const [urgency,setUrgency]   = useState("");
-  const [notes,setNotes]       = useState("");
-  const [done,setDone]         = useState(false);
-  const [inputMode,setInputMode]   = useState("text");
-  const [recording,setRecording]   = useState(false);
-  const [recSeconds,setRecSeconds] = useState(0);
-  const [transcript,setTranscript] = useState("");
-  const [aiAnalysis,setAiAnalysis] = useState(null);
-  const [aiLoading,setAiLoading]   = useState(false);
-  const recRef  = React.useRef(null);
-  const timerRef = React.useRef(null);
-  const demoIdx  = React.useRef(0);
+function StaffApp({ex}) {
+  const API = "https://web-production-93e78d.up.railway.app/api/v1";
 
-  // ── Handlers ─────────────────────────────────────────────────────
-  const handleStaffLogin = async () => {
-  try {
-    const result = await verifyStaff({ email: staffEmail.trim(), event_id: ex.id });
-    setActiveStaff(result);
-    setLoginError(false);
-  } catch {
-    setLoginError(true);
-  }
-};
+  // State
+  const [query, setQuery]         = useState("");
+  const [visitors, setVisitors]   = useState([]);
+  const [sel, setSel]             = useState(null);
+  const [score, setScore]         = useState(null);
+  const [qTypes, setQTypes]       = useState([]);
+  const [ret, setRet]             = useState(false);
+  const [demo, setDemo]           = useState(false);
+  const [badge, setBadge]         = useState(false);
+  const [bg, setBg]               = useState(false);
+  const [mtg, setMtg]             = useState(false);
+  const [collateral, setColl]     = useState("");
+  const [urgency, setUrgency]     = useState("");
+  const [notes, setNotes]         = useState("");
+  const [convText, setConvText]   = useState("");
+  const [voiceMode, setVoiceMode] = useState("text");
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [done, setDone]           = useState(null);
+  const [submitErr, setSubmitErr] = useState("");
+  const [recActive, setRecActive] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const [transcript, setTranscript] = useState("");
+  const recognitionRef = useRef(null);
+  const recIntervalRef = useRef(null);
+  const finalTranscriptRef = useRef("");
 
-  const scoreL={1:"Pass-through",2:"Polite interest",3:"Engaged",4:"Strong evaluator",5:"Active buyer"};
-  const scoreC={1:"#94A3B8",2:"#64748B",3:C.yellow,4:C.blue,5:C.green};
-  const filtered=VISITORS.filter(v=>v.name.toLowerCase().includes(query.toLowerCase())||v.company.toLowerCase().includes(query.toLowerCase())).slice(0,5);
+  const unlocked = !!sel;
 
-  const calcDelta = () => {
-    let pts = 0;
-    if(score)      pts += [0,1,2,4,7,10][score];
-    if(ret)        pts += 10;
-    if(demo)       pts += 8.5;
-    if(badgeScan)  pts += 2.7;
-    if(collateral==="specific")  pts += 5;
-    if(collateral==="generic")   pts += 2;
-    if(meetingBooked) pts += 7;
-    if(buyingGroup)   pts += 4;
-    if(urgency==="high")   pts += 6;
-    if(urgency==="medium") pts += 3;
-    if(qTypes.includes("Pricing"))        pts += 8.5;
-    if(qTypes.includes("Implementation")) pts += 8.5;
-    if(qTypes.includes("Technical"))      pts += 6;
-    if(qTypes.includes("Competitive"))    pts += 4;
-    const notesScore = scoreConversationNotes(notes);
-    if(notesScore.score > 0) pts += notesScore.score * 0.65;
-    return Math.round(pts);
+  // Search visitors
+  const searchVisitors = async (q) => {
+    if (!q || q.length < 2) { setVisitors([]); return; }
+    try {
+      const res = await fetch(`${API}/audience/visitors/${ex.id}?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setVisitors(data.visitors || []);
+    } catch(e) { setVisitors([]); }
   };
 
-  const reset = () => {
-    setQuery(""); setSel(null); setScore(null); setQTypes([]);
-    setRet(false); setDemo(false); setBadge(false); setColl("");
-    setMtg(false); setBG(false); setUrgency(""); setNotes(""); setDone(false);
-    setInputMode("text"); setRecording(false); setRecSeconds(0);
-    setTranscript(""); setAiAnalysis(null); setAiLoading(false);
-    if(timerRef.current) clearInterval(timerRef.current);
+  const selectVisitor = (v) => {
+    setSel(v); setVisitors([]); setQuery(v.name);
   };
-  const submit = () => { setDone(true); setTimeout(reset, 2500); };
 
-  const DEMO_TRANSCRIPTS = [
-    "She's replacing four CT scanners, Q1 deadline, budget approved around SGD 2.5 million. She signs off herself. Currently using Philips but wants to switch. Needs HL7 compatibility and ASEAN framework pricing. Asked about delivery timeline and service SLA.",
-    "He mentioned they are expanding to three new sites in Malaysia by Q3. Looking for patient monitoring across all wards. Buying group — his CFO was also present. Asked about volume licensing and whether we do a managed service option.",
-    "Research visit mostly but she asked detailed technical questions about PACS integration. IT Director at Raffles. No active budget yet but flagged it as a Q3 initiative. Competitor comparison — she mentioned GE and Mindray by name.",
-    "Very engaged — stayed 20 minutes past the demo slot. VP Procurement at IHH, decision maker. Q1 procurement cycle, shortlisting two vendors. Needs CE-marked equipment and wants a reference site visit to Singapore General Hospital.",
+  const resetForm = () => {
+    setSel(null); setScore(null); setQTypes([]); setRet(false); setDemo(false);
+    setBadge(false); setBg(false); setMtg(false); setColl(""); setUrgency("");
+    setNotes(""); setConvText(""); setAiAnalysis(null); setTranscript("");
+    setQuery(""); setVoiceMode("text"); setSubmitErr("");
+    finalTranscriptRef.current = "";
+  };
+
+  const toggleQ = (q) => setQTypes(prev => prev.includes(q) ? prev.filter(x=>x!==q) : [...prev,q]);
+
+  const SCORE_LABELS = ["","Poor","Fair","Good","Great","Excellent"];
+  const SCORE_COLORS = ["","#DC2626","#F97316","#2563EB","#16A34A","#7C3AED"];
+  const Q_TYPES = [
+    {id:"product_demo",label:"Product demo"},
+    {id:"pricing",label:"Pricing"},
+    {id:"technical",label:"Technical specs"},
+    {id:"case_study",label:"Case study"},
+    {id:"roi",label:"ROI / payback"},
+    {id:"comparison",label:"Competitor compare"},
+    {id:"timeline",label:"Timeline"},
+    {id:"decision",label:"Decision process"},
   ];
 
-  const startRecording = () => {
-    if(!sel) return;
-    setRecording(true); setRecSeconds(0); setTranscript("");
-    const fullText = DEMO_TRANSCRIPTS[demoIdx.current % DEMO_TRANSCRIPTS.length];
-    demoIdx.current += 1;
-    const words = fullText.split(" ");
-    let i = 0;
-    timerRef.current = setInterval(() => {
-      setRecSeconds(s => s+1);
-      if(i < words.length) { setTranscript(words.slice(0, i+1).join(" ")); i += 2; }
-    }, 300);
+  // Voice recording
+  const startVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert("Voice not supported. Use Chrome on Android or Safari on iOS."); return; }
+    finalTranscriptRef.current = "";
+    setTranscript("");
+    setRecSeconds(0);
+    setRecActive(true);
+    const r = new SR();
+    r.continuous = true; r.interimResults = true; r.lang = "en-US";
+    r.onresult = (e) => {
+      let interim = "";
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal) finalTranscriptRef.current += e.results[i][0].transcript+" ";
+        else interim += e.results[i][0].transcript;
+      }
+      setTranscript((finalTranscriptRef.current+interim).slice(-200));
+    };
+    r.onerror = () => stopVoice();
+    r.start();
+    recognitionRef.current = r;
+    recIntervalRef.current = setInterval(()=>setRecSeconds(s=>s+1), 1000);
   };
 
-  const stopRecording = () => {
-    setRecording(false);
-    clearInterval(timerRef.current);
+  const stopVoice = () => {
+    if(recognitionRef.current) { recognitionRef.current.stop(); recognitionRef.current = null; }
+    clearInterval(recIntervalRef.current);
+    setRecActive(false);
+    const text = finalTranscriptRef.current.trim();
+    if(text) { setTranscript(text); setConvText(text); }
   };
 
-  // AI analysis via Anthropic API
-  const runAIAnalysis = async () => {
-    const src = notes || transcript;
-    if(!src.trim() || !sel) return;
+  const runAI = async () => {
+    const src = convText.trim() || finalTranscriptRef.current.trim();
+    if(!src) { alert("Please type or record a conversation first."); return; }
+    if(!sel) { alert("Please select a visitor first."); return; }
     setAiLoading(true); setAiAnalysis(null);
     try {
-      const prompt = `You are a B2B sales intelligence agent at a trade fair for ${ex?.company||"Siemens Healthineers"} at MedTech Asia 2025, Singapore.
-
-A sales staff member captured this conversation with ${sel?.name} from ${sel?.company}:
-"${src}"
-
-Their IEI score: ${sel?.ieiScore||"unknown"}/100 (${sel?.ieiTier||"unknown"} tier).
-
-Respond ONLY with a single valid JSON object. No markdown, no code fences, no explanation before or after. Just the raw JSON:
-{"intentLevel":"strong","scoreDelta":"+8","nextQuestion":"string","buyingSignals":["string"],"missingSignals":["string"],"redFlags":["string"],"recommendedAction":"string","followUpHook":"string"}
-
-Rules:
-- intentLevel must be exactly one of: strong, moderate, weak
-- scoreDelta must be a string like "+8" or "-3"
-- All arrays must have 1-4 short items (under 15 words each)
-- recommendedAction: one specific actionable sentence
-- followUpHook: one sentence to open the follow-up email
-- Output ONLY the JSON object, nothing else`;
-
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:500,
-          messages:[{role:"user", content:prompt}],
-        }),
+      const res = await fetch(`${API}/audience/ai/analyse-conversation`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ visitor:{name:sel.name,company:sel.company,iei_score:sel.iei_score,iei_tier:sel.iei_tier}, conversation:src })
       });
       const data = await res.json();
-      const raw = data.content?.[0]?.text||"{}";
-      // Extract JSON from possible markdown fences or surrounding text
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      const jsonStr = jsonMatch ? jsonMatch[0] : raw;
-      try {
-        const parsed = JSON.parse(jsonStr);
-        setAiAnalysis(parsed);
-      } catch {
-        // Build a structured fallback by extracting key phrases
-        setAiAnalysis({
-          intentLevel:"moderate", scoreDelta:"+4",
-          nextQuestion:"What is your expected go-live date for this project?",
-          buyingSignals:["Active evaluation in progress"],
-          missingSignals:["Budget confirmation","Decision timeline","Sign-off authority"],
-          redFlags:[],
-          recommendedAction:"Continue the conversation — ask about their procurement timeline and decision process.",
-          followUpHook:"It was great discussing your requirements at MedTech Asia — I wanted to follow up on the points we covered."
-        });
-      }
-    } catch(e) {
-      setAiAnalysis({recommendedAction:"Analysis failed — check connection.", buyingSignals:[], missingSignals:[], redFlags:[], nextQuestion:"", scoreDelta:"", intentLevel:"moderate", followUpHook:""});
-    } finally { setAiLoading(false); }
+      if(data.intentLevel) setAiAnalysis(data);
+    } catch(e) { console.error(e); }
+    setAiLoading(false);
   };
 
-  const Toggle = ({val,set,icon,title,desc,col,disabled})=>(
-    <div onClick={()=>!disabled&&set(!val)}
-      style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",borderRadius:9,border:`1.5px solid ${val?col+"60":"#E2E8F0"}`,background:val?`${col}08`:C.white,cursor:disabled?"default":"pointer",marginBottom:7,transition:"all .15s",opacity:disabled?0.4:1}}>
-      <div style={{display:"flex",gap:9,alignItems:"center"}}>
-        <span style={{fontSize:16,width:24,textAlign:"center"}}>{icon}</span>
-        <div><p style={{fontSize:12,fontWeight:600,color:val?col:C.dark,margin:0}}>{title}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{desc}</p></div>
-      </div>
-      <div style={{width:40,height:22,borderRadius:11,background:val?col:"#CBD5E1",position:"relative",flexShrink:0,transition:"background .18s"}}>
-        <div style={{width:18,height:18,borderRadius:"50%",background:C.white,position:"absolute",top:2,left:val?20:2,transition:"left .18s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
+  const submit = async () => {
+    if(!sel) { setSubmitErr("Please select a visitor."); return; }
+    if(!score) { setSubmitErr("Please rate the conversation quality."); return; }
+    setSubmitting(true); setSubmitErr("");
+    try {
+      const payload = {
+        contact_id: sel.id,
+        conversation_quality: score,
+        question_types: qTypes,
+        return_visit: ret,
+        demo_requested: demo,
+        badge_scan: badge,
+        buying_group: bg,
+        meeting_booked: mtg,
+        urgency,
+        notes: notes || convText,
+        ai_intent_level: aiAnalysis?.intentLevel || null,
+        ai_buying_signals: aiAnalysis?.buyingSignals || [],
+        ai_score_delta: aiAnalysis?.scoreDelta || null,
+      };
+      const res = await fetch(`${API}/audience/log-signal/${ex.id}`,{
+        method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.detail||"Save failed");
+      setDone(data);
+      setTimeout(()=>{ setDone(null); resetForm(); }, 3000);
+    } catch(e) { setSubmitErr(e.message); }
+    setSubmitting(false);
+  };
+
+  const intentColor = {strong:"#16A34A",moderate:"#2563EB",weak:"#DC2626"};
+
+  if(done) return (
+    <div style={{maxWidth:500,margin:"40px auto",padding:24}}>
+      <div style={{background:"#F0FDF4",border:"2px solid #86EFAC",borderRadius:16,padding:44,textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:12}}>✓</div>
+        <div style={{fontSize:16,fontWeight:800,color:"#14532D",marginBottom:16}}>Signal captured!</div>
+        <div style={{display:"flex",gap:16,justifyContent:"center"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:11,color:"#166534",fontWeight:600,marginBottom:2}}>PRE-EVENT IEI</div>
+            <div style={{fontSize:28,fontWeight:800,color:"#16A34A"}}>{Math.round(done.iei_score||0)}</div>
+            <div style={{fontSize:10,color:"#166534"}}>{done.iei_tier||""}</div>
+          </div>
+          <div style={{width:1,background:"#86EFAC"}}/>
+          <div style={{textAlign:"center"}}>
+            <div style={{fontSize:11,color:"#166534",fontWeight:600,marginBottom:2}}>ON-SITE IEI</div>
+            <div style={{fontSize:28,fontWeight:800,color:"#0D9488"}}>{Math.round(done.onsite_iei_score||0)}</div>
+            <div style={{fontSize:10,color:"#166534"}}>{done.onsite_iei_tier||""}</div>
+          </div>
+        </div>
+        <p style={{marginTop:12,fontSize:13,color:"#166534"}}>{sel?.name}'s on-site intelligence captured</p>
       </div>
     </div>
   );
 
-  const StepHead = ({n,label,sub,active})=>(
-    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-      <div style={{width:22,height:22,borderRadius:"50%",background:active?C.navy:"#CBD5E1",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,flexShrink:0}}>{n}</div>
-      <div><span style={{fontSize:13,fontWeight:600,color:C.navy}}>{label}</span>{sub&&<span style={{fontSize:11,color:C.muted,marginLeft:6}}>{sub}</span>}</div>
-    </div>
-  );
+  const sectionStyle = (locked) => ({
+    background:"white", borderRadius:14, border:"1px solid #E2E8F0",
+    padding:"16px 18px", marginBottom:10,
+    opacity: locked ? 0.4 : 1, pointerEvents: locked ? "none" : "auto",
+    boxShadow:"0 2px 12px rgba(0,0,0,.04)"
+  });
 
-  // ── Conditional render — no early returns, all hooks already declared ──
-  if(!activeStaff) return (
-    <div style={{minHeight:"calc(100vh - 88px)",background:C.light,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:F}}>
-      <div style={{width:"100%",maxWidth:380}}>
-        <div style={{textAlign:"center",marginBottom:28}}>
-          <div style={{width:56,height:56,borderRadius:16,background:C.navy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 12px"}}>📱</div>
-          <h2 style={{fontSize:20,fontWeight:800,color:C.navy,margin:0,marginBottom:4}}>Staff App</h2>
-          <p style={{fontSize:12,color:C.muted,margin:0}}>Enter your work email to start logging booth conversations</p>
-        </div>
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:16,padding:28,boxShadow:"0 4px 20px rgba(13,27,62,0.08)"}}>
-          <div style={{marginBottom:16}}>
-            <label style={{display:"block",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.08,marginBottom:6}}>Your work email</label>
-            <input value={staffEmail} onChange={e=>{setStaffEmail(e.target.value);setLoginError(false);}}
-              onKeyDown={e=>e.key==="Enter"&&handleStaffLogin()}
-              placeholder="you@company.com"
-              style={{width:"100%",padding:"11px 13px",border:`1.5px solid ${loginError?"#FCA5A5":"#E2E8F0"}`,borderRadius:9,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none"}}/>
-            {loginError && <p style={{fontSize:11,color:C.red,margin:"5px 0 0"}}>⚠ Email not found — make sure your manager has added you in Audience Upload → Staff Setup.</p>}
-          </div>
-          <button onClick={handleStaffLogin} disabled={!staffEmail.trim()}
-            style={{width:"100%",padding:12,background:staffEmail.trim()?C.navy:"#CBD5E1",color:C.white,border:"none",borderRadius:9,fontSize:14,fontWeight:700,cursor:staffEmail.trim()?"pointer":"not-allowed",fontFamily:F}}>
-            Enter Staff App →
-          </button>
-          <div style={{marginTop:20,padding:"12px 14px",background:C.light,borderRadius:8}}>
-            <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0,marginBottom:6}}>Registered team</p>
-            {DEFAULT_STAFF.map(s=>(
-              <div key={s.id} onClick={()=>{setStaffEmail(s.email);setLoginError(false);}}
-                style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #F1F5F9",cursor:"pointer"}}
-                onMouseOver={e=>e.currentTarget.style.opacity=".7"} onMouseOut={e=>e.currentTarget.style.opacity="1"}>
-                <div style={{width:24,height:24,borderRadius:"50%",background:C.navy,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,flexShrink:0}}>
-                  {(s.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}
-                </div>
-                <div>
-                  <div style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.name}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{s.email}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+  const stepHead = (n, label, sub) => (
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:11}}>
+      <div style={{width:22,height:22,borderRadius:"50%",background:unlocked?C.navy:"#CBD5E1",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"white",flexShrink:0}}>{n}</div>
+      <span style={{fontSize:13,fontWeight:600,color:C.navy}}>{label}</span>
+      {sub && <span style={{fontSize:11,color:C.muted,marginLeft:4}}>{sub}</span>}
     </div>
   );
 
   return (
-    <div style={{padding:"20px 16px",background:C.light,minHeight:"calc(100vh - 54px)",fontFamily:F}}>
-      <div style={{maxWidth:420,margin:"0 auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div>
-            <h2 style={{fontSize:18,fontWeight:700,color:C.navy,margin:0}}>Staff app</h2>
-            <p style={{fontSize:11,color:C.muted,margin:0}}>{ex.company} · Logging as <strong style={{color:C.navy}}>{activeStaff.name}</strong></p>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",background:C.ltgrn,borderRadius:99,border:"1px solid #86EFAC",fontSize:10,fontWeight:700,color:"#14532D"}}>
-              <span style={{width:5,height:5,borderRadius:"50%",background:"#16A34A",display:"inline-block"}}/>Day 2 · Live
-            </span>
-            <button onClick={()=>setActiveStaff(null)}
-              style={{fontSize:11,color:C.muted,background:"none",border:"1px solid #E2E8F0",borderRadius:7,cursor:"pointer",fontFamily:F,padding:"4px 10px"}}>
-              Sign out
-            </button>
-          </div>
-        </div>
-        {done ? (
-          <div style={{background:C.ltgrn,border:"2px solid #86EFAC",borderRadius:16,padding:44,textAlign:"center"}}>
-            <div style={{fontSize:44,color:"#16A34A",marginBottom:12}}>✓</div>
-            <p style={{fontSize:16,fontWeight:700,color:"#14532D",marginBottom:4}}>Score logged!</p>
-            <p style={{fontSize:13,color:"#166534"}}>{sel?.name}'s intent score updated</p>
-            <p style={{fontSize:11,color:"#166534",marginTop:4}}>Logged by <strong>{activeStaff.name}</strong> · visible in Live Dashboard</p>
-          </div>
-        ) : (
-          <div style={{background:C.white,borderRadius:16,border:"1px solid #E2E8F0",overflow:"hidden",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
-            {/* Step 1 — Find visitor */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:11}}>
-                <div style={{width:22,height:22,borderRadius:"50%",background:C.navy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,flexShrink:0}}>1</div>
-                <span style={{fontSize:13,fontWeight:600,color:C.navy}}>Find the visitor</span>
-              </div>
-              <input value={query} onChange={e=>{setQuery(e.target.value);setSel(null);setScore(null);setQTypes([]);}} placeholder="Type name or company…"
-                style={{width:"100%",padding:"11px 13px",border:"1.5px solid #E2E8F0",borderRadius:10,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none"}}/>
-              {query&&!sel&&filtered.length>0&&(
-                <div style={{border:"1px solid #E2E8F0",borderRadius:10,marginTop:8,overflow:"hidden",boxShadow:"0 4px 12px rgba(0,0,0,.07)"}}>
-                  {filtered.map(v=>(
-                    <div key={v.id} onClick={()=>{setSel(v);setQuery(v.name);}} style={{padding:"10px 13px",cursor:"pointer",borderBottom:"1px solid #F8FAFC",display:"flex",justifyContent:"space-between",alignItems:"center"}}
-                      onMouseOver={e=>e.currentTarget.style.background="#F8FAFC"} onMouseOut={e=>e.currentTarget.style.background=C.white}>
-                      <div><p style={{fontSize:12,fontWeight:600,color:C.dark,margin:0}}>{v.name}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{v.company}</p></div>
-                      <div style={{display:"flex",gap:5}}><TierBadge t={v.ieiTier} iei/><TierBadge t={v.tier}/></div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {sel&&(
-                <div style={{marginTop:9,borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0"}}>
-                  <div style={{padding:"9px 12px",background:C.ltnavy,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div><p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>{sel.name}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{sel.company}</p></div>
-                    <div style={{display:"flex",gap:5}}><TierBadge t={sel.ieiTier} iei/><TierBadge t={sel.tier}/></div>
-                  </div>
-                  <div style={{padding:"6px 12px",background:C.white,display:"flex",gap:12,fontSize:11,color:C.muted}}>
-                    <span>IEI: <strong style={{color:sel.ieiScore>=75?C.green:sel.ieiScore>=50?C.blue:C.yellow}}>{sel.ieiScore}</strong></span>
-                    <span>Live: <strong style={{color:C.blue}}>{sel.score}</strong></span>
-                    {sel.reason&&<span style={{marginLeft:"auto",fontSize:10,padding:"1px 6px",borderRadius:99,background:sel.reason==="sourcing"?C.ltgrn:C.ltblue,color:sel.reason==="sourcing"?"#14532D":"#1E3A8A",fontWeight:600}}>{sel.reason}</span>}
-                  </div>
-                </div>
-              )}
-            </div>
-            {/* Step 2 — Quality score */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9",opacity:sel?1:0.4}}>
-              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                <div style={{width:22,height:22,borderRadius:"50%",background:sel?C.navy:"#CBD5E1",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.white,flexShrink:0}}>2</div>
-                <span style={{fontSize:13,fontWeight:600,color:C.navy}}>Conversation quality</span>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
-                {[1,2,3,4,5].map(n=>(
-                  <button key={n} onClick={()=>sel&&setScore(n)} style={{padding:"14px 5px",border:`2px solid ${score===n?scoreC[n]:"#E2E8F0"}`,borderRadius:11,cursor:sel?"pointer":"default",background:score===n?scoreC[n]:C.white,display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all .12s"}}>
-                    <span style={{fontSize:20,fontWeight:800,color:score===n?C.white:C.muted,lineHeight:1}}>{n}</span>
-                    <span style={{fontSize:9,color:score===n?C.white:C.muted2,textAlign:"center",lineHeight:1.2}}>{scoreL[n]}</span>
-                  </button>
-                ))}
-              </div>
-              {score&&<div style={{marginTop:8,padding:"6px 12px",background:`${scoreC[score]}15`,borderRadius:7,textAlign:"center"}}><span style={{fontSize:12,fontWeight:700,color:scoreC[score]}}>{scoreL[score]}</span></div>}
-            </div>
-            {/* Step 3 — Question types */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9",opacity:sel?1:0.4}}>
-              <StepHead n="3" label="Questions asked" sub="— select all that apply" active={!!sel}/>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {[["Pricing","$",C.green],["Implementation","⚙",C.blue],["Technical","🔧",C.purple],["Competitive","⚖",C.amber],["Timeline / delivery","📅",C.tealIEI],["General","💬","#94A3B8"]].map(([q,ic,col])=>{
-                  const on=qTypes.includes(q);
-                  return <button key={q} onClick={()=>sel&&setQTypes(p=>p.includes(q)?p.filter(x=>x!==q):[...p,q])}
-                    style={{padding:"7px 11px",border:`2px solid ${on?col:"#E2E8F0"}`,borderRadius:99,fontSize:11,fontWeight:600,cursor:sel?"pointer":"default",background:on?col:C.white,color:on?C.white:C.muted,fontFamily:F,display:"flex",alignItems:"center",gap:5}}>
-                    <span style={{fontSize:12}}>{ic}</span>{q}
-                  </button>;
-                })}
-              </div>
-              {/* Question intent signal summary */}
-              {qTypes.length>0 && (
-                <div style={{marginTop:8,padding:"7px 10px",background:C.light,borderRadius:7,fontSize:11,color:C.muted}}>
-                  <span style={{fontWeight:600,color:C.dark}}>Signal read: </span>
-                  {qTypes.includes("Pricing")&&qTypes.includes("Implementation") ? <span style={{color:C.green}}>Active evaluation — strong buying intent</span>
-                  : qTypes.includes("Pricing") ? <span style={{color:C.blue}}>Commercial interest confirmed</span>
-                  : qTypes.includes("Implementation") ? <span style={{color:C.blue}}>Planning adoption — strong buying stage</span>
-                  : qTypes.includes("Technical") ? <span style={{color:C.purple}}>Technical evaluation in progress</span>
-                  : qTypes.includes("Competitive") ? <span style={{color:C.amber}}>Market comparison — flag for competitive intel</span>
-                  : <span>General interest</span>}
-                </div>
-              )}
-            </div>
+    <div style={{maxWidth:500,margin:"0 auto",padding:16,paddingBottom:40}}>
 
-            {/* Step 4 — On-site behaviour signals */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9",opacity:sel?1:0.4}}>
-              <StepHead n="4" label="On-site behaviour signals" active={!!sel}/>
-              <Toggle val={ret}   set={setRet}   icon="↩" title="Return visitor"       desc="Second distinct visit to your booth today — strongest on-site signal"          col={C.green}  disabled={!sel}/>
-              <Toggle val={demo}  set={setDemo}  icon="▶" title="Demo attended + Q&A"  desc="Visitor attended your product demo and stayed for questions"                    col={C.blue}   disabled={!sel}/>
-              <Toggle val={badgeScan} set={setBadge} icon="◉" title="Badge scanned"    desc="Badge scan confirmed — physical presence at booth logged"                       col={C.muted}  disabled={!sel}/>
-              <Toggle val={buyingGroup} set={setBG} icon="👥" title="Buying group present" desc="Colleague or decision-making partner attended the conversation"              col={C.violet} disabled={!sel}/>
-            </div>
-
-            {/* Step 5 — Meeting & collateral signals */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9",opacity:sel?1:0.4}}>
-              <StepHead n="5" label="Meeting & collateral" sub="— optional" active={!!sel}/>
-              <Toggle val={meetingBooked} set={setMtg} icon="📅" title="Follow-up meeting booked" desc="Visitor agreed to a follow-up meeting or demo — scheduled before leaving" col={C.tealIEI} disabled={!sel}/>
-              {/* Collateral selector */}
-              <div style={{marginTop:4}}>
-                <p style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:7}}>Collateral requested</p>
-                <div style={{display:"flex",gap:6}}>
-                  {[["none","None","#94A3B8"],["generic","Generic brochure",C.muted],["specific","Specific asset",C.coral]].map(([v,lbl,col])=>(
-                    <button key={v} onClick={()=>sel&&setColl(collateral===v?"":v)}
-                      style={{padding:"6px 11px",border:`1.5px solid ${collateral===v?col:"#E2E8F0"}`,borderRadius:99,fontSize:11,fontWeight:600,cursor:sel?"pointer":"default",background:collateral===v?col:C.white,color:collateral===v?C.white:C.muted,fontFamily:F}}>
-                      {lbl}
-                    </button>
-                  ))}
-                </div>
-                {collateral==="specific" && <p style={{fontSize:10,color:C.coral,marginTop:4,fontStyle:"italic"}}>Specific asset = pricing sheet, ROI calculator, integration guide — high intent signal (+5 pts)</p>}
-              </div>
-            </div>
-
-            {/* Step 6 — Buying urgency */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9",opacity:sel?1:0.4}}>
-              <StepHead n="6" label="Perceived buying urgency" sub="— your assessment" active={!!sel}/>
-              <div style={{display:"flex",gap:6}}>
-                {[["","Not assessed","#E2E8F0","#94A3B8"],["low","Low — exploring",C.muted2,C.white],["medium","Medium — evaluating",C.yellow,"#713F12"],["high","High — ready to buy",C.green,"#14532D"]].map(([v,lbl,bg,tc])=>(
-                  <button key={v||"none"} onClick={()=>sel&&setUrgency(urgency===v&&v!==""?"":v)}
-                    style={{flex:1,padding:"8px 6px",border:`1.5px solid ${urgency===v&&v!==""?bg:"#E2E8F0"}`,borderRadius:9,fontSize:10,fontWeight:600,cursor:sel?"pointer":"default",background:urgency===v&&v!==""?bg:C.white,color:urgency===v&&v!==""?tc:C.muted,fontFamily:F,textAlign:"center"}}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Step 7 — Conversation capture · Text / Voice / AI analysis */}
-            <div style={{padding:18,borderBottom:"1px solid #F1F5F9",opacity:sel?1:0.4}}>
-              <StepHead n="7" label="Conversation capture" sub="— text · voice · AI analysis" active={!!sel}/>
-
-              {/* Mode switcher */}
-              <div style={{display:"flex",gap:4,marginBottom:12,background:C.light,borderRadius:9,padding:3}}>
-                {[["text","✏️ Type"],["voice","🎙️ Voice"],["ai","✦ AI Analyse"]].map(([mode,lbl])=>(
-                  <button key={mode} onClick={()=>sel&&setInputMode(mode)}
-                    style={{flex:1,padding:"7px 6px",borderRadius:7,border:"none",cursor:sel?"pointer":"default",background:inputMode===mode?C.white:"transparent",color:inputMode===mode?C.navy:C.muted,fontFamily:F,fontSize:11,fontWeight:600,boxShadow:inputMode===mode?"0 1px 4px rgba(0,0,0,.08)":"none",transition:"all .15s"}}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-
-              {/* TEXT MODE */}
-              {inputMode==="text" && (
+      {/* Step 1 — Visitor search */}
+      <div style={{...sectionStyle(false)}}>
+        {stepHead(1,"Find visitor","— search by name or company")}
+        <input value={query} onChange={e=>{setQuery(e.target.value);searchVisitors(e.target.value);}}
+          placeholder="Search name or company…"
+          style={{width:"100%",padding:"11px 13px",border:"1.5px solid #E2E8F0",borderRadius:10,fontSize:13,fontFamily:F,outline:"none"}}/>
+        {visitors.length>0 && (
+          <div style={{border:"1px solid #E2E8F0",borderRadius:10,marginTop:8,overflow:"hidden",boxShadow:"0 4px 12px rgba(0,0,0,.07)"}}>
+            {visitors.map(v=>(
+              <div key={v.id} onClick={()=>selectVisitor(v)}
+                style={{padding:"10px 13px",cursor:"pointer",borderBottom:"1px solid #F8FAFC",display:"flex",justifyContent:"space-between",alignItems:"center",background:"white"}}
+                onMouseOver={e=>e.currentTarget.style.background="#F8FAFC"}
+                onMouseOut={e=>e.currentTarget.style.background="white"}>
                 <div>
-                  <textarea value={notes} onChange={e=>sel&&setNotes(e.target.value)}
-                    placeholder="e.g. Replacing 3 CT scanners — Q1 budget approved, I sign off under SGD 2.8M. Currently using Philips, want to switch. Need HL7 and ASEAN framework pricing."
-                    style={{width:"100%",padding:"9px 11px",border:`1px solid ${notes&&scoreConversationNotes(notes).score>0?scoreConversationNotes(notes).color+"60":"#E2E8F0"}`,borderRadius:9,fontSize:12,fontFamily:F,boxSizing:"border-box",outline:"none",height:72,resize:"none",lineHeight:1.5,color:C.dark,transition:"border-color .2s"}}/>
-                  {(()=>{
-                    const ns=scoreConversationNotes(notes);
-                    if(!notes.trim()) return <p style={{fontSize:10,color:C.muted2,marginTop:5,fontStyle:"italic"}}>Mention budget, timeline, authority, or requirements to add signal weight.</p>;
-                    return (
-                      <div style={{marginTop:7,padding:"8px 11px",background:`${ns.color}10`,border:`1px solid ${ns.color}30`,borderRadius:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div>
-                          <span style={{fontSize:12,fontWeight:700,color:ns.color}}>{ns.label}</span>
-                          {ns.detail&&ns.detail!=="—"&&<span style={{fontSize:10,color:C.muted,marginLeft:8,fontStyle:"italic"}}>{ns.detail}</span>}
-                        </div>
-                        <span style={{fontSize:13,fontWeight:700,color:ns.score>0?ns.color:C.muted2}}>{ns.score>0?`+${Math.round(ns.score*0.65)} pts`:"0 pts"}</span>
-                      </div>
-                    );
-                  })()}
-                  {sel&&!notes&&(
-                    <div style={{marginTop:8}}>
-                      <p style={{fontSize:10,color:C.muted,marginBottom:5}}>Quick prompts:</p>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                        {["Budget approved","Decision maker present","Q1 timeline","Replacing existing system","Needs HL7 / integration","ASEAN framework pricing","Comparing with competitor","Requested follow-up demo"].map(p=>(
-                          <button key={p} onClick={()=>sel&&setNotes(n=>n?(n+", "+p.toLowerCase()):p.toLowerCase())}
-                            style={{padding:"4px 9px",border:"1px solid #E2E8F0",borderRadius:99,fontSize:10,cursor:"pointer",background:C.white,color:C.muted,fontFamily:F}}>+ {p}</button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                  <div style={{fontSize:13,fontWeight:600,color:C.navy}}>{v.name}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{v.company}</div>
                 </div>
-              )}
-
-              {/* VOICE MODE */}
-              {inputMode==="voice" && (
-                <div>
-                  {/* Recording button */}
-                  <div style={{textAlign:"center",padding:"20px 0 14px"}}>
-                    <button onClick={recording?stopRecording:startRecording} disabled={!sel}
-                      style={{width:72,height:72,borderRadius:"50%",border:`3px solid ${recording?"#ED1C24":"#E2E8F0"}`,background:recording?"#FEE8E8":C.white,cursor:sel?"pointer":"default",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto",boxShadow:recording?"0 0 0 8px rgba(237,28,36,0.1)":"none",transition:"all .2s"}}>
-                      <span style={{fontSize:28}}>{recording?"⏹":"🎙️"}</span>
-                    </button>
-                    {recording ? (
-                      <div style={{marginTop:10}}>
-                        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-                          <div style={{width:8,height:8,borderRadius:"50%",background:C.red}}/>
-                          <span style={{fontSize:13,fontWeight:700,color:C.red}}>Recording… {Math.floor(recSeconds/60)}:{String(recSeconds%60).padStart(2,"0")}</span>
-                        </div>
-                        <p style={{fontSize:11,color:C.muted,marginTop:4}}>Speak naturally — tap stop when done</p>
-                      </div>
-                    ) : (
-                      <div style={{marginTop:10}}>
-                        <p style={{fontSize:13,fontWeight:500,color:sel?C.navy:C.muted}}>{sel?"Tap to start recording":"Select a visitor first"}</p>
-                        <p style={{fontSize:10,color:C.muted2}}>Speak the conversation summary · auto-transcribed · English (SG)</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Live transcript */}
-                  {(transcript||recording) && (
-                    <div style={{background:C.light,border:"1px solid #E2E8F0",borderRadius:9,padding:"10px 12px",minHeight:50,marginBottom:8}}>
-                      <p style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.05}}>{recording?"Live transcript":"Transcript"}</p>
-                      <p style={{fontSize:12,color:C.dark,lineHeight:1.6,margin:0}}>{transcript||<span style={{color:C.muted2,fontStyle:"italic"}}>Listening…</span>}</p>
-                    </div>
-                  )}
-
-                  {/* Accept transcript */}
-                  {transcript && !recording && (
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-                      <button onClick={()=>{setNotes(transcript);setInputMode("ai");runAIAnalysis();}}
-                        style={{padding:"9px 0",background:"linear-gradient(135deg,#534AB7,#7C3AED)",color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                        <span>✦</span> Use & AI analyse
-                      </button>
-                      <button onClick={()=>{setNotes(transcript);setInputMode("text");}}
-                        style={{padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-                        Use as notes
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Retry if no Web Speech API */}
-                  <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:8,padding:"8px 12px"}}>
-                    <p style={{fontSize:10,color:"#1E3A8A",margin:0}}>🎙️ Demo mode — simulates live transcription · In production uses Web Speech API (Chrome) · No audio stored</p>
-                  </div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{fontSize:13,fontWeight:800,color:v.iei_tier==="Hot"?"#ef4444":v.iei_tier==="Warm"?"#f97316":v.iei_tier==="Cool"?"#3b82f6":"#9ca3af"}}>{Math.round(v.iei_score||0)}</span>
+                  <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,fontWeight:700,
+                    background:v.iei_tier==="Hot"?"#FEE2E2":v.iei_tier==="Warm"?"#FEF3C7":v.iei_tier==="Cool"?"#DBEAFE":"#F1F5F9",
+                    color:v.iei_tier==="Hot"?"#991B1B":v.iei_tier==="Warm"?"#92400E":v.iei_tier==="Cool"?"#1E40AF":"#475569"}}>{v.iei_tier}</span>
                 </div>
-              )}
-
-              {/* AI ANALYSIS MODE */}
-              {inputMode==="ai" && (
-                <div>
-                  {/* Source text preview */}
-                  {(notes||transcript) ? (
-                    <div style={{background:C.light,border:"1px solid #E2E8F0",borderRadius:9,padding:"9px 12px",marginBottom:10,maxHeight:60,overflow:"hidden",position:"relative"}}>
-                      <p style={{fontSize:10,fontWeight:600,color:C.muted,marginBottom:3}}>Conversation captured</p>
-                      <p style={{fontSize:11,color:C.dark,lineHeight:1.5,margin:0}}>{(notes||transcript).substring(0,120)}{(notes||transcript).length>120?"…":""}</p>
-                    </div>
-                  ) : (
-                    <div style={{background:C.ltylw,border:"1px solid #FDE047",borderRadius:9,padding:"9px 12px",marginBottom:10}}>
-                      <p style={{fontSize:11,color:"#713F12",margin:0}}>⚠ No notes yet — switch to Text or Voice mode to capture the conversation first, then come back to AI Analyse.</p>
-                    </div>
-                  )}
-
-                  {/* Analyse button */}
-                  {!aiAnalysis && !aiLoading && (
-                    <button onClick={runAIAnalysis} disabled={!(notes||transcript)||!sel}
-                      style={{width:"100%",padding:"11px 0",background:(notes||transcript)&&sel?"linear-gradient(135deg,#534AB7,#7C3AED)":"#E2E8F0",color:(notes||transcript)&&sel?C.white:"#94A3B8",border:"none",borderRadius:9,fontSize:13,fontWeight:700,cursor:(notes||transcript)&&sel?"pointer":"not-allowed",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:10}}>
-                      <span style={{fontSize:16}}>✦</span> Analyse with Claude Sonnet 4
-                    </button>
-                  )}
-
-                  {/* Loading */}
-                  {aiLoading && (
-                    <div style={{textAlign:"center",padding:"18px 0",marginBottom:10}}>
-                      <div style={{fontSize:28,color:C.purple,marginBottom:8}}>◎</div>
-                      <p style={{fontSize:12,color:C.muted,margin:0}}>Claude Sonnet 4 analysing conversation…</p>
-                    </div>
-                  )}
-
-                  {/* Analysis results */}
-                  {aiAnalysis && !aiLoading && (
-                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      {/* Score delta + intent */}
-                      <div style={{background:"linear-gradient(135deg,#0D1B3E,#1E2A4A)",borderRadius:10,padding:"11px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div>
-                          <span style={{fontSize:11,color:"rgba(255,255,255,0.5)"}}>Intent level: </span>
-                          <span style={{fontSize:12,fontWeight:700,color:aiAnalysis.intentLevel==="strong"?C.green:aiAnalysis.intentLevel==="moderate"?C.blue:C.amber}}>{aiAnalysis.intentLevel}</span>
-                        </div>
-                        {aiAnalysis.scoreDelta&&<span style={{fontSize:20,fontWeight:800,color:aiAnalysis.scoreDelta?.startsWith("+")?C.green:C.red}}>{aiAnalysis.scoreDelta} pts</span>}
-                      </div>
-
-                      {/* Next question */}
-                      {aiAnalysis.nextQuestion&&(
-                        <div style={{background:C.ltpur,border:"1px solid #C4B5FD",borderRadius:9,padding:"10px 13px"}}>
-                          <p style={{fontSize:10,fontWeight:700,color:C.purple,textTransform:"uppercase",letterSpacing:.06,marginBottom:5}}>✦ Ask next</p>
-                          <p style={{fontSize:12,fontStyle:"italic",color:"#26215C",margin:0,lineHeight:1.55}}>"{aiAnalysis.nextQuestion}"</p>
-                        </div>
-                      )}
-
-                      {/* Buying signals */}
-                      {aiAnalysis.buyingSignals?.length>0&&(
-                        <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:9,padding:"10px 13px"}}>
-                          <p style={{fontSize:10,fontWeight:700,color:"#14532D",textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>✓ Buying signals</p>
-                          {aiAnalysis.buyingSignals.map((s,i)=><div key={i} style={{fontSize:11,color:"#166534",display:"flex",gap:6,marginBottom:3}}><span>✓</span>{s}</div>)}
-                        </div>
-                      )}
-
-                      {/* Missing signals */}
-                      {aiAnalysis.missingSignals?.length>0&&(
-                        <div style={{background:C.ltylw,border:"1px solid #FDE047",borderRadius:9,padding:"10px 13px"}}>
-                          <p style={{fontSize:10,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>◆ Still to capture</p>
-                          {aiAnalysis.missingSignals.map((s,i)=><div key={i} style={{fontSize:11,color:"#713F12",display:"flex",gap:6,marginBottom:3}}><span>→</span>{s}</div>)}
-                        </div>
-                      )}
-
-                      {/* Red flags */}
-                      {aiAnalysis.redFlags?.length>0&&(
-                        <div style={{background:C.ltred,border:"1px solid #FCA5A5",borderRadius:9,padding:"10px 13px"}}>
-                          <p style={{fontSize:10,fontWeight:700,color:"#7F1D1D",textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>⚠ Flags</p>
-                          {aiAnalysis.redFlags.map((s,i)=><div key={i} style={{fontSize:11,color:"#991B1B",display:"flex",gap:6,marginBottom:3}}><span>→</span>{s}</div>)}
-                        </div>
-                      )}
-
-                      {/* Recommended action */}
-                      {aiAnalysis.recommendedAction&&(
-                        <div style={{background:"linear-gradient(135deg,#F0EEFE,#EAF4FE)",border:"1px solid #C4B5FD",borderRadius:9,padding:"10px 13px"}}>
-                          <p style={{fontSize:10,fontWeight:700,color:C.purple,textTransform:"uppercase",letterSpacing:.06,marginBottom:5}}>Next action</p>
-                          <p style={{fontSize:12,color:"#26215C",lineHeight:1.55,margin:0}}>{aiAnalysis.recommendedAction}</p>
-                        </div>
-                      )}
-
-                      {/* Follow-up hook */}
-                      {aiAnalysis.followUpHook&&(
-                        <div style={{background:C.light,border:"1px solid #E2E8F0",borderRadius:9,padding:"10px 13px"}}>
-                          <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:5}}>Follow-up email hook</p>
-                          <p style={{fontSize:11,fontStyle:"italic",color:C.dark,lineHeight:1.55,margin:0}}>"{aiAnalysis.followUpHook}"</p>
-                        </div>
-                      )}
-
-                      {/* Re-analyse */}
-                      <button onClick={()=>setAiAnalysis(null)}
-                        style={{padding:"7px 0",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-                        ↻ Re-analyse
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+              </div>
+            ))}
+          </div>
+        )}
+        {sel && (
+          <div style={{marginTop:9,borderRadius:10,overflow:"hidden",border:"1px solid #E2E8F0"}}>
+            <div style={{padding:"9px 12px",background:"#EFF6FF",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:C.navy}}>{sel.name}</div>
+                <div style={{fontSize:11,color:C.muted}}>{sel.company} · {sel.designation||""}</div>
+              </div>
+              <button onClick={resetForm} style={{fontSize:11,color:C.muted,background:"none",border:"none",cursor:"pointer",fontFamily:F}}>✕ Clear</button>
             </div>
-
-            {/* Score delta preview + Submit */}
-            <div style={{padding:18}}>
-              {sel && score && (
-                <div style={{background:C.ltnavy,borderRadius:9,padding:"9px 12px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <span style={{fontSize:12,color:C.muted}}>Signals captured: <strong style={{color:C.navy}}>{[score?1:0,ret?1:0,demo?1:0,badgeScan?1:0,buyingGroup?1:0,meetingBooked?1:0,collateral&&collateral!=="none"?1:0,urgency?1:0,qTypes.length>0?1:0].reduce((a,b)=>a+b,0)} types</strong></span>
-                  <span style={{fontSize:12,fontWeight:700,color:C.green}}>+{calcDelta()} pts to score</span>
-                </div>
-              )}
-              <button onClick={submit} disabled={!score||!sel}
-                style={{width:"100%",padding:14,background:score&&sel?C.navy:"#E2E8F0",color:score&&sel?C.white:"#94A3B8",border:"none",borderRadius:11,fontSize:14,fontWeight:700,cursor:score&&sel?"pointer":"not-allowed",fontFamily:F,transition:"all .15s"}}>
-                {!sel?"Select a visitor first":!score?"Select a quality score":"Log conversation →"}
-              </button>
-              {score&&sel&&<p style={{textAlign:"center",fontSize:11,color:C.muted,marginTop:6}}>Updates {sel.name}'s intent score immediately</p>}
+            <div style={{padding:"6px 12px",background:"white",display:"flex",gap:12,fontSize:11,color:C.muted}}>
+              <span>Pre-event IEI: <b style={{color:C.navy}}>{Math.round(sel.iei_score||0)}</b></span>
+              {sel.onsite_iei_score && <span>On-site IEI: <b style={{color:"#0D9488"}}>{Math.round(sel.onsite_iei_score)}</b></span>}
+              <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,fontWeight:700,
+                background:sel.iei_tier==="Hot"?"#FEE2E2":sel.iei_tier==="Warm"?"#FEF3C7":sel.iei_tier==="Cool"?"#DBEAFE":"#F1F5F9",
+                color:sel.iei_tier==="Hot"?"#991B1B":sel.iei_tier==="Warm"?"#92400E":sel.iei_tier==="Cool"?"#1E40AF":"#475569"}}>{sel.iei_tier}</span>
             </div>
           </div>
         )}
       </div>
+
+      {/* Step 2 — Conversation quality */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(2,"Conversation quality","— your assessment")}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6}}>
+          {[1,2,3,4,5].map(n=>(
+            <button key={n} onClick={()=>setScore(n)}
+              style={{padding:"14px 4px",border:`2px solid ${score===n?SCORE_COLORS[n]:"#E2E8F0"}`,borderRadius:11,cursor:"pointer",
+                background:score===n?SCORE_COLORS[n]:"white",display:"flex",flexDirection:"column",alignItems:"center",gap:3,transition:"all .12s"}}>
+              <span style={{fontSize:20,fontWeight:800,color:score===n?"white":C.muted,lineHeight:1}}>{n}</span>
+              <span style={{fontSize:9,color:score===n?"rgba(255,255,255,0.8)":"#94A3B8",textAlign:"center",lineHeight:1.2}}>{SCORE_LABELS[n]}</span>
+            </button>
+          ))}
+        </div>
+        {score && <div style={{marginTop:8,fontSize:12,color:SCORE_COLORS[score],fontWeight:600,textAlign:"center"}}>
+          {score>=4?"Great conversation — high engagement signal":score===3?"Moderate interest — follow up recommended":"Low engagement — may need different approach"}
+        </div>}
+      </div>
+
+      {/* Step 3 — Question types */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(3,"Questions asked","— multi-select")}
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {Q_TYPES.map(q=>{
+            const sel2=qTypes.includes(q.id);
+            return <button key={q.id} onClick={()=>toggleQ(q.id)}
+              style={{padding:"7px 11px",border:`2px solid ${sel2?C.navy:"#E2E8F0"}`,borderRadius:99,fontSize:11,fontWeight:600,
+                cursor:"pointer",background:sel2?C.navy:"white",color:sel2?"white":C.muted,fontFamily:F,transition:"all .12s"}}>
+              {sel2?"✓ ":""}{q.label}
+            </button>;
+          })}
+        </div>
+      </div>
+
+      {/* Step 4 — On-site behaviour */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(4,"On-site behaviour","— observed signals")}
+        {[
+          {key:"ret",val:ret,set:setRet,label:"Return visit",sub:"Came back to the booth"},
+          {key:"demo",val:demo,set:setDemo,label:"Demo requested",sub:"Asked for a product demo"},
+          {key:"badge",val:badge,set:setBadge,label:"Badge scanned",sub:"Consented to scan"},
+          {key:"bg",val:bg,set:setBg,label:"Buying group",sub:"Accompanied by colleagues"},
+          {key:"mtg",val:mtg,set:setMtg,label:"Meeting booked",sub:"Scheduled a follow-up"},
+        ].map(({key,val,set,label,sub})=>(
+          <div key={key} onClick={()=>set(!val)}
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 12px",
+              borderRadius:9,border:`1.5px solid ${val?C.navy:"#E2E8F0"}`,marginBottom:7,cursor:"pointer",
+              background:val?"#EFF6FF":"white",transition:"all .15s"}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:val?C.navy:C.muted2}}>{label}</div>
+              <div style={{fontSize:10,color:C.muted}}>{sub}</div>
+            </div>
+            <div style={{width:40,height:22,borderRadius:11,background:val?C.navy:"#CBD5E1",position:"relative",flexShrink:0,transition:"background .18s"}}>
+              <div style={{width:18,height:18,borderRadius:"50%",background:"white",position:"absolute",top:2,left:val?20:2,transition:"left .18s",boxShadow:"0 1px 3px rgba(0,0,0,.2)"}}/>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Step 5 — Collateral */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(5,"Collateral shared","— optional")}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {["Brochure","Case study","Pricing sheet","Technical spec","None"].map(c=>(
+            <button key={c} onClick={()=>setColl(collateral===c?"":c)}
+              style={{padding:"6px 11px",border:`1.5px solid ${collateral===c?C.navy:"#E2E8F0"}`,borderRadius:99,
+                fontSize:11,fontWeight:600,cursor:"pointer",background:collateral===c?C.navy:"white",
+                color:collateral===c?"white":C.muted,fontFamily:F}}>{c}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Step 6 — Urgency */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(6,"Perceived buying urgency","— your assessment")}
+        <div style={{display:"flex",gap:6}}>
+          {[{id:"low",label:"Low — exploring"},{id:"medium",label:"Medium — evaluating"},{id:"high",label:"High — ready to buy"}].map(u=>(
+            <button key={u.id} onClick={()=>setUrgency(urgency===u.id?"":u.id)}
+              style={{flex:1,padding:"8px 6px",border:`1.5px solid ${urgency===u.id?C.navy:"#E2E8F0"}`,borderRadius:9,
+                fontSize:10,fontWeight:600,cursor:"pointer",background:urgency===u.id?C.navy:"white",
+                color:urgency===u.id?"white":C.muted,fontFamily:F,textAlign:"center"}}>{u.label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Step 7 — Notes */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(7,"Conversation notes","— optional")}
+        <textarea value={notes} onChange={e=>setNotes(e.target.value)}
+          placeholder="Key points, specific needs, follow-up actions…"
+          style={{width:"100%",padding:"11px 13px",border:"1.5px solid #E2E8F0",borderRadius:10,fontSize:13,
+            fontFamily:F,outline:"none",resize:"none",height:80}}/>
+      </div>
+
+      {/* Step 8 — Conversation capture */}
+      <div style={sectionStyle(!unlocked)}>
+        {stepHead(8,"Conversation capture","— text · voice · AI analysis")}
+        {/* Mode tabs */}
+        <div style={{display:"flex",gap:6,marginBottom:12}}>
+          {[{id:"text",label:"✏️ Type"},{id:"voice",label:"🎙 Voice"}].map(m=>(
+            <button key={m.id} onClick={()=>setVoiceMode(m.id)}
+              style={{flex:1,padding:8,border:`1.5px solid ${voiceMode===m.id?C.navy:"#E2E8F0"}`,borderRadius:9,
+                background:voiceMode===m.id?C.navy:"white",fontSize:11,fontWeight:600,
+                color:voiceMode===m.id?"white":C.muted,cursor:"pointer",fontFamily:F}}>{m.label}</button>
+          ))}
+          <button onClick={runAI} disabled={aiLoading}
+            style={{flex:1,padding:8,border:"1.5px solid #E2E8F0",borderRadius:9,background:"white",
+              fontSize:11,fontWeight:600,color:C.navy,cursor:"pointer",fontFamily:F,opacity:aiLoading?0.6:1}}>
+            {aiLoading?"Analysing…":"+ AI Analyse"}
+          </button>
+        </div>
+
+        {/* Text mode */}
+        {voiceMode==="text" && (
+          <textarea value={convText} onChange={e=>setConvText(e.target.value)}
+            placeholder="e.g. Replacing 3 CT scanners — Q1 budget approved, sign off under SGD 2.8M. Currently using Philips, want to switch. Need HL7 and ASEAN framework pricing."
+            style={{width:"100%",padding:"11px 13px",border:"1.5px solid #E2E8F0",borderRadius:10,fontSize:12,
+              fontFamily:F,outline:"none",resize:"none",height:80}}/>
+        )}
+
+        {/* Voice mode */}
+        {voiceMode==="voice" && (
+          <div style={{textAlign:"center",padding:16}}>
+            {!recActive && !transcript && (
+              <div>
+                <div style={{fontSize:40,marginBottom:8}}>🎙</div>
+                <p style={{fontSize:12,color:C.muted,marginBottom:12}}>Tap to record your conversation summary</p>
+                <button onClick={startVoice}
+                  style={{padding:"12px 24px",background:C.navy,color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                  Start recording
+                </button>
+              </div>
+            )}
+            {recActive && (
+              <div>
+                <div style={{fontSize:40,marginBottom:8,animation:"pulse 1.5s infinite"}}>🔴</div>
+                <p style={{fontSize:13,fontWeight:700,color:"#DC2626",marginBottom:4}}>Recording… {recSeconds}s</p>
+                <p style={{fontSize:11,color:C.muted,marginBottom:12,fontStyle:"italic",minHeight:20}}>{transcript.slice(-100)||"Speak now…"}</p>
+                <button onClick={stopVoice}
+                  style={{padding:"10px 20px",background:"#DC2626",color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                  Stop recording
+                </button>
+              </div>
+            )}
+            {!recActive && transcript && (
+              <div>
+                <div style={{background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:10,padding:12,marginBottom:10,textAlign:"left"}}>
+                  <p style={{fontSize:10,fontWeight:700,color:"#14532D",marginBottom:6}}>TRANSCRIPT</p>
+                  <p style={{fontSize:12,color:"#166534",lineHeight:1.6,margin:0}}>{transcript}</p>
+                </div>
+                <button onClick={()=>{setTranscript("");finalTranscriptRef.current="";setAiAnalysis(null);}}
+                  style={{padding:"8px 16px",background:"white",border:"1.5px solid #E2E8F0",borderRadius:10,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F,color:C.navy}}>
+                  Re-record
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AI Analysis result */}
+        {aiAnalysis && (
+          <div style={{marginTop:12,background:"linear-gradient(135deg,#0D1B3E,#1E3A8A)",borderRadius:12,padding:14,color:"white"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <span style={{fontSize:12,fontWeight:700}}>AI Analysis</span>
+              <span style={{fontSize:10,padding:"3px 9px",borderRadius:99,fontWeight:700,
+                background:aiAnalysis.intentLevel==="strong"?"#16A34A":aiAnalysis.intentLevel==="moderate"?"#2563EB":"#DC2626",
+                color:"white"}}>{aiAnalysis.intentLevel} intent</span>
+            </div>
+            {(convText||transcript) && (
+              <p style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontStyle:"italic",marginBottom:10,borderBottom:"1px solid rgba(255,255,255,0.1)",paddingBottom:8}}>
+                "{(convText||transcript).slice(0,100)}{(convText||transcript).length>100?"…":""}"
+              </p>
+            )}
+            <div style={{display:"flex",gap:16,marginBottom:10}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:22,fontWeight:800}}>{aiAnalysis.scoreDelta}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>SCORE DELTA</div>
+              </div>
+              <div style={{flex:1}}>
+                <p style={{fontSize:11,color:"rgba(255,255,255,0.8)",margin:0,fontStyle:"italic"}}>{aiAnalysis.recommendedAction}</p>
+              </div>
+            </div>
+            <p style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:4,fontWeight:600}}>BUYING SIGNALS</p>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+              {(aiAnalysis.buyingSignals||[]).map((s,i)=>(
+                <span key={i} style={{fontSize:10,padding:"3px 8px",borderRadius:99,background:"rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.85)"}}>{s}</span>
+              ))}
+            </div>
+            {(aiAnalysis.redFlags||[]).length>0 && <>
+              <p style={{fontSize:10,color:"#FCA5A5",marginBottom:4,fontWeight:600}}>RED FLAGS</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
+                {aiAnalysis.redFlags.map((s,i)=>(
+                  <span key={i} style={{fontSize:10,padding:"3px 8px",borderRadius:99,background:"rgba(220,38,38,0.2)",color:"#FCA5A5"}}>{s}</span>
+                ))}
+              </div>
+            </>}
+            <p style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginBottom:3,fontWeight:600}}>NEXT QUESTION</p>
+            <p style={{fontSize:11,color:"rgba(255,255,255,0.7)",margin:0,marginBottom:8,fontStyle:"italic"}}>{aiAnalysis.nextQuestion}</p>
+            <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:8,marginTop:4}}>
+              <p style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:3,fontWeight:600}}>FOLLOW-UP HOOK</p>
+              <p style={{fontSize:11,color:"rgba(255,255,255,0.75)",margin:0,fontStyle:"italic"}}>{aiAnalysis.followUpHook}</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Submit */}
+      {submitErr && <div style={{background:"#FEE2E2",color:"#991B1B",padding:"10px 14px",borderRadius:8,fontSize:12,marginBottom:10}}>{submitErr}</div>}
+      <button onClick={submit} disabled={submitting||!sel||!score}
+        style={{width:"100%",padding:13,background:(!sel||!score)?"#CBD5E1":C.green,color:"white",border:"none",
+          borderRadius:10,fontSize:14,fontWeight:700,cursor:(!sel||!score)?"not-allowed":"pointer",fontFamily:F,opacity:submitting?0.7:1}}>
+        {submitting ? "Saving…" : "Log conversation signal →"}
+      </button>
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// SCREEN 7 — Lead Export
-// ═══════════════════════════════════════════════════════════════════
+
 function LeadExport({ex}) {
   const [exported,setExported] = useState(false);
   const t1=VISITORS.filter(v=>v.tier==="T1");
