@@ -2642,7 +2642,7 @@ function StaffApp({ex}) {
   const searchVisitors = async (q) => {
     if (!q || q.length < 2) { setVisitors([]); return; }
     try {
-      const res = await fetch(`${API}audience/visitors/${ex.id}?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/proxy?slug=audience/visitors/${ex.id}&q=${encodeURIComponent(q)}`);
       const data = await res.json();
       setVisitors(Array.isArray(data) ? data : (data.visitors || []));
     } catch(e) { setVisitors([]); }

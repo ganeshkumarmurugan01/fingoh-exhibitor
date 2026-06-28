@@ -1,8 +1,11 @@
 export default async function handler(req, res) {
   try {
-    const slug = req.query.slug || []
-    const path = '/api/' + (Array.isArray(slug) ? slug.join('/') : slug)
-    const target = 'https://web-production-93e78d.up.railway.app' + path
+    const { slug, ...restQuery } = req.query
+    const path = '/api/' + (Array.isArray(slug) ? slug.join('/') : slug || '')
+    
+    // Forward remaining query params
+    const qString = new URLSearchParams(restQuery).toString()
+    const target = 'https://web-production-93e78d.up.railway.app' + path + (qString ? '?' + qString : '')
 
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
     const headers = { 'content-type': 'application/json', 'x-fingoh-auth': auth }
