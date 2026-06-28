@@ -1760,7 +1760,6 @@ function IEIAnalysis({ex}) {
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:400}}>
         <div style={{width:44,height:44,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
         <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research…</p>
-        <p style={{fontSize:11,color:C.muted,margin:0}}>Claude is researching {p.name} · {p.company} with web search</p>
       </div>
     );
     return (
@@ -1784,6 +1783,22 @@ function IEIAnalysis({ex}) {
           </div>
           <ScoreRing score={p.ieiScore} size={54}/>
         </div>
+        {/* Deep IEI Analysis button */}
+        {!rd && p?.contactId && (
+          <div style={{padding:"10px 18px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFF",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div>
+              <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0}}>Basic IEI score shown</p>
+              <p style={{fontSize:10,color:C.muted,margin:0}}>Run deep research for full intelligence layers, agent inference and exhibitor brief</p>
+            </div>
+            <button onClick={()=>fetchResearch(p.contactId, p)} disabled={researchLoading}
+              style={{padding:"7px 16px",background:researchLoading?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:researchLoading?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
+              {researchLoading ? <>
+                <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                Researching…
+              </> : "⚡ Deep IEI Analysis"}
+            </button>
+          </div>
+        )}
         {/* Tabs */}
         <div style={{display:"flex",gap:2,padding:"0 18px",borderBottom:"1px solid #E2E8F0",background:"#FAFAFA"}}>
           {[["layers","Intelligence layers"],["predict","📡 Predictions"],["recs","Visitor matches"],["brief","Exhibitor brief"],["dims","Intent dimensions"],["score","Score breakdown"]].map(([id,lbl])=>(
@@ -1898,29 +1913,55 @@ function IEIAnalysis({ex}) {
           ))}
 
           {/* VISITOR MATCHES — replaces exhibitor matches */}
-          {tab==="recs" && (p.iei ? <>
-            <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
-              <p style={{fontSize:12,fontWeight:600,color:"#1E3A8A",marginBottom:3}}>Visitor match recommendations</p>
-              <p style={{fontSize:11,color:"#1E3A8A",margin:0,lineHeight:1.6}}>Other registered visitors with similar intent, category interests, or sourcing timelines. Use these to identify buying groups, consortium opportunities, and peer reference introductions.</p>
-            </div>
-            {(rd?.exhibitor_matches ? rd.exhibitor_matches.map(m=>({name:m.name,company:m.type,match:m.match_score,reason:m.reason})) : intel?.recommendations || []).map((r,i)=>(
-              <div key={i} style={{background:C.white,border:`${i===0?"1.5px":"1px"} solid ${i===0?C.tealIEI:"#E2E8F0"}`,borderRadius:11,padding:"12px 16px",marginBottom:9,display:"flex",alignItems:"flex-start",gap:12}}>
-                <div style={{width:36,height:36,borderRadius:9,background:i===0?C.tealIEI:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:i===0?C.white:C.muted,flexShrink:0}}>{i+1}</div>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:2,flexWrap:"wrap"}}>
-                    <span style={{fontSize:13,fontWeight:700,color:C.dark}}>{r.name}</span>
-                    {i===0&&<span style={{fontSize:10,background:C.navy,color:C.white,padding:"2px 7px",borderRadius:99,fontWeight:700}}>Best match</span>}
-                  </div>
-                  <div style={{fontSize:11,color:C.muted,marginBottom:7}}>{r.company}</div>
-                  <div style={{height:3,background:"#F1F5F9",borderRadius:2,overflow:"hidden",marginBottom:7}}>
-                    <div style={{height:"100%",width:`${r.match}%`,background:r.match>=80?C.tealIEI:r.match>=65?C.blue:C.muted,borderRadius:2}}/>
-                  </div>
-                  <p style={{fontSize:11,color:"#555",lineHeight:1.55,margin:0}}>{r.reason}</p>
-                </div>
-                <div style={{fontFamily:"monospace",fontSize:18,fontWeight:500,color:C.dark,paddingTop:3,flexShrink:0}}>{r.match}%</div>
+          {tab==="recs" && (()=>{
+            // Similar visitors from dbContacts — same tier or within 20 IEI points
+            const similarVisitors = dbContacts
+              .filter(c => c.id !== p.id && c.name)
+              .map(c => ({
+                name: c.name,
+                company: c.company || "—",
+                title: c.title || "",
+                tier: c.ieiTier,
+                score: c.ieiScore || 0,
+                match: Math.max(0, Math.min(99, Math.round(100 - Math.abs((c.ieiScore||50) - (p.ieiScore||50)) * 1.5))),
+                reason: [
+                  c.ieiTier === p.ieiTier ? `Same ${c.ieiTier} intent tier` : `${c.ieiTier} tier`,
+                  c.reason ? `Visit purpose: ${c.reason}` : null,
+                  c.cats?.length ? `Interests: ${(c.cats||[]).join(", ")}` : null,
+                ].filter(Boolean).join(" · "),
+              }))
+              .sort((a,b) => b.match - a.match)
+              .slice(0,4);
+            if (similarVisitors.length === 0) return (
+              <p style={{fontSize:13,color:C.muted,padding:16}}>No other visitors uploaded yet. Upload more contacts to see visitor matches.</p>
+            );
+            return <>
+              <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+                <p style={{fontSize:12,fontWeight:600,color:"#1E3A8A",marginBottom:3}}>Similar visitors in your audience</p>
+                <p style={{fontSize:11,color:"#1E3A8A",margin:0,lineHeight:1.6}}>Other registered visitors with similar IEI scores, intent tier, or sourcing goals. Use these to identify buying groups, consortium opportunities, and peer reference introductions.</p>
               </div>
-            ))}
-          </> : <p style={{fontSize:13,color:C.muted,padding:16}}>Run IEI analysis to see visitor match recommendations.</p>)}
+              {similarVisitors.map((r,i)=>(
+                <div key={i} style={{background:C.white,border:`${i===0?"1.5px":"1px"} solid ${i===0?C.tealIEI:"#E2E8F0"}`,borderRadius:11,padding:"12px 16px",marginBottom:9,display:"flex",alignItems:"flex-start",gap:12}}>
+                  <div style={{width:36,height:36,borderRadius:9,background:i===0?C.tealIEI:C.light,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:i===0?C.white:C.muted,flexShrink:0}}>
+                    {(r.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2)}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:2,flexWrap:"wrap"}}>
+                      <span style={{fontSize:13,fontWeight:700,color:C.dark}}>{r.name}</span>
+                      {i===0&&<span style={{fontSize:10,background:C.navy,color:C.white,padding:"2px 7px",borderRadius:99,fontWeight:700}}>Closest match</span>}
+                      <TierBadge t={r.tier} iei/>
+                    </div>
+                    <div style={{fontSize:11,color:C.muted,marginBottom:7}}>{r.title}{r.title&&r.company?" · ":""}{r.company}</div>
+                    <div style={{height:3,background:"#F1F5F9",borderRadius:2,overflow:"hidden",marginBottom:7}}>
+                      <div style={{height:"100%",width:`${r.match}%`,background:r.match>=80?C.tealIEI:r.match>=65?C.blue:C.muted,borderRadius:2}}/>
+                    </div>
+                    <p style={{fontSize:11,color:"#555",lineHeight:1.55,margin:0}}>{r.reason}</p>
+                  </div>
+                  <div style={{fontFamily:"monospace",fontSize:18,fontWeight:500,color:C.dark,paddingTop:3,flexShrink:0}}>{r.match}%</div>
+                </div>
+              ))}
+            </>;
+          })()}
 
           {/* BRIEF */}
           {tab==="brief" && (p.iei ? <>
@@ -2021,7 +2062,7 @@ function IEIAnalysis({ex}) {
           </div>
           <div style={{overflowY:"auto",maxHeight:560}}>
             {visible.map(v=>(
-              <div key={v.id} onClick={()=>{setSelId(v.id);setTab("layers");setShowAdd(false);fetchResearch(v.contactId||v.id, v);}}
+              <div key={v.id} onClick={()=>{setSelId(v.id);setTab("layers");setShowAdd(false);}}
                 style={{padding:"10px 13px",borderBottom:"1px solid #F8FAFC",cursor:"pointer",background:selId===v.id?"#F0F4FF":C.white,borderLeft:`3px solid ${selId===v.id?C.navy:v.id>=100?"#A855F7":"transparent"}`,transition:"all .12s"}}
                 onMouseOver={e=>{if(selId!==v.id)e.currentTarget.style.background="#FAFAFA";}}
                 onMouseOut={e=>{if(selId!==v.id)e.currentTarget.style.background=C.white;}}>
