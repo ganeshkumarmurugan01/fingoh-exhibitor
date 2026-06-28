@@ -1572,9 +1572,10 @@ function IEIAnalysis({ex}) {
         if (Array.isArray(data)) {
           // Map audience_contacts shape → VISITORS shape
           const mapped = data.map((c,i)=>({
-            id:       1000+i,
-            contactId: c.id,
-            name:     c.name || `${c.email}`,
+            id:          1000+i,
+            contactId:   c.id,
+            iei_research: c.iei_research || null,
+            name:        c.name || `${c.email}`,
             company:  c.company || "—",
             title:    c.designation || "—",
             country:  c.country || "—",
@@ -1701,12 +1702,34 @@ function IEIAnalysis({ex}) {
     }),650);
   };
 
-  // Fetch full IEI research for a contact via Cloudflare Worker
   const WORKER_URL = "https://fingoh-scorer-worker.fingoh.workers.dev";
+
+  // Load persisted research from DB into researchData on contacts load
+  React.useEffect(()=>{
+    if (!dbContacts.length) return;
+    const persisted = {};
+    dbContacts.forEach(c => {
+      if (c.iei_research && c.contactId) persisted[c.contactId] = c.iei_research;
+    });
+    if (Object.keys(persisted).length) setResearchData(prev => ({...prev, ...persisted}));
+  }, [dbContacts]);
+
+  // Save research result back to audience_contacts
+  const saveResearch = async (contactId, data) => {
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      await fetch(`/api/v1/audience/save-research/${contactId}`, {
+        method: "POST",
+        headers: {"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"},
+        body: JSON.stringify({iei_research: data}),
+      });
+    } catch(e) { console.error("save research failed", e); }
+  };
 
   const fetchResearch = async (contactId, visitor) => {
     if (!contactId) return;
-    if (researchData[contactId]) return; // already fetched
+    if (researchData[contactId]) return;
     setResearchLoading(true);
     try {
       const res = await fetch(`${WORKER_URL}/api/research`, {
@@ -1735,6 +1758,7 @@ function IEIAnalysis({ex}) {
       if (res.ok) {
         const data = await res.json();
         setResearchData(prev => ({...prev, [contactId]: data}));
+        saveResearch(contactId, data);
       }
     } catch(e) { console.error("research fetch failed", e); }
     finally { setResearchLoading(false); }
@@ -1759,7 +1783,7 @@ function IEIAnalysis({ex}) {
     if(researchLoading && !rd) return (
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:400}}>
         <div style={{width:44,height:44,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-        <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research…</p>
+        <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research — {p?.name}…</p>
       </div>
     );
     return (
