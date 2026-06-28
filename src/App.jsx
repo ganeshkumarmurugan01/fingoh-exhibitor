@@ -2656,7 +2656,7 @@ function StaffApp({ex}) {
       if (res.ok) {
         const data = await res.json();
         if (data.already_logged) {
-          setDuplicateWarning(`${v.name} already has a signal logged today by ${data.logged_by||"another staff member"}. You can still add another.`);
+          setDuplicateWarning(`${v.name} was already logged today by ${data.logged_by||"another staff member"} at ${data.logged_at ? new Date(data.logged_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "earlier"}. Adding another will update the on-site IEI score with the latest signals.`);
         } else { setDuplicateWarning(""); }
       }
     } catch(e) { console.error("[check-signal]", e); setDuplicateWarning(""); }
@@ -2758,8 +2758,10 @@ function StaffApp({ex}) {
       });
       const data = await res.json();
       if(!res.ok) throw new Error(data.detail||"Save failed");
+      // Update sel with new onsite score so visitor card reflects it
+      setSel(prev => prev ? {...prev, onsite_iei_score: data.onsite_iei_score, onsite_iei_tier: data.onsite_iei_tier} : prev);
       setDone(data);
-      setTimeout(()=>{ setDone(null); resetForm(); }, 3000);
+      setTimeout(()=>{ setDone(null); resetForm(); }, 4000);
     } catch(e) { setSubmitErr(e.message); }
     setSubmitting(false);
   };
