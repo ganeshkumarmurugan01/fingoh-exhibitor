@@ -4333,8 +4333,26 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
 // ROOT
 // ═══════════════════════════════════════════════════════════════════
   export default function App() {
-  const [screen, setScreen]     = useState("login");
-  const [ex, setEx]             = useState(null);
+  const [screen, setScreen]     = useState(()=>{
+    try { return sessionStorage.getItem("fingoh_screen") || "login"; } catch { return "login"; }
+  });
+  const [ex, setEx]             = useState(()=>{
+    try {
+      const saved = sessionStorage.getItem("fingoh_ex");
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+
+  // Persist screen + ex to sessionStorage on every change
+  React.useEffect(()=>{
+    try { sessionStorage.setItem("fingoh_screen", screen); } catch {}
+  }, [screen]);
+  React.useEffect(()=>{
+    try {
+      if (ex) sessionStorage.setItem("fingoh_ex", JSON.stringify(ex));
+      else sessionStorage.removeItem("fingoh_ex");
+    } catch {}
+  }, [ex]);
   const [selP, setSelP]         = useState(null);
   const [agentOpen, setAgentOpen] = useState(false);
 
