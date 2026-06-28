@@ -1575,8 +1575,10 @@ function IEIAnalysis({ex}) {
           const mapped = data.map((c,i)=>({
             id:          1000+i,
             contactId:   c.id,
-            iei_research: c.iei_research || null,
-            name:        c.name || `${c.email}`,
+            iei_research:      c.iei_research || null,
+            onsite_iei_score:  c.onsite_iei_score || null,
+            onsite_iei_tier:   c.onsite_iei_tier || null,
+            name:              c.name || `${c.email}`,
             company:  c.company || "—",
             title:    c.designation || "—",
             country:  c.country || "—",
@@ -1806,7 +1808,20 @@ function IEIAnalysis({ex}) {
               {p.timeline&&<span style={{fontSize:10,background:"rgba(247,148,29,0.2)",padding:"2px 8px",borderRadius:99,color:C.yellow,fontWeight:600}}>{p.timeline}</span>}
             </div>
           </div>
-          <ScoreRing score={p.ieiScore} size={54}/>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontWeight:600,letterSpacing:.06,textTransform:"uppercase",marginBottom:1}}>Pre-event</div>
+              <ScoreRing score={p.ieiScore} size={44}/>
+            </div>
+            {p.onsite_iei_score && (
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontWeight:600,letterSpacing:.06,textTransform:"uppercase",marginBottom:1}}>On-site</div>
+                <div style={{width:44,height:44,borderRadius:"50%",border:"2px solid #0D9488",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+                  <span style={{fontSize:14,fontWeight:800,color:"#2DD4BF",lineHeight:1}}>{Math.round(p.onsite_iei_score)}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         {/* Deep IEI Analysis button */}
         {!rd && p?.contactId && (
