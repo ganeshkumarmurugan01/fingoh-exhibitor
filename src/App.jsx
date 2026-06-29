@@ -1188,8 +1188,7 @@ function VisitorList({eventId, refreshKey}) {
       c.iei_tier||"", c.onsite_iei_tier||"",
       c.reg_prob!=null?(c.reg_prob*100).toFixed(0)+"%":"",
     ]);
-    const csv = [headers,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(",")).join("
-");
+    const csv = [headers,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n");
     const blob = new Blob([csv],{type:"text/csv"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href=url;
