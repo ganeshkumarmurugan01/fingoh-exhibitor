@@ -3537,70 +3537,78 @@ function FunnelBar({n, total, color}) {
 }
 
 function OutcomesDashboard({ex}) {
+  const [contacts, setContacts] = React.useState([]);
+  const [loadingContacts, setLoadingContacts] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!ex?.id) return;
+    setLoadingContacts(true);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token || "";
+      fetch(`/api/proxy?slug=v1/audience/contacts/${ex.id}`, {
+        headers: { "x-fingoh-auth": `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoadingContacts(false); })
+      .catch(() => setLoadingContacts(false));
+    });
+  }, [ex?.id]);
+
+  // Real actuals from on-site data
+  const totalUploaded   = contacts.length;
+  const visitedBooth    = contacts.filter(c => c.onsite_iei_score).length;
+  const meetingsBooked  = contacts.filter(c => c.onsite_signals?.meeting_booked).length;
+  const hotTier         = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Hot").length;
+  const warmTier        = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Warm").length;
+  const avgIEI          = totalUploaded > 0 ? (contacts.reduce((s,c)=>s+(c.iei_score||0),0)/totalUploaded).toFixed(1) : 0;
+  const pipelineActual  = contacts.reduce((sum,c) => {
+    const score = (c.onsite_iei_score||c.iei_score||0)/100;
+    const tier  = c.onsite_iei_tier||c.iei_tier||"";
+    if(tier==="Hot")  return sum + score*0.65*280000;
+    if(tier==="Warm") return sum + score*0.25*90000;
+    return sum;
+  }, 0);
   const [activeStage,setActiveStage] = useState(null);
   const [outMode,setOutMode]         = useState("predicted");
 
   // Funnel data — flows consistently from upload through to leads
   const FUNNEL = [
-    {
-      id:"upload",   icon:"📤", label:"Uploaded",         n:847,  prev:null,  rate:null,
-      color:C.blue,  lt:C.ltblue, tc:"#0C447C",
-      desc:"Total contacts on your pre-registered list, CRM sync, or registration feed",
+    { id:"uploaded",   icon:"📤", label:"Uploaded",          n:totalUploaded||0,  rate:null,
+      color:C.blue,    lt:C.ltblue,   tc:"#1E3A8A",
+      desc:"Total contacts uploaded — CSV imports, manual entries, and registrations.",
       breakdown:[
-        {label:"Full profile (name + company + title)",    n:234, pct:27.6},
-        {label:"Partial profile (name + company only)",    n:411, pct:48.5},
-        {label:"Basic (name only / email only)",           n:202, pct:23.9},
+        {label:"Hot tier (IEI ≥ 75)",  n:hotTier},
+        {label:"Warm tier (IEI 50–74)", n:warmTier},
+        {label:"Cool/Cold tier",        n:Math.max(0,totalUploaded-hotTier-warmTier)},
       ],
-      insight:"847 contacts uploaded across CSV, CRM and live registration feed. 27.6% had full profiles enabling immediate IEI pre-event analysis."
+      insight:`${totalUploaded} contacts scored · avg IEI ${avgIEI} · ${hotTier} Hot + ${warmTier} Warm tier visitors identified pre-event.`
     },
-    {
-      id:"attended",  icon:"✅", label:"Attended",          n:287,  prev:847,   rate:33.9,
-      color:C.tealIEI,lt:C.tealLt, tc:"#085041",
-      desc:"Contacts from your list who physically attended the event — Cox PH model predicted 271 (actual: 287, +5.9%)",
-      noshow:{
-        flagged:47, saved:38, stillNoShow:9,
-        desc:"Fingoh Cox PH model flagged 47 high-value contacts as no-show risk 72hrs before the event."
-      },
+    { id:"attended",   icon:"✅", label:"Visited booth",      n:visitedBooth||0,  rate:totalUploaded>0?((visitedBooth/totalUploaded)*100).toFixed(0):0,
+      color:C.tealIEI, lt:"#F0FDFA", tc:"#134E4A",
+      desc:"Visitors who were logged by staff at the booth — on-site IEI signals captured.",
       breakdown:[
-        {label:"Attended as expected",                n:240, pct:70.5},
-        {label:"Saved by Fingoh re-engagement",       n:38,  pct:11.2},
-        {label:"No-showed despite intervention",      n:9,   pct:2.6},
-        {label:"Walk-in (not in uploaded list)",      n:47,  pct:13.8},
+        {label:"Staff signals logged",  n:visitedBooth},
+        {label:"Not yet logged",        n:Math.max(0,totalUploaded-visitedBooth)},
       ],
-      insight:"287 attended from 847 uploaded (33.9%). Cox PH model predicted 271 — actual exceeded upper confidence bound. 38 at-risk T1/T2 saved by targeted re-engagement."
+      insight:`${visitedBooth} of ${totalUploaded} uploaded visitors had on-site conversations logged via Staff App.`
     },
-    {
-      id:"meetings",  icon:"🤝", label:"Took meetings",     n:76,   prev:287,   rate:26.5,
-      color:C.purple, lt:C.ltpur, tc:"#26215C",
-      desc:"Attendees who had a meaningful structured conversation or meeting at your booth — model predicted 89",
+    { id:"meetings",   icon:"🤝", label:"Meetings booked",    n:meetingsBooked||0, rate:visitedBooth>0?((meetingsBooked/visitedBooth)*100).toFixed(0):0,
+      color:C.purple,  lt:C.ltpur,    tc:"#4C1D95",
+      desc:"Visitors where staff logged a meeting booking signal during the event.",
       breakdown:[
-        {label:"Pre-scheduled meeting completed",     n:31,  pct:40.8},
-        {label:"Walk-up meeting (Hot/Warm IEI tier)", n:28,  pct:36.8},
-        {label:"Spontaneous conversation (scored)",   n:17,  pct:22.4},
+        {label:"Meetings booked",       n:meetingsBooked},
+        {label:"Not booked",            n:Math.max(0,visitedBooth-meetingsBooked)},
       ],
-      insight:"76 meetings from 287 attendees (26.5%). Model predicted 89 — slight shortfall due to booth congestion Day 2. Meeting intent was the strongest pipeline predictor (r=0.87)."
+      insight:`${meetingsBooked} meetings booked from ${visitedBooth} booth visits — ${visitedBooth>0?((meetingsBooked/visitedBooth)*100).toFixed(0):0}% conversion rate.`
     },
-    {
-      id:"scored",   icon:"🎯", label:"Intent scored",      n:234,  prev:287,   rate:81.5,
-      color:C.navy,  lt:C.ltnavy, tc:"#0D1B3E",
-      desc:"Attendees who visited your booth and received a full IEI live intent score",
+    { id:"pipeline",   icon:"💰", label:"Pipeline potential", n:"$"+(pipelineActual/1000000).toFixed(1)+"M", rate:null,
+      color:C.green,   lt:C.ltgrn,    tc:"#14532D",
+      desc:"IEI-weighted pipeline estimate: each visitor's score × ACV × meeting conversion rate.",
       breakdown:[
-        {label:"Full IEI analysis (pre + live)",      n:89,  pct:38.0},
-        {label:"Live score only (on-site signals)",   n:101, pct:43.2},
-        {label:"Badge scan only (minimal signals)",   n:44,  pct:18.8},
+        {label:`${hotTier} Hot leads × $280K ACV`,  n:Math.round(contacts.filter(c=>(c.onsite_iei_tier||c.iei_tier)==="Hot").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0)/100*0.65*280,0))},
+        {label:`${warmTier} Warm leads × $90K ACV`, n:Math.round(contacts.filter(c=>(c.onsite_iei_tier||c.iei_tier)==="Warm").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0)/100*0.25*90,0))},
       ],
-      insight:"81.5% of attendees reached your booth. 234 scored — 89 with full IEI pre-event + live intelligence combining to the most accurate intent picture."
-    },
-    {
-      id:"pipeline", icon:"💰", label:"Pipeline created",   n:"$4.8M", prev:234, rate:null,
-      color:C.green, lt:C.ltgrn, tc:"#085041",
-      desc:"Estimated pipeline value from T1+T2 scored visitors — model predicted $4.2M (actual: $4.8M, +14%)",
-      breakdown:[
-        {label:"T1 — High conviction (8 leads × $420K avg)", n:"$3.4M", pct:70.8},
-        {label:"T2 — Active evaluators (24 leads × $58K avg)",n:"$1.4M", pct:29.2},
-      ],
-      toCRM:{contacted:28, responded:12, inConversation:7, proposalStage:3},
-      insight:"$4.8M pipeline from 847 uploaded contacts (0.57% end-to-end pipeline rate). T1 leads drove 70% of pipeline value. Fingoh meeting intent prediction had 87% correlation with actual pipeline."
+      insight:`$${(pipelineActual/1000000).toFixed(1)}M IEI-weighted pipeline from ${hotTier+warmTier} qualified leads. Pipeline reflects actual on-site intent where available.`
     },
   ];
 
