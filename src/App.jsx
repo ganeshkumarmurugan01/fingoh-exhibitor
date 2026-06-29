@@ -4839,7 +4839,10 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       setAuthLoading(false)
       if (session?.user) {
         getMyProfile().then(setProfile).catch(() => {})
-        setScreen("events")
+        // Only go to events if currently on login screen — preserve current screen
+        setScreen(prev => prev === "login" ? "events" : prev)
+      } else {
+        setScreen("login")
       }
     })
 
@@ -4847,7 +4850,8 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       setAuthUser(session?.user ?? null)
       if (session?.user) {
         getMyProfile().then(setProfile).catch(() => {})
-        setScreen("events")
+        // Only redirect to events on actual sign-in, not on token refresh
+        setScreen(prev => prev === "login" ? "events" : prev)
       } else {
         setScreen("login")
         setProfile(null)
