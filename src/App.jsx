@@ -3650,12 +3650,12 @@ function OutcomesDashboard({ex}) {
                 <div style={{fontSize:10,fontWeight:600,color:C.muted,marginTop:3,lineHeight:1.3}}>{s.label}</div>
                 {s.rate && <div style={{fontSize:10,color:s.color,marginTop:3,fontWeight:700}}>{s.rate}%</div>}
               </div>
-              {i<4 && <div style={{flexShrink:0,width:28,textAlign:"center",fontSize:14,color:C.muted2}}>→</div>}
+              {i<FUNNEL.length-1 && <div style={{flexShrink:0,width:28,textAlign:"center",fontSize:14,color:C.muted2}}>→</div>}
             </div>
           ))}
         </div>
         <p style={{fontSize:11,color:C.muted,marginTop:12,textAlign:"center"}}>
-          Click any stage to see the breakdown · End-to-end: <strong style={{color:C.navy}}>847 uploaded → 287 attended → 76 meetings → $4.8M pipeline</strong> · <strong style={{color:C.green}}>Cox PH attendance accuracy: +5.9% vs model</strong>
+          Click any stage to see the breakdown · End-to-end: <strong style={{color:C.navy}}>{totalUploaded} uploaded → {visitedBooth} visited booth → {meetingsBooked} meetings → ${(pipelineActual/1000000).toFixed(1)}M pipeline</strong>
         </p>
       </div>
 
@@ -3698,36 +3698,7 @@ function OutcomesDashboard({ex}) {
                   <p style={{fontSize:12,color:s.tc,lineHeight:1.65,margin:0}}>{s.insight}</p>
                 </div>
 
-                {/* No-show intervention detail for attended stage */}
-                {s.noshow && (
-                  <div style={{background:"rgba(255,255,255,0.6)",borderRadius:10,padding:"12px 14px",marginBottom:12}}>
-                    <p style={{fontSize:11,fontWeight:600,color:s.tc,marginBottom:8,textTransform:"uppercase",letterSpacing:.05}}>No-show intervention</p>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-                      {[["47","At-risk flagged",C.yellow],["38","Saved ✓",C.green],["9","Still no-showed",C.red]].map(([v,l,c])=>(
-                        <div key={l} style={{background:C.white,borderRadius:8,padding:"8px 6px",textAlign:"center",border:`1px solid ${c}30`}}>
-                          <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
-                          <div style={{fontSize:9,color:C.muted}}>{l}</div>
-                        </div>
-                      ))}
-                    </div>
-                    <p style={{fontSize:11,color:s.tc,marginTop:7,margin:0,opacity:.8}}>{s.noshow.desc}</p>
-                  </div>
-                )}
 
-                {/* CRM pipeline for leads stage */}
-                {s.toCRM && (
-                  <div style={{background:"rgba(255,255,255,0.6)",borderRadius:10,padding:"12px 14px"}}>
-                    <p style={{fontSize:11,fontWeight:600,color:s.tc,marginBottom:8,textTransform:"uppercase",letterSpacing:.05}}>Post-event pipeline (30 days)</p>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
-                      {[[s.toCRM.contacted,"Contacted",C.blue],[s.toCRM.responded,"Responded",C.tealIEI],[s.toCRM.inConversation,"Active convo",C.purple],[s.toCRM.proposalStage,"Proposal stage",C.green]].map(([v,l,c])=>(
-                        <div key={l} style={{background:C.white,borderRadius:8,padding:"8px 4px",textAlign:"center",border:`1px solid ${c}30`}}>
-                          <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
-                          <div style={{fontSize:9,color:C.muted,lineHeight:1.2}}>{l}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -3739,31 +3710,51 @@ function OutcomesDashboard({ex}) {
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:20}}>
           <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:4}}>IEI prediction accuracy</h3>
           <p style={{fontSize:11,color:C.muted,marginBottom:14,lineHeight:1.5}}>Did the pre-event IEI tier correctly predict the visitor's final live intent tier? Validation that the intelligence worked.</p>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-            {[["Hot→T1","7/8","88%",C.green],["Warm→T2","19/24","79%",C.blue],["Cool→T3","54/67","81%",C.yellow],["Cold→T5","43/46","93%",C.muted]].map(([label,n,pct,col])=>(
-              <div key={label} style={{background:C.light,borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
-                <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{label}</div>
-                <div style={{fontSize:18,fontWeight:700,color:col}}>{pct}</div>
-                <div style={{fontSize:10,color:C.muted}}>{n} correct</div>
+          {(()=>{
+            // IEI accuracy: compare pre-event tier vs onsite tier for logged visitors
+            const logged = contacts.filter(c=>c.onsite_iei_tier);
+            const correct = logged.filter(c=>c.iei_tier===c.onsite_iei_tier).length;
+            const pct = logged.length>0?((correct/logged.length)*100).toFixed(0):"-";
+            const tiers = ["Hot","Warm","Cool","Cold"];
+            const tierColors = {Hot:C.red,Warm:C.yellow,Cool:C.blue,Cold:C.muted};
+            return (<>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
+                {tiers.map(t=>{
+                  const total = logged.filter(c=>c.iei_tier===t).length;
+                  const ok    = logged.filter(c=>c.iei_tier===t&&c.onsite_iei_tier===t).length;
+                  return (
+                    <div key={t} style={{background:C.light,borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+                      <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{t}→onsite</div>
+                      <div style={{fontSize:18,fontWeight:700,color:tierColors[t]}}>{total>0?((ok/total)*100).toFixed(0)+"%":"—"}</div>
+                      <div style={{fontSize:10,color:C.muted}}>{ok}/{total} correct</div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-          <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:8,padding:"9px 12px"}}>
-            <p style={{fontSize:12,fontWeight:600,color:"#14532D",marginBottom:2}}>Overall IEI accuracy: 83.7%</p>
-            <p style={{fontSize:11,color:"#166534",margin:0}}>123 of 147 IEI-scored visitors were correctly tiered before the event opened.</p>
-          </div>
+              {logged.length>0 ? (
+                <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:8,padding:"9px 12px"}}>
+                  <p style={{fontSize:12,fontWeight:600,color:"#14532D",marginBottom:2}}>Overall IEI accuracy: {pct}%</p>
+                  <p style={{fontSize:11,color:"#166534",margin:0}}>{correct} of {logged.length} on-site logged visitors matched their pre-event IEI tier.</p>
+                </div>
+              ) : (
+                <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8,padding:"9px 12px"}}>
+                  <p style={{fontSize:12,color:C.muted,margin:0}}>Log on-site signals via Staff App to see IEI prediction accuracy.</p>
+                </div>
+              )}
+            </>);
+          })()}
         </div>
 
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:20}}>
           <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:4}}>Event ROI summary</h3>
           <p style={{fontSize:11,color:C.muted,marginBottom:14,lineHeight:1.5}}>Commercial outcomes attributable to this event based on 30-day post-event CRM tracking.</p>
           {[
-            ["Event cost (booth + staff + travel)","SGD 112,000",C.muted],
-            ["T1/T2 leads generated","32 qualified",C.blue],
-            ["Leads in active conversation","7",C.purple],
-            ["Leads at proposal stage","3",C.tealIEI],
-            ["Expected pipeline (P50)","SGD 2.9M",C.green],
-            ["Expected ROI (P50 / cost)","25.6×",C.green],
+            ["Total contacts uploaded",`${totalUploaded} contacts`,C.navy],
+            ["Hot + Warm leads",`${hotTier+warmTier} qualified`,C.blue],
+            ["Visited booth (on-site logged)",`${visitedBooth} visitors`,C.tealIEI],
+            ["Meetings booked",`${meetingsBooked} meetings`,C.purple],
+            ["IEI-weighted pipeline",`$${(pipelineActual/1000000).toFixed(2)}M`,C.green],
+            ["Avg IEI score",`${avgIEI} / 100`,C.muted],
           ].map(([label,val,col])=>(
             <div key={label} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
               <span style={{fontSize:12,color:C.muted}}>{label}</span>
@@ -3771,7 +3762,7 @@ function OutcomesDashboard({ex}) {
             </div>
           ))}
           <div style={{marginTop:12,background:C.ltblue,borderRadius:8,padding:"9px 12px"}}>
-            <p style={{fontSize:11,color:"#1E3A8A",margin:0}}>Based on historical deal conversion rates and average deal values for {ex.type||"Medical Devices"} sector. Full Fingoh Predict model available in the platform edition.</p>
+            <p style={{fontSize:11,color:"#1E3A8A",margin:0}}>Pipeline is IEI-weighted: each visitor's score × meeting conversion rate × ACV. Log more on-site signals via Staff App to improve accuracy.</p>
           </div>
         </div>
       </div>
