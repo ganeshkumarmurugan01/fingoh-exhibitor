@@ -3260,6 +3260,9 @@ function PredictedFunnel({ex}) {
     });
   }, [ex?.id]);
 
+  const [acvHot, setAcvHot]   = useState(280);   // $K per Hot lead
+  const [acvWarm, setAcvWarm] = useState(90);    // $K per Warm lead
+
   // Derive real predictions from contact data
   const total    = contacts.length;
   const hot      = contacts.filter(c => c.iei_tier === "Hot").length;
@@ -3283,8 +3286,8 @@ function PredictedFunnel({ex}) {
   const predBoothLo   = Math.round(predBooth * 0.88);
   const predBoothHi   = Math.round(predBooth * 1.14);
 
-  // Pipeline: Hot × $280K + Warm × $90K (typical B2B trade fair ACV)
-  const pipelineM     = ((hot * 0.65 * 280000) + (warm * 0.25 * 90000)) / 1000000;
+  // Pipeline: Hot × acvHot + Warm × acvWarm
+  const pipelineM     = ((hot * 0.65 * acvHot * 1000) + (warm * 0.25 * acvWarm * 1000)) / 1000000;
   const pipeLo        = (pipelineM * 0.65).toFixed(1);
   const pipeHi        = (pipelineM * 1.45).toFixed(1);
 
@@ -3347,8 +3350,8 @@ function PredictedFunnel({ex}) {
       color: C.green,
       model: "Pipeline model · IEI tier × avg deal size × meeting conversion rate",
       drivers: [
-        `${hot} Hot leads × $280K avg deal = $${(hot*0.65*280000/1000000).toFixed(1)}M`,
-        `${warm} Warm leads × $90K avg deal = $${(warm*0.25*90000/1000000).toFixed(1)}M`,
+        `${hot} Hot leads × $${acvHot}K avg deal = $${(hot*0.65*acvHot*1000/1000000).toFixed(1)}M`,
+        `${warm} Warm leads × $${acvWarm}K avg deal = $${(warm*0.25*acvWarm*1000/1000000).toFixed(1)}M`,
         `Pipeline confidence: ${(avgProb*100).toFixed(0)}%`,
       ],
       atRisk: null,
@@ -3358,6 +3361,26 @@ function PredictedFunnel({ex}) {
 
   return (
     <div>
+      {/* ACV inputs */}
+      <div style={{display:"flex",gap:12,marginBottom:12,alignItems:"center",background:"#F8FAFC",borderRadius:10,padding:"10px 16px",border:"1px solid #E2E8F0"}}>
+        <span style={{fontSize:12,fontWeight:600,color:C.muted,flexShrink:0}}>Deal size assumptions:</span>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:11,color:"#991B1B",fontWeight:600}}>Hot ACV</span>
+          <span style={{fontSize:11,color:C.muted}}>$</span>
+          <input type="number" value={acvHot} onChange={e=>setAcvHot(Number(e.target.value)||0)}
+            style={{width:70,padding:"4px 8px",border:"1.5px solid #E2E8F0",borderRadius:6,fontSize:12,fontFamily:F,outline:"none",textAlign:"right"}}/>
+          <span style={{fontSize:11,color:C.muted}}>K</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}>
+          <span style={{fontSize:11,color:"#92400E",fontWeight:600}}>Warm ACV</span>
+          <span style={{fontSize:11,color:C.muted}}>$</span>
+          <input type="number" value={acvWarm} onChange={e=>setAcvWarm(Number(e.target.value)||0)}
+            style={{width:70,padding:"4px 8px",border:"1.5px solid #E2E8F0",borderRadius:6,fontSize:12,fontFamily:F,outline:"none",textAlign:"right"}}/>
+          <span style={{fontSize:11,color:C.muted}}>K</span>
+        </div>
+        <span style={{fontSize:10,color:C.muted,fontStyle:"italic"}}>Pipeline updates live as you adjust</span>
+      </div>
+
       {/* Status bar */}
       <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
