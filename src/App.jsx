@@ -2429,6 +2429,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   const [search,   setSearch]   = useState("");
   const [fTier,    setFTier]    = useState("All");
   const [fIEI,     setFIEI]     = useState("All");
+  const [fStaff,   setFStaff]   = useState("All");
   const [fMinScore,setFMinScore] = useState(0);
   const [sortCol,  setSortCol]  = useState("liveScore");
   const [sortDir,  setSortDir]  = useState("desc");
@@ -2442,8 +2443,9 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     .filter(v=>{
       const q = search.toLowerCase();
       if(q && !v.name.toLowerCase().includes(q) && !v.company.toLowerCase().includes(q)) return false;
-      if(fTier !=="All" && v.tier    !==fTier)  return false;
-      if(fIEI  !=="All" && v.ieiTier !==fIEI)   return false;
+      if(fTier  !=="All" && v.tier    !==fTier)  return false;
+      if(fIEI   !=="All" && v.ieiTier !==fIEI)   return false;
+      if(fStaff !=="All" && v.staffName!==fStaff) return false;
       if(v.ieiScore < fMinScore) return false;
       return true;
     })
