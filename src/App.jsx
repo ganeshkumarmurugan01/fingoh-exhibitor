@@ -3290,6 +3290,11 @@ function PredictedFunnel({ex}) {
   // Each visitor contributes (their IEI score / 100) × ACV × meeting conversion rate
   const HOT_CONV = 0.65;   // Hot tier meeting conversion
   const WARM_CONV = 0.25;  // Warm tier meeting conversion
+
+  // Actuals from real on-site data
+  const actualBooth    = contacts.filter(c => c.onsite_iei_score).length;
+  const actualMeetings = contacts.filter(c => c.onsite_signals?.meeting_booked).length;
+  const actualSignals  = contacts.filter(c => c.onsite_signals).length;
   const pipelineRaw = contacts.reduce((sum, c) => {
     const score = (c.onsite_iei_score || c.iei_score || 0) / 100;
     const tier  = c.onsite_iei_tier || c.iei_tier || "";
@@ -3316,7 +3321,7 @@ function PredictedFunnel({ex}) {
         `Avg IEI score: ${avgIEI}`,
       ], atRisk: null },
     { id:"attend", label:"Will attend", icon:"✅",
-      actual: null, predicted: predAttend, lo: predAttendLo, hi: predAttendHi,
+      actual: actualSignals > 0 ? actualSignals : null, predicted: predAttend, lo: predAttendLo, hi: predAttendHi,
       color: C.tealIEI,
       model: "Cox PH survival model · registration timing + recency + ICP tier",
       drivers: [
@@ -3331,7 +3336,7 @@ function PredictedFunnel({ex}) {
       ] : null,
       desc: "Predicted attendees from registered visitors — Cox proportional hazards model" },
     { id:"meetings", label:"Will take meetings", icon:"🤝",
-      actual: null, predicted: predMeetings, lo: predMeetLo, hi: predMeetHi,
+      actual: actualMeetings > 0 ? actualMeetings : null, predicted: predMeetings, lo: predMeetLo, hi: predMeetHi,
       color: C.purple,
       model: "Meeting intent model · IEI score + pre-event engagement + buyer signals",
       drivers: [
@@ -3345,7 +3350,7 @@ function PredictedFunnel({ex}) {
       ] : null,
       desc: "Predicted visitors who will take a meaningful meeting at your booth" },
     { id:"score", label:"Will reach booth", icon:"🎯",
-      actual: null, predicted: predBooth, lo: predBoothLo, hi: predBoothHi,
+      actual: actualBooth > 0 ? actualBooth : null, predicted: predBooth, lo: predBoothLo, hi: predBoothHi,
       color: C.navy,
       model: "Floor traffic model · IEI tier + attendance probability",
       drivers: [
