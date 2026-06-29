@@ -2376,23 +2376,27 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
-  const staffNames = ["All", ...staffList.map(s=>s.name)];
+  const staffNames = ["All"]; // staff filter not available in this scope
 
-  const filtered = VISITORS
-    .map(v=>({...v, liveScore: v.id===1 ? live : v.score}))
+  const allVisitors = [...dbContacts, ...extras];
+  const filtered = allVisitors
+    .map(v=>({...v, liveScore: v.score}))
     .filter(v=>{
       const q = search.toLowerCase();
       if(q && !v.name.toLowerCase().includes(q) && !v.company.toLowerCase().includes(q)) return false;
-      if(fTier  !=="All" && v.tier    !==fTier)  return false;
-      if(fIEI   !=="All" && v.ieiTier !==fIEI)   return false;
-      if(fStaff !=="All" && VISITOR_STAFF[v.id]  !==fStaff) return false;
+      if(fTier !=="All" && v.tier    !==fTier)  return false;
+      if(fIEI  !=="All" && v.ieiTier !==fIEI)   return false;
       if(v.ieiScore < fMinScore) return false;
       return true;
     })
     .sort((a,b)=> sortDir==="desc" ? b[sortCol]-a[sortCol] : a[sortCol]-b[sortCol]);
 
-  const tiers=[{t:"T1",n:8,c:C.green},{t:"T2",n:24,c:C.blue},{t:"T3",n:67,c:C.yellow},{t:"T4",n:89,c:"#94A3B8"},{t:"T5",n:46,c:"#E2E8F0"}];
-  const tot=tiers.reduce((a,x)=>a+x.n,0);
+  const t1n = allVisitors.filter(v=>v.tier==="T1").length;
+  const t2n = allVisitors.filter(v=>v.tier==="T2").length;
+  const t3n = allVisitors.filter(v=>v.tier==="T3").length;
+  const t4n = allVisitors.filter(v=>v.tier==="T4").length;
+  const tiers=[{t:"T1",n:t1n,c:C.green},{t:"T2",n:t2n,c:C.blue},{t:"T3",n:t3n,c:C.yellow},{t:"T4",n:t4n,c:"#94A3B8"}];
+  const tot=allVisitors.length;
 
   const FChip = ({label,active,onClick,color}) => (
     <button onClick={onClick} style={{padding:"4px 11px",borderRadius:99,border:`1.5px solid ${active?(color||C.navy):"#E2E8F0"}`,background:active?(color||C.navy):"transparent",color:active?C.white:C.muted,fontSize:11,fontWeight:active?700:500,cursor:"pointer",fontFamily:F,transition:"all .12s",whiteSpace:"nowrap"}}>
