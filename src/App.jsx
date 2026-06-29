@@ -2359,16 +2359,78 @@ function IEIAnalysis({ex}) {
 // SCREEN 4 — Live Dashboard
 // ═══════════════════════════════════════════════════════════════════
 function LiveDashboard({ex, onParticipant, onStaff}) {
-  const [live,setLive] = useState(87);
-  useEffect(()=>{const t=setInterval(()=>setLive(s=>s===87?88:87),3000);return()=>clearInterval(t);},[]);
+  const [contacts,  setContacts]  = useState([]);
+  const [signals,   setSignals]   = useState([]);   // conversation_signals rows
+  const [loading,   setLoading]   = useState(true);
+  const [lastRefresh, setLastRefresh] = useState(null);
+
+  // Load contacts + signals
+  const loadData = React.useCallback(()=>{
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token || "";
+      // Load contacts
+      fetch(`/api/proxy?slug=v1/audience/contacts/${ex.id}`, {
+        headers:{"x-fingoh-auth":`Bearer ${token}`}
+      }).then(r=>r.json()).then(data=>{
+        if(Array.isArray(data)) setContacts(data);
+        setLoading(false);
+        setLastRefresh(new Date());
+      }).catch(()=>setLoading(false));
+      // Load signals
+      supabase.from("conversation_signals").select("*").eq("event_id", ex.id)
+        .order("created_at", {ascending:false})
+        .then(({data})=>{ if(data) setSignals(data); });
+    });
+  },[ex?.id]);
+
+  useEffect(()=>{ loadData(); },[loadData]);
+  // Auto-refresh every 30s
+  useEffect(()=>{
+    const iv = setInterval(loadData, 30000);
+    return ()=>clearInterval(iv);
+  },[loadData]);
+
+  // Map contacts to display rows — use onsite scores where available
+  const visitors = contacts.map(c=>{
+    const sig = signals.filter(s=>s.contact_id===c.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    const latestSig = sig[0];
+    const liveScore  = c.onsite_iei_score || c.iei_score || 0;
+    const liveTier   = c.onsite_iei_tier  || c.iei_tier  || "Cool";
+    const liveTierT  = liveTier==="Hot"?"T1":liveTier==="Warm"?"T2":liveTier==="Cool"?"T3":"T4";
+    const lastSignal = latestSig ? (
+      latestSig.meeting_booked?"Meeting booked":
+      latestSig.demo_requested?"Demo requested":
+      latestSig.return_visit?"Return visit":
+      latestSig.badge_scan?"Badge scanned":
+      `Conv quality: ${(latestSig.conversation_quality*10).toFixed(0)}/10`
+    ) : "—";
+    const lastTime = latestSig ? new Date(latestSig.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
+    return {
+      id:        c.id,
+      contactId: c.id,
+      name:      c.name || c.email,
+      title:     c.designation || "—",
+      company:   c.company || "—",
+      ieiScore:  Math.round(c.iei_score || 0),
+      ieiTier:   c.iei_tier || "Cool",
+      liveScore: Math.round(liveScore),
+      liveTier:  liveTier,
+      tier:      liveTierT,
+      score:     Math.round(liveScore),
+      staffName: latestSig?.staff_name || null,
+      lastSig:   lastSignal,
+      time:      lastTime,
+      hasOnsite: !!c.onsite_iei_score,
+    };
+  });
 
   // ── Filters ──────────────────────────────────────────────────────
   const [search,   setSearch]   = useState("");
-  const [fTier,    setFTier]    = useState("All");   // live tier
-  const [fIEI,     setFIEI]     = useState("All");   // IEI pre tier
-  const [fStaff,   setFStaff]   = useState("All");
+  const [fTier,    setFTier]    = useState("All");
+  const [fIEI,     setFIEI]     = useState("All");
   const [fMinScore,setFMinScore] = useState(0);
-  const [sortCol,  setSortCol]  = useState("ieiScore"); // ieiScore | score
+  const [sortCol,  setSortCol]  = useState("liveScore");
   const [sortDir,  setSortDir]  = useState("desc");
 
   const toggleSort = col => {
@@ -2376,23 +2438,38 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
-  const staffNames = ["All", ...Object.values(VISITOR_STAFF).filter((v,i,a)=>a.indexOf(v)===i)];
-
-  const filtered = VISITORS
-    .map(v=>({...v, liveScore: v.id===1 ? live : v.score}))
+  const filtered = visitors
     .filter(v=>{
       const q = search.toLowerCase();
       if(q && !v.name.toLowerCase().includes(q) && !v.company.toLowerCase().includes(q)) return false;
-      if(fTier  !=="All" && v.tier    !==fTier)  return false;
-      if(fIEI   !=="All" && v.ieiTier !==fIEI)   return false;
-      if(fStaff !=="All" && VISITOR_STAFF[v.id]  !==fStaff) return false;
+      if(fTier !=="All" && v.tier    !==fTier)  return false;
+      if(fIEI  !=="All" && v.ieiTier !==fIEI)   return false;
       if(v.ieiScore < fMinScore) return false;
       return true;
     })
     .sort((a,b)=> sortDir==="desc" ? b[sortCol]-a[sortCol] : a[sortCol]-b[sortCol]);
 
-  const tiers=[{t:"T1",n:8,c:C.green},{t:"T2",n:24,c:C.blue},{t:"T3",n:67,c:C.yellow},{t:"T4",n:89,c:"#94A3B8"},{t:"T5",n:46,c:"#E2E8F0"}];
-  const tot=tiers.reduce((a,x)=>a+x.n,0);
+  const t1n = visitors.filter(v=>v.tier==="T1").length;
+  const t2n = visitors.filter(v=>v.tier==="T2").length;
+  const t3n = visitors.filter(v=>v.tier==="T3").length;
+  const t4n = visitors.filter(v=>v.tier==="T4").length;
+  const avgIEI = visitors.length ? Math.round(visitors.reduce((s,v)=>s+v.ieiScore,0)/visitors.length) : 0;
+  const tiers=[{t:"T1",n:t1n,c:C.green},{t:"T2",n:t2n,c:C.blue},{t:"T3",n:t3n,c:C.yellow},{t:"T4",n:t4n,c:"#94A3B8"}];
+  const tot=visitors.length||1;
+
+  // Live alerts from recent signals
+  const alertColors = [C.green, C.blue, C.purple, C.amber, C.red];
+  const alerts = signals.slice(0,8).map((s,i)=>{
+    const contact = contacts.find(c=>c.id===s.contact_id);
+    const name = contact?.name || "Unknown visitor";
+    const msg = s.meeting_booked?"Meeting booked — high priority follow-up":
+                s.demo_requested?"Demo requested at booth":
+                s.return_visit?"Return visit — strong buying signal":
+                s.badge_scan?"Badge scanned at booth":
+                `Conversation logged — quality ${(s.conversation_quality*10).toFixed(0)}/10`;
+    const time = new Date(s.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+    return {id:s.id, name, msg, time, color:alertColors[i%alertColors.length]};
+  });
 
   const FChip = ({label,active,onClick,color}) => (
     <button onClick={onClick} style={{padding:"4px 11px",borderRadius:99,border:`1.5px solid ${active?(color||C.navy):"#E2E8F0"}`,background:active?(color||C.navy):"transparent",color:active?C.white:C.muted,fontSize:11,fontWeight:active?700:500,cursor:"pointer",fontFamily:F,transition:"all .12s",whiteSpace:"nowrap"}}>
@@ -2433,14 +2510,14 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
 
       {/* Summary stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:20}}>
-        {[["234","Visitors",C.navy,null],["8","T1 leads",C.green,"Hot IEI pre-event"],["24","T2 leads",C.blue,"Warm IEI pre-event"],["67","Exploring",C.yellow,null],["54","Avg IEI score",C.purple,null]].map(([v,l,c,s])=><Stat key={l} val={v} lbl={l} color={c} sub={s}/>)}
+        {[[visitors.length,"Visitors",C.navy,null],[t1n,"Hot leads",C.green,"IEI ≥ 75"],[t2n,"Warm leads",C.blue,"IEI 50–74"],[t3n,"Exploring",C.yellow,null],[avgIEI,"Avg IEI score",C.purple,null]].map(([v,l,c,s])=><Stat key={l} val={v} lbl={l} color={c} sub={s}/>)}
       </div>
 
       {/* Tier bar */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:16,marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
           <span style={{fontSize:12,fontWeight:600,color:C.navy}}>Live tier distribution</span>
-          <span style={{fontSize:11,color:C.muted}}>234 scored visitors</span>
+          <span style={{fontSize:11,color:C.muted}}>{visitors.length} scored visitors{lastRefresh?" · updated "+lastRefresh.toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):""}</span>
         </div>
         <div style={{display:"flex",height:9,borderRadius:5,overflow:"hidden",gap:2}}>{tiers.map(({t,n,c})=><div key={t} style={{flex:n,background:c}}/>)}</div>
         <div style={{display:"flex",gap:16,marginTop:8}}>{tiers.map(({t,n,c})=><div key={t} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:11,color:C.muted}}>{t}: {Math.round(n/tot*100)}%</span></div>)}</div>
@@ -2464,7 +2541,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                   ✕ Clear filters
                 </button>
               )}
-              <span style={{fontSize:11,color:C.muted2,whiteSpace:"nowrap"}}>{filtered.length} of {VISITORS.length}</span>
+              <span style={{fontSize:11,color:C.muted2,whiteSpace:"nowrap"}}>{filtered.length} of {visitors.length}</span>
             </div>
 
             {/* Row 2 — Live tier chips */}
@@ -2550,12 +2627,12 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                     </td>
                     <td style={{padding:"9px 12px"}}><TierBadge t={v.tier}/></td>
                     <td style={{padding:"9px 12px",whiteSpace:"nowrap"}}>
-                      {VISITOR_STAFF[v.id] ? (
+                      {v.staffName ? (
                         <div style={{display:"flex",alignItems:"center",gap:5}}>
                           <div style={{width:20,height:20,borderRadius:"50%",background:C.navy,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,flexShrink:0}}>
-                            {VISITOR_STAFF[v.id].split(" ").map(n=>n[0]).join("").slice(0,2)}
+                            {v.staffName.split(" ").map(n=>n[0]).join("").slice(0,2)}
                           </div>
-                          <span style={{fontSize:11,color:C.dark,fontWeight:500}}>{VISITOR_STAFF[v.id].split(" ")[0]}</span>
+                          <span style={{fontSize:11,color:C.dark,fontWeight:500}}>{v.staffName.split(" ")[0]}</span>
                         </div>
                       ) : <span style={{fontSize:11,color:C.muted2}}>—</span>}
                     </td>
@@ -2572,13 +2649,15 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"12px 14px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontSize:13,fontWeight:600,color:C.navy}}>Live alerts</span>
-            <span style={{fontSize:10,fontWeight:700,background:C.red,color:C.white,padding:"2px 8px",borderRadius:99}}>{ALERTS.length}</span>
+            <span style={{fontSize:10,fontWeight:700,background:C.red,color:C.white,padding:"2px 8px",borderRadius:99}}>{alerts.length}</span>
           </div>
           <div style={{padding:10,display:"flex",flexDirection:"column",gap:7}}>
-            {ALERTS.map(a=>(
+            {alerts.length===0 ? (
+              <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:12}}>No signals logged yet — use Staff App to log on-site conversations</div>
+            ) : alerts.map(a=>(
               <div key={a.id} style={{padding:"9px 11px",background:`${a.color}10`,border:`1px solid ${a.color}30`,borderRadius:9,borderLeft:`3px solid ${a.color}`}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                  <span style={{fontSize:11,fontWeight:700,color:a.color}}>{a.icon} {a.name}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:a.color}}>{a.name}</span>
                   <span style={{fontSize:10,color:C.muted2}}>{a.time}</span>
                 </div>
                 <p style={{fontSize:11,color:C.dark,lineHeight:1.4,margin:0}}>{a.msg}</p>
