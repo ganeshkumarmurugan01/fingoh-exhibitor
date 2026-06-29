@@ -1461,7 +1461,7 @@ function AudienceUpload({ex, onNext}) {
         ))}
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:20}}>
+      <div style={{display:"grid",gridTemplateColumns:source==="visitors"?"1fr":"1fr 300px",gap:20}}>
         {/* Main panel */}
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
@@ -1603,17 +1603,15 @@ function AudienceUpload({ex, onNext}) {
 
           {/* ── VISITOR LIST ── */}
           {source==="visitors" && (
-            <div style={{padding:28}}>
-              <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>All contacts · unified view</p>
-              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:16}}>All contacts from CSV uploads, database connections, registration feeds and manual entries — deduplicated and IEI scored.</p>
+            <div style={{padding:"20px 28px"}}>
               <VisitorList eventId={ex?.id} refreshKey={source}/>
             </div>
           )}
 
         </div>
 
-        {/* Right sidebar — what Fingoh does with data */}
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {/* Right sidebar — what Fingoh does with data — hidden on visitor list */}
+        <div style={{display: source==="visitors" ? "none" : "flex",flexDirection:"column",gap:12}}>
           <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:18}}>
             <p style={{fontSize:11,fontWeight:700,color:C.navy,margin:0,marginBottom:12,textTransform:"uppercase",letterSpacing:.06}}>What Fingoh does with your data</p>
             {[
