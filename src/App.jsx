@@ -2458,9 +2458,10 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   const visitors = contacts.map(c=>{
     const sig = signals.filter(s=>s.contact_id===c.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     const latestSig = sig[0];
-    const liveScore  = c.onsite_iei_score || c.iei_score || 0;
-    const liveTier   = c.onsite_iei_tier  || c.iei_tier  || "Cool";
-    const liveTierT  = liveTier==="Hot"?"T1":liveTier==="Warm"?"T2":liveTier==="Cool"?"T3":"T4";
+    const liveScore  = c.onsite_iei_score || null;   // null if not yet logged on-site
+    const liveTier   = c.onsite_iei_tier  || null;
+    const displayTier = c.onsite_iei_tier || c.iei_tier || "Cool";
+    const liveTierT   = displayTier==="Hot"?"T1":displayTier==="Warm"?"T2":displayTier==="Cool"?"T3":"T4";
     const lastSignal = latestSig ? (
       latestSig.meeting_booked?"Meeting booked":
       latestSig.demo_requested?"Demo requested":
@@ -2477,10 +2478,10 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       company:   c.company || "—",
       ieiScore:  Math.round(c.iei_score || 0),
       ieiTier:   c.iei_tier || "Cool",
-      liveScore: Math.round(liveScore),
+      liveScore: liveScore ? Math.round(liveScore) : null,
       liveTier:  liveTier,
       tier:      liveTierT,
-      score:     Math.round(liveScore),
+      score:     liveScore ? Math.round(liveScore) : Math.round(c.iei_score||0),
       staffName: latestSig?.staff_name || null,
       lastSig:   lastSignal,
       time:      lastTime,
@@ -2685,12 +2686,16 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                         <span style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:`${ieiTierColor(v.ieiTier)}18`,color:ieiTierColor(v.ieiTier),fontWeight:700,border:`1px solid ${ieiTierColor(v.ieiTier)}30`}}>{v.ieiTier}</span>
                       </div>
                     </td>
-                    {/* Live score — number + bar */}
+                    {/* Live score — only show if logged on-site */}
                     <td style={{padding:"9px 12px",minWidth:130}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        <span style={{fontSize:15,fontWeight:800,color:v.liveScore>=70?C.green:v.liveScore>=45?C.blue:C.yellow,minWidth:26,letterSpacing:"-0.02em"}}>{v.liveScore}</span>
-                        <ScoreBar score={v.liveScore} small/>
-                      </div>
+                      {v.liveScore!==null ? (
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:15,fontWeight:800,color:v.liveScore>=70?C.green:v.liveScore>=45?C.blue:C.yellow,minWidth:26,letterSpacing:"-0.02em"}}>{v.liveScore}</span>
+                          <ScoreBar score={v.liveScore} small/>
+                        </div>
+                      ) : (
+                        <span style={{fontSize:11,color:C.muted2}}>Not logged</span>
+                      )}
                     </td>
                     <td style={{padding:"9px 12px"}}><TierBadge t={v.tier}/></td>
                     <td style={{padding:"9px 12px",whiteSpace:"nowrap"}}>
