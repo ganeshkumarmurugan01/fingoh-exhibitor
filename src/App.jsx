@@ -3486,35 +3486,53 @@ function PredictedFunnel({ex}) {
         );
       })()}
 
-      {/* At-risk visitor list */}
-      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
-        <div style={{padding:"12px 18px",background:"#FFF8F0",borderBottom:"1px solid #FFD9AA",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:13,fontWeight:600,color:"#7A3500"}}>⚠ Intervention required — 3 at-risk visitors</span>
-          <span style={{fontSize:11,color:C.amber}}>Act before T-7 for maximum impact</span>
-        </div>
-        {VISITORS.filter(v=>PREDICTIONS[v.id]?.riskFlag).map((v,i)=>{
-          const pred = PREDICTIONS[v.id];
-          return (
-            <div key={v.id} style={{padding:"12px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"1fr 80px 80px 1fr",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
-              <div>
-                <p style={{fontSize:13,fontWeight:600,color:C.dark,margin:0}}>{v.name}</p>
-                <p style={{fontSize:11,color:C.muted,margin:0}}>{v.title} · {v.company}</p>
-              </div>
-              <div style={{textAlign:"center"}}>
-                <div style={{fontSize:11,color:C.muted,marginBottom:2}}>Cox PH · Attend</div>
-                <div style={{fontSize:14,fontWeight:700,color:pred.attendProb>=60?C.yellow:C.red}}>{pred.attendProb}%</div>
-              </div>
-              <div style={{textAlign:"center"}}>
-                <div style={{fontSize:11,color:C.muted,marginBottom:2}}>Attend prob</div>
-                <div style={{fontSize:14,fontWeight:700,color:pred.attendProb>=60?C.yellow:C.red}}>{pred.attendProb}%</div>
-              </div>
-              <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:8,padding:"7px 10px"}}>
-                <p style={{fontSize:11,lineHeight:1.5,color:"#7A3500",margin:0}}>{pred.rec}</p>
-              </div>
+      {/* At-risk visitor list — Hot/Warm with low attendance probability */}
+      {(()=>{
+        const atRisk = contacts
+          .filter(c => (c.iei_tier==="Hot"||c.iei_tier==="Warm") && (c.reg_prob||0.5)<0.6 && !c.onsite_iei_score)
+          .sort((a,b)=>(b.iei_score||0)-(a.iei_score||0));
+        if(atRisk.length===0) return (
+          <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:"16px 18px",textAlign:"center"}}>
+            <p style={{fontSize:13,color:C.muted,margin:0}}>✓ No at-risk visitors — all Hot/Warm contacts have high attendance probability or have already been logged on-site.</p>
+          </div>
+        );
+        return (
+          <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+            <div style={{padding:"12px 18px",background:"#FFF8F0",borderBottom:"1px solid #FFD9AA",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,fontWeight:600,color:"#7A3500"}}>⚠ Intervention required — {atRisk.length} at-risk visitor{atRisk.length!==1?"s":""}</span>
+              <span style={{fontSize:11,color:C.amber}}>Hot/Warm leads with attend prob &lt; 60% · not yet logged on-site</span>
             </div>
-          );
-        })}
-      </div>
+            {atRisk.map((v,i)=>{
+              const attendPct = Math.round((v.reg_prob||0.5)*100);
+              const ieiColor = v.iei_tier==="Hot"?"#ef4444":"#f97316";
+              const rec = attendPct<40
+                ? "High-value lead at serious no-show risk — send personalised message with specific session recommendation immediately"
+                : "Moderate attendance risk — send event prep content and confirm meeting slot";
+              return (
+                <div key={v.id} style={{padding:"12px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"1fr 90px 90px 1fr",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+                  <div>
+                    <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{v.name}</p>
+                    <p style={{fontSize:11,color:C.muted,margin:0}}>{v.designation||"—"} · {v.company}</p>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Pre-event IEI</div>
+                    <div style={{fontSize:15,fontWeight:800,color:ieiColor}}>{(v.iei_score||0).toFixed(0)}</div>
+                    <div style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:v.iei_tier==="Hot"?"#FEE2E2":"#FEF3C7",color:ieiColor,fontWeight:700,display:"inline-block"}}>{v.iei_tier}</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Attend prob</div>
+                    <div style={{fontSize:15,fontWeight:800,color:attendPct>=50?C.yellow:C.red}}>{attendPct}%</div>
+                    <div style={{fontSize:9,color:C.muted}}>Cox PH model</div>
+                  </div>
+                  <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:8,padding:"7px 10px"}}>
+                    <p style={{fontSize:11,lineHeight:1.5,color:"#7A3500",margin:0}}>⚠ {rec}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
