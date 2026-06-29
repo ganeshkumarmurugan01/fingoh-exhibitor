@@ -2737,7 +2737,42 @@ function ParticipantDetail({p, onBack}) {
           </div>
         </div>
       )}
-      {tab==="iei_brief" && (p.iei ? (
+      {tab==="iei_brief" && (!p.iei ? (
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:24}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{background:"linear-gradient(135deg,#111827,#1E2A3A)",borderRadius:10,padding:"13px 16px"}}>
+                <p style={{fontSize:10,letterSpacing:.1,textTransform:"uppercase",color:"rgba(255,255,255,0.3)",marginBottom:6}}>Visitor profile</p>
+                <p style={{fontSize:12,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{p.name} from {p.company} — {p.title}. Pre-event IEI score: {p.ieiScore} ({p.ieiTier} tier). {p.hasOnsite?"On-site signals logged.":"Not yet logged on-site."}</p>
+              </div>
+              <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
+                <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>Pre-event IEI score</p>
+                <p style={{fontSize:28,fontWeight:800,color:p.ieiScore>=75?C.red:p.ieiScore>=50?C.yellow:C.blue,margin:0}}>{p.ieiScore} <span style={{fontSize:12,fontWeight:600}}>{p.ieiTier}</span></p>
+              </div>
+              {p.hasOnsite && (
+                <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
+                  <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>On-site IEI score</p>
+                  <p style={{fontSize:28,fontWeight:800,color:p.liveScore>=75?C.red:p.liveScore>=50?C.yellow:C.blue,margin:0}}>{p.liveScore} <span style={{fontSize:12,fontWeight:600}}>{p.liveTier}</span></p>
+                </div>
+              )}
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:9,padding:"11px 14px"}}>
+                <p style={{fontSize:10,fontWeight:700,color:"#1E3A8A",textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>Recommended action</p>
+                <p style={{fontSize:12,lineHeight:1.6,color:"#1E3A8A",margin:0}}>
+                  {p.ieiTier==="Hot"?"High-priority lead — assign to AE immediately. Follow up within 24 hrs.":
+                   p.ieiTier==="Warm"?"Active evaluator — SDR follow-up within 48 hrs. Book a discovery call.":
+                   "Nurture track — add to 6-week email sequence."}
+                </p>
+              </div>
+              <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:9,padding:"11px 14px"}}>
+                <p style={{fontSize:10,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>💡 Deep IEI brief available</p>
+                <p style={{fontSize:12,lineHeight:1.6,color:"#7A4500",margin:0}}>Run Deep IEI Analysis from the IEI Analysis tab to generate full intelligence layers — pain points, buying signals, and personalised opening lines.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <div style={{background:"linear-gradient(135deg,#111827,#1E2A3A)",borderRadius:10,padding:"13px 16px"}}>
@@ -2772,42 +2807,6 @@ function ParticipantDetail({p, onBack}) {
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      )}
-      ) : (
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:24}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{background:"linear-gradient(135deg,#111827,#1E2A3A)",borderRadius:10,padding:"13px 16px"}}>
-                <p style={{fontSize:10,letterSpacing:.1,textTransform:"uppercase",color:"rgba(255,255,255,0.3)",marginBottom:6}}>Visitor profile</p>
-                <p style={{fontSize:12,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{p.name} from {p.company} — {p.title}. Pre-event IEI score: {p.ieiScore} ({p.ieiTier} tier). {p.hasOnsite?"On-site signals logged via Staff App.":"Not yet logged on-site."}</p>
-              </div>
-              <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
-                <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>Pre-event IEI score</p>
-                <p style={{fontSize:28,fontWeight:800,color:p.ieiScore>=75?C.red:p.ieiScore>=50?C.yellow:C.blue,margin:0}}>{p.ieiScore} <span style={{fontSize:12,fontWeight:600}}>{p.ieiTier}</span></p>
-              </div>
-              {p.hasOnsite && (
-                <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
-                  <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>On-site IEI score</p>
-                  <p style={{fontSize:28,fontWeight:800,color:p.liveScore>=75?C.red:p.liveScore>=50?C.yellow:C.blue,margin:0}}>{p.liveScore} <span style={{fontSize:12,fontWeight:600}}>{p.liveTier}</span></p>
-                </div>
-              )}
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:9,padding:"11px 14px"}}>
-                <p style={{fontSize:10,fontWeight:700,color:"#1E3A8A",textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>Recommended action</p>
-                <p style={{fontSize:12,lineHeight:1.6,color:"#1E3A8A",margin:0}}>
-                  {p.ieiTier==="Hot"?"High-priority lead — assign to AE immediately. Follow up within 24 hrs with personalised outreach.":
-                   p.ieiTier==="Warm"?"Active evaluator — SDR follow-up within 48 hrs. Book a discovery call.":
-                   "Nurture track — add to 6-week email sequence."}
-                </p>
-              </div>
-              <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:9,padding:"11px 14px"}}>
-                <p style={{fontSize:10,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>💡 Deep IEI brief</p>
-                <p style={{fontSize:12,lineHeight:1.6,color:"#7A4500",margin:0}}>Run Deep IEI Analysis from the IEI Analysis tab to generate full intelligence layers — pain points, buying signals, and personalised opening lines.</p>
-              </div>
-            </div>
           </div>
         </div>
       ))}
