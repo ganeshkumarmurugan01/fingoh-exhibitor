@@ -3722,34 +3722,53 @@ function OutcomesDashboard({ex}) {
           <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:4}}>IEI prediction accuracy</h3>
           <p style={{fontSize:11,color:C.muted,marginBottom:14,lineHeight:1.5}}>Did the pre-event IEI tier correctly predict the visitor's final live intent tier? Validation that the intelligence worked.</p>
           {(()=>{
-            // IEI accuracy: compare pre-event tier vs onsite tier for logged visitors
-            const logged = contacts.filter(c=>c.onsite_iei_tier);
-            const correct = logged.filter(c=>c.iei_tier===c.onsite_iei_tier).length;
-            const pct = logged.length>0?((correct/logged.length)*100).toFixed(0):"-";
-            const tiers = ["Hot","Warm","Cool","Cold"];
-            const tierColors = {Hot:C.red,Warm:C.yellow,Cool:C.blue,Cold:C.muted};
+            // IEI accuracy: did pre-event IEI correctly predict who would show up?
+            // Hot/Warm (reg_prob >= 0.5) = predicted to attend → correct if they were logged on-site
+            // Cool/Cold (reg_prob < 0.5) = predicted NOT to attend → correct if they were NOT logged on-site
+            const tierColors = {Hot:C.red, Warm:C.yellow, Cool:C.blue, Cold:C.muted};
+            const tierDefs = [
+              { t:"Hot",  label:"Hot (IEI ≥ 75)",  predicted: contacts.filter(c=>c.iei_score>=75),              positive:true,  desc:"Expected to attend" },
+              { t:"Warm", label:"Warm (50–74)",     predicted: contacts.filter(c=>c.iei_score>=50&&c.iei_score<75), positive:true,  desc:"Likely to attend" },
+              { t:"Cool", label:"Cool (25–49)",     predicted: contacts.filter(c=>c.iei_score>=25&&c.iei_score<50), positive:false, desc:"Unlikely to attend" },
+              { t:"Cold", label:"Cold (< 25)",      predicted: contacts.filter(c=>c.iei_score<25),               positive:false, desc:"Not expected" },
+            ];
+            const totalLogged = contacts.filter(c=>c.onsite_iei_score).length;
+            let totalCorrect = 0, totalPredicted = 0;
+            const rows = tierDefs.map(({t,label,predicted,positive,desc})=>{
+              const n = predicted.length;
+              const correct = positive
+                ? predicted.filter(c=>c.onsite_iei_score).length
+                : predicted.filter(c=>!c.onsite_iei_score).length;
+              totalCorrect += correct;
+              totalPredicted += n;
+              const pct = n>0?((correct/n)*100).toFixed(0):null;
+              return (
+                <div key={t} style={{background:C.light,borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
+                  <div style={{fontSize:10,color:C.muted,marginBottom:1}}>{label}</div>
+                  <div style={{fontSize:9,color:C.muted2,marginBottom:4,fontStyle:"italic"}}>{desc}</div>
+                  <div style={{fontSize:18,fontWeight:700,color:tierColors[t]}}>{pct!==null?pct+"%":"—"}</div>
+                  <div style={{fontSize:10,color:C.muted}}>{n>0?`${correct}/${n} correct`:"no data"}</div>
+                </div>
+              );
+            });
             return (<>
               <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-                {tiers.map(t=>{
-                  const total = logged.filter(c=>c.iei_tier===t).length;
-                  const ok    = logged.filter(c=>c.iei_tier===t&&c.onsite_iei_tier===t).length;
-                  return (
-                    <div key={t} style={{background:C.light,borderRadius:10,padding:"10px 8px",textAlign:"center"}}>
-                      <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{t}→onsite</div>
-                      <div style={{fontSize:18,fontWeight:700,color:tierColors[t]}}>{total>0?((ok/total)*100).toFixed(0)+"%":"—"}</div>
-                      <div style={{fontSize:10,color:C.muted}}>{ok}/{total} correct</div>
-                    </div>
-                  );
-                })}
+                {rows}
               </div>
-              {logged.length>0 ? (
+              {totalPredicted>0 ? (
                 <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:8,padding:"9px 12px"}}>
-                  <p style={{fontSize:12,fontWeight:600,color:"#14532D",marginBottom:2}}>Overall IEI accuracy: {pct}%</p>
-                  <p style={{fontSize:11,color:"#166534",margin:0}}>{correct} of {logged.length} on-site logged visitors matched their pre-event IEI tier.</p>
+                  <p style={{fontSize:12,fontWeight:600,color:"#14532D",marginBottom:2}}>
+                    Overall IEI attendance accuracy: {((totalCorrect/totalPredicted)*100).toFixed(0)}%
+                  </p>
+                  <p style={{fontSize:11,color:"#166534",margin:0}}>
+                    {totalCorrect} of {totalPredicted} contacts correctly predicted.
+                    Hot/Warm who showed up + Cool/Cold who did not show up.
+                    {totalLogged>0?` (${totalLogged} visitors logged on-site)`:""}
+                  </p>
                 </div>
               ) : (
                 <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8,padding:"9px 12px"}}>
-                  <p style={{fontSize:12,color:C.muted,margin:0}}>Log on-site signals via Staff App to see IEI prediction accuracy.</p>
+                  <p style={{fontSize:12,color:C.muted,margin:0}}>Upload contacts and log on-site signals via Staff App to see IEI prediction accuracy.</p>
                 </div>
               )}
             </>);
