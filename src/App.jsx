@@ -3361,7 +3361,7 @@ function PredictedFunnel({ex}) {
       {/* Status bar */}
       <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:12,fontWeight:600,color:"#1E3A8A"}}>📡 Live prediction · {day} days to event</span>
+          <span style={{fontSize:12,fontWeight:600,color:"#1E3A8A"}}>📡 Live prediction · T-14 days to event</span>
           <span style={{fontSize:10,background:"#1E3A8A",color:C.white,padding:"1px 7px",borderRadius:99,fontWeight:600}}>Updating daily</span>
         </div>
         <span style={{fontSize:11,color:"#1E3A8A"}}>3 at-risk interventions recommended · <strong>2 actioned</strong></span>
