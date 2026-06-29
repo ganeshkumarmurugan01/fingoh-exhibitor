@@ -3286,10 +3286,20 @@ function PredictedFunnel({ex}) {
   const predBoothLo   = Math.round(predBooth * 0.88);
   const predBoothHi   = Math.round(predBooth * 1.14);
 
-  // Pipeline: Hot × acvHot + Warm × acvWarm
-  const pipelineM     = ((hot * 0.65 * acvHot * 1000) + (warm * 0.25 * acvWarm * 1000)) / 1000000;
-  const pipeLo        = (pipelineM * 0.65).toFixed(1);
-  const pipeHi        = (pipelineM * 1.45).toFixed(1);
+  // Pipeline: weighted by actual IEI score (onsite if available, else pre-event)
+  // Each visitor contributes (their IEI score / 100) × ACV × meeting conversion rate
+  const HOT_CONV = 0.65;   // Hot tier meeting conversion
+  const WARM_CONV = 0.25;  // Warm tier meeting conversion
+  const pipelineRaw = contacts.reduce((sum, c) => {
+    const score = (c.onsite_iei_score || c.iei_score || 0) / 100;
+    const tier  = c.onsite_iei_tier || c.iei_tier || "";
+    if (tier === "Hot")  return sum + (score * HOT_CONV  * acvHot  * 1000);
+    if (tier === "Warm") return sum + (score * WARM_CONV * acvWarm * 1000);
+    return sum;
+  }, 0);
+  const pipelineM = pipelineRaw / 1000000;
+  const pipeLo    = (pipelineM * 0.65).toFixed(1);
+  const pipeHi    = (pipelineM * 1.45).toFixed(1);
 
   // At-risk: low reg_prob Hot/Warm visitors
   const atRiskVisitors = contacts.filter(c => (c.iei_tier==="Hot"||c.iei_tier==="Warm") && (c.reg_prob||0.5) < 0.5);
@@ -3350,9 +3360,10 @@ function PredictedFunnel({ex}) {
       color: C.green,
       model: "Pipeline model · IEI tier × avg deal size × meeting conversion rate",
       drivers: [
-        `${hot} Hot leads × $${acvHot}K avg deal = $${(hot*0.65*acvHot*1000/1000000).toFixed(1)}M`,
-        `${warm} Warm leads × $${acvWarm}K avg deal = $${(warm*0.25*acvWarm*1000/1000000).toFixed(1)}M`,
-        `Pipeline confidence: ${(avgProb*100).toFixed(0)}%`,
+        `${hot} Hot leads (IEI-weighted × ${HOT_CONV*100}% conv × $${acvHot}K ACV)`,
+        `${warm} Warm leads (IEI-weighted × ${WARM_CONV*100}% conv × $${acvWarm}K ACV)`,
+        `${contacts.filter(c=>c.onsite_iei_score).length} visitors have onsite IEI scores applied`,
+        `Avg IEI score across Hot+Warm: ${hot+warm>0?(contacts.filter(c=>c.iei_tier==="Hot"||c.iei_tier==="Warm").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0),0)/(hot+warm)).toFixed(1):0}`,
       ],
       atRisk: null,
       isCurrency: true,
