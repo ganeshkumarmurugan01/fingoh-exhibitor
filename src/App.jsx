@@ -3403,7 +3403,7 @@ function PredictedFunnel({ex}) {
           <span style={{fontSize:12,fontWeight:600,color:"#1E3A8A"}}>📡 Live prediction · T-14 days to event</span>
           <span style={{fontSize:10,background:"#1E3A8A",color:C.white,padding:"1px 7px",borderRadius:99,fontWeight:600}}>Updating daily</span>
         </div>
-        <span style={{fontSize:11,color:"#1E3A8A"}}>3 at-risk interventions recommended · <strong>2 actioned</strong></span>
+        <span style={{fontSize:11,color:"#1E3A8A"}}>{atRiskVisitors.length} at-risk visitor{atRiskVisitors.length!==1?"s":""} identified · <strong>Hot/Warm with attend prob &lt; 50%</strong></span>
       </div>
 
       {/* Predicted funnel */}
