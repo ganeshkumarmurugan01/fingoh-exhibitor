@@ -3783,12 +3783,16 @@ function OutcomesDashboard({ex}) {
         <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:4}}>Conversion at every stage</h3>
         <p style={{fontSize:11,color:C.muted,marginBottom:16}}>Where did you lose people — and where did Fingoh intelligence recover them?</p>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[
-            ["Uploaded → Registered",  847, 340, C.purple,  "40.1%", "Personalised outreach drove 8pt above industry avg"],
-            ["Registered → Attended",  340, 287, C.tealIEI, "84.4%", "38 at-risk visitors saved by Fingoh Attend intervention"],
-            ["Attended → Scored",       287, 234, C.navy,   "81.5%", "81.5% of attendees reached your booth — strong floor presence"],
-            ["Scored → T1/T2 leads",   234,  32, C.green,  "13.7%", "13.7% qualified lead rate vs 4–6% unscored industry average"],
-          ].map(([label,from,to,col,rate,note])=>(
+          {(()=>{
+            const uploadedToVisited = totalUploaded>0?((visitedBooth/totalUploaded)*100).toFixed(1):"0";
+            const visitedToMeeting  = visitedBooth>0?((meetingsBooked/visitedBooth)*100).toFixed(1):"0";
+            const uploadedToHotWarm = totalUploaded>0?(((hotTier+warmTier)/totalUploaded)*100).toFixed(1):"0";
+            return [
+              ["Uploaded → Visited booth",   totalUploaded, visitedBooth,       C.tealIEI, uploadedToVisited+"%", `${visitedBooth} of ${totalUploaded} uploaded visitors had on-site signals logged`],
+              ["Visited → Meetings booked",  visitedBooth,  meetingsBooked,     C.purple,  visitedToMeeting+"%",  `${meetingsBooked} meetings booked from ${visitedBooth} booth visits`],
+              ["Uploaded → Qualified leads", totalUploaded, hotTier+warmTier,   C.green,   uploadedToHotWarm+"%", `${hotTier+warmTier} Hot+Warm leads from ${totalUploaded} uploaded contacts`],
+            ];
+          })().map(([label,from,to,col,rate,note])=>(
             <div key={label}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                 <span style={{fontSize:12,fontWeight:500,color:C.dark}}>{label}</span>
