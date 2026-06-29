@@ -1659,12 +1659,15 @@ function IEIAnalysis({ex}) {
   const [prefetchStatus,setPrefetchStatus] = useState("");
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
 
-  // Load real contacts from audience_contacts
-  React.useEffect(()=>{
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [refreshing, setRefreshing]   = useState(false);
+
+  const loadContacts = React.useCallback((showRefreshing=false)=>{
     if (!ex?.id) return;
+    if (showRefreshing) setRefreshing(true);
     supabase.auth.getSession().then(({data:{session}})=>{
       const token = session?.access_token || "";
-      fetch(`/api/v1/audience/contacts/${ex.id}`, {
+      fetch(`/api/proxy?slug=v1/audience/contacts/${ex.id}`, {
         headers:{"x-fingoh-auth":`Bearer ${token}`}
       })
       .then(r=>r.json())
@@ -1736,10 +1739,21 @@ function IEIAnalysis({ex}) {
           setDbContacts(mapped);
         }
         setDbLoading(false);
+        setLastRefresh(new Date());
+        if (showRefreshing) setRefreshing(false);
       })
-      .catch(()=>setDbLoading(false));
+      .catch(()=>{ setDbLoading(false); if(showRefreshing) setRefreshing(false); });
     });
   },[ex?.id]);
+
+  // Load on mount
+  React.useEffect(()=>{ loadContacts(); },[loadContacts]);
+
+  // Auto-poll every 30s to pick up new onsite scores from Staff App
+  React.useEffect(()=>{
+    const iv = setInterval(()=>loadContacts(false), 30000);
+    return ()=>clearInterval(iv);
+  },[loadContacts]);
   const nvUpd = (k,v)=>setNv(p=>({...p,[k]:v}));
   const nvReady = nv.name&&nv.title&&nv.company;
   const cS = a=>({padding:"5px 10px",border:`1.5px solid ${a?C.navy:"#E2E8F0"}`,borderRadius:99,fontSize:11,fontWeight:500,cursor:"pointer",background:a?C.navy:C.white,color:a?C.white:C.muted,fontFamily:F});
@@ -2181,6 +2195,13 @@ function IEIAnalysis({ex}) {
           <h1 style={{fontSize:20,fontWeight:700,color:C.navy,letterSpacing:"-0.02em",marginBottom:3}}>IEI pre-event intelligence</h1>
           <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
             <p style={{fontSize:13,color:C.muted,margin:0}}>{ex.company} · {ex.name} · AI-powered visitor profiling before the event opens</p>
+            {lastRefresh && <span style={{fontSize:10,color:C.muted}}>Updated {lastRefresh.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}</span>}
+            <button onClick={()=>loadContacts(true)} disabled={refreshing}
+              style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",background:C.white,color:C.navy,fontFamily:F,display:"flex",alignItems:"center",gap:5}}>
+              {refreshing
+                ? <><div style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid #93C5FD",borderTopColor:C.blue,animation:"spin 1s linear infinite"}}/> Refreshing…</>
+                : "↻ Refresh"}
+            </button>
             {prefetchStatus==="fetching" && (
               <span style={{fontSize:10,color:C.blue,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
                 <div style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid #93C5FD",borderTopColor:C.blue,animation:"spin 1s linear infinite"}}/>
