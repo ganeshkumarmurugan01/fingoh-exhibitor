@@ -3601,14 +3601,15 @@ function OutcomesDashboard({ex}) {
       ],
       insight:`${meetingsBooked} meetings booked from ${visitedBooth} booth visits — ${visitedBooth>0?((meetingsBooked/visitedBooth)*100).toFixed(0):0}% conversion rate.`
     },
-    { id:"pipeline",   icon:"💰", label:"Pipeline potential", n:"$"+(pipelineActual/1000000).toFixed(1)+"M", rate:null,
-      color:C.green,   lt:C.ltgrn,    tc:"#14532D",
-      desc:"IEI-weighted pipeline estimate: each visitor's score × ACV × meeting conversion rate.",
+    { id:"pipeline",   icon:"🔗", label:"CRM pipeline", n:"Connect CRM", rate:null,
+      color:"#6366F1", lt:"#EEF2FF", tc:"#3730A3",
+      desc:"Connect your CRM to see actual pipeline created from this event — deals, stages, and revenue attributed.",
       breakdown:[
-        {label:`${hotTier} Hot leads × $280K ACV`,  n:Math.round(contacts.filter(c=>(c.onsite_iei_tier||c.iei_tier)==="Hot").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0)/100*0.65*280,0))},
-        {label:`${warmTier} Warm leads × $90K ACV`, n:Math.round(contacts.filter(c=>(c.onsite_iei_tier||c.iei_tier)==="Warm").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0)/100*0.25*90,0))},
+        {label:`${hotTier+warmTier} qualified leads ready to sync`, n:hotTier+warmTier},
+        {label:"CRM integration not connected",                     n:0},
       ],
-      insight:`$${(pipelineActual/1000000).toFixed(1)}M IEI-weighted pipeline from ${hotTier+warmTier} qualified leads. Pipeline reflects actual on-site intent where available.`
+      insight:`Connect Salesforce, HubSpot, or Zoho to see actual deal pipeline from this event. ${hotTier+warmTier} qualified leads are ready to sync.`,
+      isCRM: true,
     },
   ];
 
@@ -3646,9 +3647,19 @@ function OutcomesDashboard({ex}) {
               <div onClick={()=>setActiveStage(activeStage===s.id?null:s.id)}
                 style={{flex:1,background:activeStage===s.id?s.lt:C.light,border:`1.5px solid ${activeStage===s.id?s.color+"60":"#E2E8F0"}`,borderRadius:12,padding:"14px 8px",textAlign:"center",cursor:"pointer",transition:"all .15s",minWidth:0}}>
                 <div style={{fontSize:18,marginBottom:5}}>{s.icon}</div>
-                <div style={{fontSize:20,fontWeight:800,color:s.color,letterSpacing:"-0.03em",lineHeight:1}}>{s.n.toLocaleString()}</div>
-                <div style={{fontSize:10,fontWeight:600,color:C.muted,marginTop:3,lineHeight:1.3}}>{s.label}</div>
-                {s.rate && <div style={{fontSize:10,color:s.color,marginTop:3,fontWeight:700}}>{s.rate}%</div>}
+                {s.isCRM ? (
+                  <>
+                    <div style={{fontSize:11,fontWeight:700,color:"#6366F1",marginBottom:4}}>Connect CRM</div>
+                    <div style={{fontSize:9,color:C.muted,lineHeight:1.3,marginBottom:4}}>Salesforce · HubSpot · Zoho</div>
+                    <div style={{fontSize:9,padding:"2px 8px",borderRadius:99,background:"#EEF2FF",color:"#4338CA",fontWeight:600,display:"inline-block"}}>→ Setup</div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{fontSize:20,fontWeight:800,color:s.color,letterSpacing:"-0.03em",lineHeight:1}}>{s.n.toLocaleString()}</div>
+                    <div style={{fontSize:10,fontWeight:600,color:C.muted,marginTop:3,lineHeight:1.3}}>{s.label}</div>
+                    {s.rate && <div style={{fontSize:10,color:s.color,marginTop:3,fontWeight:700}}>{s.rate}%</div>}
+                  </>
+                )}
               </div>
               {i<FUNNEL.length-1 && <div style={{flexShrink:0,width:28,textAlign:"center",fontSize:14,color:C.muted2}}>→</div>}
             </div>
