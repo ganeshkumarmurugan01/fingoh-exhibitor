@@ -3179,61 +3179,151 @@ function StaffApp({ex}) {
 
 
 function LeadExport({ex}) {
-  const [exported,setExported] = useState(false);
-  const t1=VISITORS.filter(v=>v.tier==="T1");
-  const t2=VISITORS.filter(v=>v.tier==="T2");
-  return (
-    <div style={{padding:24,maxWidth:940,margin:"0 auto",fontFamily:F}}>
-      <div style={{marginBottom:20}}>
-        <h1 style={{fontSize:20,fontWeight:700,color:C.navy,letterSpacing:"-0.02em",marginBottom:2}}>Lead export · Event close</h1>
-        <p style={{fontSize:12,color:C.muted}}>{ex.company} · {ex.name} · Day 3 close</p>
+  const [contacts, setContacts] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [exportedHot, setExportedHot]   = useState(false);
+  const [exportedWarm, setExportedWarm] = useState(false);
+
+  useEffect(() => {
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token || "";
+      fetch(`/api/proxy?slug=v1/audience/contacts/${ex.id}`, {
+        headers: { "x-fingoh-auth": `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => setLoading(false));
+    });
+  }, [ex?.id]);
+
+  // Use onsite tier/score if available, fall back to pre-event
+  const hot  = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Hot")
+                        .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
+  const warm = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Warm")
+                        .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
+  const scored = contacts.filter(c => c.onsite_iei_score).length;
+
+  const exportCSV = (leads, filename) => {
+    const headers = ["Name","Company","Designation","Email","Phone","Country","IEI Tier","IEI Score","Onsite IEI Score","Attend Prob","Meeting Booked"];
+    const rows = leads.map(c => [
+      c.name||"", c.company||"", c.designation||"", c.email||"", c.phone||"", c.country||"",
+      c.onsite_iei_tier||c.iei_tier||"",
+      (c.iei_score||0).toFixed(1),
+      c.onsite_iei_score?(c.onsite_iei_score).toFixed(1):"—",
+      c.reg_prob?((c.reg_prob)*100).toFixed(0)+"%":"—",
+      c.onsite_signals?.meeting_booked?"Yes":"No",
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], {type:"text/csv"});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const LeadRow = ({c, i, accent, textColor, bgLight}) => {
+    const score    = c.onsite_iei_score || c.iei_score || 0;
+    const tier     = c.onsite_iei_tier  || c.iei_tier  || "";
+    const initials = (c.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+    const meetingBooked = c.onsite_signals?.meeting_booked;
+    return (
+      <div style={{padding:"12px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px",gap:10,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:bgLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:textColor,flexShrink:0}}>{initials}</div>
+          <div>
+            <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{c.name}</p>
+            <p style={{fontSize:11,color:C.muted,margin:0}}>{c.designation||"—"} · {c.company}</p>
+          </div>
+        </div>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:2}}>IEI Score</div>
+          <div style={{fontSize:15,fontWeight:800,color:accent}}>{score.toFixed(1)}</div>
+          <div style={{fontSize:9,padding:"1px 5px",borderRadius:99,background:bgLight,color:textColor,fontWeight:700,display:"inline-block"}}>{tier}</div>
+        </div>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Attend prob</div>
+          <div style={{fontSize:14,fontWeight:700,color:C.navy}}>{c.reg_prob?((c.reg_prob)*100).toFixed(0)+"%":"—"}</div>
+        </div>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Meeting</div>
+          <div style={{fontSize:13,fontWeight:700,color:meetingBooked?C.green:C.muted}}>{meetingBooked?"✓ Yes":"—"}</div>
+        </div>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:2}}>On-site</div>
+          <div style={{fontSize:13,color:c.onsite_iei_score?C.green:C.muted}}>{c.onsite_iei_score?"✓ Logged":"—"}</div>
+        </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
-        {[["234","Total visitors",C.navy],["8","T1 — high conviction",C.green],["24","T2 — active evaluators",C.blue],["67%","Conversations scored",C.purple]].map(([v,l,c])=><Stat key={l} val={v} lbl={l} color={c}/>)}
+    );
+  };
+
+  if(loading) return <div style={{padding:40,textAlign:"center",color:C.muted,fontFamily:F}}>Loading leads…</div>;
+
+  return (
+    <div style={{padding:24,maxWidth:1060,margin:"0 auto",fontFamily:F}}>
+      <div style={{marginBottom:20}}>
+        <h1 style={{fontSize:20,fontWeight:700,color:C.navy,letterSpacing:"-0.02em",marginBottom:2}}>Export leads</h1>
+        <p style={{fontSize:12,color:C.muted}}>{ex.company} · {ex.name} · Qualified leads ready for CRM</p>
       </div>
 
-      {/* T1 */}
+      {/* Summary stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+        {[
+          [contacts.length, "Total contacts", C.navy],
+          [hot.length,      "Hot leads",      C.red],
+          [warm.length,     "Warm leads",     C.yellow],
+          [scored,          "On-site logged", C.tealIEI],
+        ].map(([v,l,c])=><Stat key={l} val={v} lbl={l} color={c}/>)}
+      </div>
+
+      {/* Hot leads */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",marginBottom:14}}>
         <div style={{padding:"12px 18px",background:C.ltgrn,borderBottom:"1px solid #86EFAC",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:14,fontWeight:700,color:"#14532D"}}>T1 leads · Immediate action</span>
-            <span style={{fontSize:10,background:"#DCFCE7",color:"#14532D",padding:"2px 8px",borderRadius:99,fontWeight:700,border:"1px solid #86EFAC"}}>{t1.length} leads</span>
+            <span style={{fontSize:14,fontWeight:700,color:"#14532D"}}>🔥 Hot leads · Immediate action</span>
+            <span style={{fontSize:10,background:"#DCFCE7",color:"#14532D",padding:"2px 8px",borderRadius:99,fontWeight:700,border:"1px solid #86EFAC"}}>{hot.length} leads</span>
           </div>
-          <button onClick={()=>setExported(true)} style={{padding:"7px 14px",background:"#16A34A",color:C.white,border:"none",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-            {exported?"✓ Exported":"Export with IEI briefs"}
+          <button onClick={()=>{exportCSV(hot,`hot-leads-${ex.name}.csv`);setExportedHot(true);}}
+            style={{padding:"7px 14px",background:exportedHot?"#16A34A":"#14532D",color:C.white,border:"none",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+            {exportedHot?"✓ Exported":"⬇ Export CSV"}
           </button>
         </div>
-        {t1.map((v,i)=>(
-          <div key={v.id} style={{padding:"12px 18px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
-            <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{width:34,height:34,borderRadius:"50%",background:C.ltgrn,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:"#14532D"}}>{v.name.split(" ").map(n=>n[0]).join("")}</div>
-              <div><p style={{fontSize:13,fontWeight:600,color:C.dark,margin:0}}>{v.name}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{v.title} · {v.company}</p></div>
-            </div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <TierBadge t={v.ieiTier} iei/>
-              <span style={{fontSize:12,fontWeight:700,color:C.green,minWidth:24}}>{v.ieiScore}</span>
-              <button style={{padding:"5px 11px",background:C.navy,color:C.white,border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>View brief</button>
-            </div>
-          </div>
-        ))}
+        {/* Column headers */}
+        <div style={{padding:"6px 18px",display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px",gap:10,background:"#F8FAFC",borderBottom:"1px solid #F1F5F9"}}>
+          {["Visitor","IEI Score","Attend prob","Meeting","On-site"].map(h=>(
+            <div key={h} style={{fontSize:10,fontWeight:600,color:C.muted,textAlign:h==="Visitor"?"left":"center"}}>{h}</div>
+          ))}
+        </div>
+        {hot.length>0 ? hot.map((c,i)=>(
+          <LeadRow key={c.id} c={c} i={i} accent="#ef4444" textColor="#14532D" bgLight="#DCFCE7"/>
+        )) : (
+          <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:13}}>No Hot leads yet — upload contacts and score with IEI</div>
+        )}
       </div>
 
-      {/* T2 */}
+      {/* Warm leads */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
         <div style={{padding:"12px 18px",background:C.ltblue,borderBottom:"1px solid #93C5FD",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:14,fontWeight:700,color:"#1E3A8A"}}>T2 leads · Follow up within 48 hrs</span>
-          <span style={{fontSize:10,background:"#DBEAFE",color:"#1E3A8A",padding:"2px 8px",borderRadius:99,fontWeight:700,border:"1px solid #93C5FD"}}>{t2.length} leads</span>
-        </div>
-        {t2.map((v,i)=>(
-          <div key={v.id} style={{padding:"12px 18px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
-            <div><p style={{fontSize:13,fontWeight:600,color:C.dark,margin:0}}>{v.name}</p><p style={{fontSize:11,color:C.muted,margin:0}}>{v.title} · {v.company}</p></div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <TierBadge t={v.ieiTier} iei/>
-              <span style={{fontSize:12,fontWeight:700,color:C.blue}}>{v.ieiScore}</span>
-              <button style={{padding:"5px 11px",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>View brief</button>
-            </div>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:14,fontWeight:700,color:"#1E3A8A"}}>🌤 Warm leads · Follow up within 48 hrs</span>
+            <span style={{fontSize:10,background:"#DBEAFE",color:"#1E3A8A",padding:"2px 8px",borderRadius:99,fontWeight:700,border:"1px solid #93C5FD"}}>{warm.length} leads</span>
           </div>
-        ))}
+          <button onClick={()=>{exportCSV(warm,`warm-leads-${ex.name}.csv`);setExportedWarm(true);}}
+            style={{padding:"7px 14px",background:exportedWarm?"#2563EB":"#1E3A8A",color:C.white,border:"none",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+            {exportedWarm?"✓ Exported":"⬇ Export CSV"}
+          </button>
+        </div>
+        {/* Column headers */}
+        <div style={{padding:"6px 18px",display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px",gap:10,background:"#F8FAFC",borderBottom:"1px solid #F1F5F9"}}>
+          {["Visitor","IEI Score","Attend prob","Meeting","On-site"].map(h=>(
+            <div key={h} style={{fontSize:10,fontWeight:600,color:C.muted,textAlign:h==="Visitor"?"left":"center"}}>{h}</div>
+          ))}
+        </div>
+        {warm.length>0 ? warm.map((c,i)=>(
+          <LeadRow key={c.id} c={c} i={i} accent="#f97316" textColor="#92400E" bgLight="#FEF3C7"/>
+        )) : (
+          <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:13}}>No Warm leads yet</div>
+        )}
       </div>
     </div>
   );
