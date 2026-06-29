@@ -1246,7 +1246,7 @@ function VisitorList({eventId, refreshKey}) {
               <SortTh label="Pre IEI" col="iei_score"/>
               <SortTh label="Onsite IEI" col="onsite_iei_score"/>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Tier</th>
-              <SortTh label="Reg Prob" col="reg_prob"/>
+              <SortTh label="Attend Prob" col="reg_prob"/>
             </tr>
           </thead>
           <tbody>
@@ -1254,29 +1254,35 @@ function VisitorList({eventId, refreshKey}) {
               <tr><td colSpan={8} style={{padding:24,textAlign:"center",color:C.muted}}>No visitors match your filters.</td></tr>
             ) : filtered.map((c,i) => (
               <tr key={c.id} style={{background:i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
-                <td style={{padding:"8px 12px"}}>
-                  <div style={{fontWeight:600,color:C.navy}}>{c.name||"—"}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{c.email||""}</div>
+                <td style={{padding:"12px 14px"}}>
+                  <div style={{fontWeight:700,color:C.navy,fontSize:13}}>{c.name||"—"}</div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{c.email||""}</div>
                 </td>
-                <td style={{padding:"8px 12px",color:C.muted}}>{c.company||"—"}</td>
-                <td style={{padding:"8px 12px",color:C.muted,fontSize:11}}>{c.designation||"—"}</td>
-                <td style={{padding:"8px 12px",color:C.muted,fontSize:11}}>{[c.city,c.country].filter(Boolean).join(", ")||"—"}</td>
-                <td style={{padding:"8px 12px"}}>
-                  <span style={{fontSize:14,fontWeight:800,color:TIER_COLORS[c.iei_tier]||C.muted}}>{c.iei_score?.toFixed(1)||"—"}</span>
+                <td style={{padding:"12px 14px"}}>
+                  <div style={{fontWeight:600,color:C.navy,fontSize:12}}>{c.company||"—"}</div>
                 </td>
-                <td style={{padding:"8px 12px"}}>
+                <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.designation||"—"}</td>
+                <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{[c.city,c.country].filter(Boolean).join(", ")||"—"}</td>
+                <td style={{padding:"12px 14px"}}>
+                  <span style={{fontSize:16,fontWeight:800,color:TIER_COLORS[c.iei_tier]||C.muted}}>{c.iei_score?.toFixed(1)||"—"}</span>
+                </td>
+                <td style={{padding:"12px 14px"}}>
                   {c.onsite_iei_score
-                    ? <span style={{fontWeight:700,color:TIER_COLORS[c.onsite_iei_tier]||C.muted}}>
-                        {c.onsite_iei_score.toFixed(1)}
-                        <span style={{fontSize:9,marginLeft:4,padding:"1px 5px",borderRadius:99,background:TIER_BG[c.onsite_iei_tier]||"#F1F5F9",color:TIER_TEXT[c.onsite_iei_tier]||C.muted,fontWeight:700}}>{c.onsite_iei_tier}</span>
-                      </span>
-                    : <span style={{color:"#CBD5E1",fontSize:10}}>—</span>}
+                    ? <div>
+                        <span style={{fontSize:15,fontWeight:800,color:TIER_COLORS[c.onsite_iei_tier]||C.muted}}>{c.onsite_iei_score.toFixed(1)}</span>
+                        <span style={{fontSize:9,marginLeft:5,padding:"2px 6px",borderRadius:99,background:TIER_BG[c.onsite_iei_tier]||"#F1F5F9",color:TIER_TEXT[c.onsite_iei_tier]||C.muted,fontWeight:700}}>{c.onsite_iei_tier}</span>
+                      </div>
+                    : <span style={{color:"#CBD5E1",fontSize:11}}>Not logged</span>}
                 </td>
-                <td style={{padding:"8px 12px"}}>
-                  {c.iei_tier && <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:TIER_BG[c.iei_tier]||"#F1F5F9",color:TIER_TEXT[c.iei_tier]||C.muted,fontWeight:700}}>{c.iei_tier}</span>}
+                <td style={{padding:"12px 14px"}}>
+                  {c.iei_tier && <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:TIER_BG[c.iei_tier]||"#F1F5F9",color:TIER_TEXT[c.iei_tier]||C.muted,fontWeight:700}}>{c.iei_tier}</span>}
                 </td>
-                <td style={{padding:"8px 12px",color:C.muted,fontSize:11}}>
-                  {c.reg_prob!=null?(c.reg_prob*100).toFixed(0)+"%":"—"}
+                <td style={{padding:"8px 12px",color:C.muted,fontSize:12,fontWeight:600}}>
+                  {c.reg_prob!=null?(
+                    <span style={{color:c.reg_prob>=0.7?"#16A34A":c.reg_prob>=0.4?"#2563EB":"#9CA3AF"}}>
+                      {(c.reg_prob*100).toFixed(0)}%
+                    </span>
+                  ):"—"}
                 </td>
               </tr>
             ))}
