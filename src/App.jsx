@@ -2439,6 +2439,8 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     else { setSortCol(col); setSortDir("desc"); }
   };
 
+  const staffNames = ["All", ...Array.from(new Set(signals.map(s=>s.staff_name).filter(Boolean)))];
+
   const filtered = visitors
     .filter(v=>{
       const q = search.toLowerCase();
