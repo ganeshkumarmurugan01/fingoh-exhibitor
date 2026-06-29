@@ -1749,9 +1749,38 @@ function IEIAnalysis({ex}) {
   // Load on mount
   React.useEffect(()=>{ loadContacts(); },[loadContacts]);
 
-  // Auto-poll every 30s to pick up new onsite scores from Staff App
+  // Supabase Realtime — update contact instantly when onsite score changes
   React.useEffect(()=>{
-    const iv = setInterval(()=>loadContacts(false), 30000);
+    if (!ex?.id) return;
+    const channel = supabase
+      .channel(`iei-contacts-${ex.id}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "audience_contacts",
+        filter: `event_id=eq.${ex.id}`,
+      }, (payload) => {
+        // Re-map the updated contact into dbContacts
+        setDbContacts(prev => prev.map(c => {
+          if (c.contactId !== payload.new.id) return c;
+          const updated = payload.new;
+          return {
+            ...c,
+            onsite_iei_score: updated.onsite_iei_score || null,
+            onsite_iei_tier:  updated.onsite_iei_tier  || null,
+            ieiScore: Math.round(updated.iei_score || c.ieiScore),
+            score:    Math.round(updated.onsite_iei_score || updated.iei_score || c.score),
+          };
+        }));
+        setLastRefresh(new Date());
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  },[ex?.id]);
+
+  // Fallback refresh every 5 minutes
+  React.useEffect(()=>{
+    const iv = setInterval(()=>loadContacts(false), 300000);
     return ()=>clearInterval(iv);
   },[loadContacts]);
   const nvUpd = (k,v)=>setNv(p=>({...p,[k]:v}));
@@ -2385,9 +2414,43 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   },[ex?.id]);
 
   useEffect(()=>{ loadData(); },[loadData]);
-  // Auto-refresh every 30s
+
+  // Supabase Realtime — subscribe to conversation_signals for this event
+  // When a new signal arrives, add it to state instantly (no polling needed)
   useEffect(()=>{
-    const iv = setInterval(loadData, 30000);
+    if (!ex?.id) return;
+    const channel = supabase
+      .channel(`signals-${ex.id}`)
+      .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "conversation_signals",
+        filter: `event_id=eq.${ex.id}`,
+      }, (payload) => {
+        // Add new signal to top of signals list instantly
+        setSignals(prev => [payload.new, ...prev]);
+        setLastRefresh(new Date());
+      })
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "audience_contacts",
+        filter: `event_id=eq.${ex.id}`,
+      }, (payload) => {
+        // Update the contact's onsite score instantly when Staff App logs signal
+        setContacts(prev => prev.map(c =>
+          c.id === payload.new.id ? {...c, ...payload.new} : c
+        ));
+        setLastRefresh(new Date());
+      })
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  },[ex?.id]);
+
+  // Auto-refresh contacts every 5 minutes as fallback (much less frequent)
+  useEffect(()=>{
+    const iv = setInterval(()=>loadData(), 300000);
     return ()=>clearInterval(iv);
   },[loadData]);
 
