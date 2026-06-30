@@ -5023,6 +5023,14 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
     } catch { return null; }
   });
 
+  // Past events are read-only — redirect away from upload/staff screens
+  React.useEffect(()=>{
+    if (ex?.isPast) {
+      if (screen === "audience") setScreen("iei");
+      if (screen === "staff") setScreen("live");
+    }
+  }, [ex?.isPast, screen]);
+
   // Persist screen + ex to sessionStorage on every change
   React.useEffect(()=>{
     try { sessionStorage.setItem("fingoh_screen", screen); } catch {}
