@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
-import { getEvents, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
+import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
 
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
@@ -881,7 +881,24 @@ function EventHome({onLaunch, onCreateEvent}) {
                 </div>
               </div>
               <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
-              <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product})}
+              <button onClick={async ()=>{
+                try {
+                  const full = await getEvent(ev.id);
+                  onLaunch({
+                    name: full.name, type: full.type, id: full.id,
+                    cats: (full.categories && full.categories.length) ? full.categories : (EX_TYPES.find(t=>t.id===full.type)?.cats||[]),
+                    dateFrom: full.date_from, dateTo: full.date_to,
+                    venue: full.venue, country: full.country,
+                    company: full.company, product: full.product, website: full.website, boothSize: full.booth_size,
+                    icpRole: full.icp?.roles || [], icpSize: full.icp?.company_sizes || [], icpReason: full.icp?.visit_reasons || [],
+                    intentWhy: full.intent?.intent_why || "", intentBuyers: full.intent?.intent_buyers || "",
+                    intentSignals: full.intent?.intent_signals || [], buyerSignals: full.intent?.buyer_signals || [],
+                  });
+                } catch (e) {
+                  // Fallback to minimal data if fetch fails
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product});
+                }
+              }}
                 style={{width:"100%",padding:"9px 0",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                 Open Fingoh ↗
               </button>
@@ -901,7 +918,24 @@ function EventHome({onLaunch, onCreateEvent}) {
                 </div>
               </div>
               <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
-              <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product})}
+              <button onClick={async ()=>{
+                try {
+                  const full = await getEvent(ev.id);
+                  onLaunch({
+                    name: full.name, type: full.type, id: full.id,
+                    cats: (full.categories && full.categories.length) ? full.categories : (EX_TYPES.find(t=>t.id===full.type)?.cats||[]),
+                    dateFrom: full.date_from, dateTo: full.date_to,
+                    venue: full.venue, country: full.country,
+                    company: full.company, product: full.product, website: full.website, boothSize: full.booth_size,
+                    icpRole: full.icp?.roles || [], icpSize: full.icp?.company_sizes || [], icpReason: full.icp?.visit_reasons || [],
+                    intentWhy: full.intent?.intent_why || "", intentBuyers: full.intent?.intent_buyers || "",
+                    intentSignals: full.intent?.intent_signals || [], buyerSignals: full.intent?.buyer_signals || [],
+                  });
+                } catch (e) {
+                  // Fallback to minimal data if fetch fails
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product});
+                }
+              }}
                 style={{width:"100%",padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                 View results ↗
               </button>
