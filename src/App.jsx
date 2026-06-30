@@ -861,52 +861,90 @@ function EventHome({onLaunch, onCreateEvent}) {
           </button>
         </div>
 
-        {/* My events */}
-        <div style={{marginBottom:32}}>
-          <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:12}}>My events</p>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-            {eventsLoading ? (
-              <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:C.muted,fontSize:13}}>Loading your events…</div>
-            ) : myEvents.length===0 ? (
-              <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:C.muted}}>
-                <div style={{fontSize:32,marginBottom:10}}>🎪</div>
-                <p style={{fontSize:14,fontWeight:600,margin:0,marginBottom:4}}>No events yet</p>
-                <p style={{fontSize:12,color:C.muted2,margin:0}}>Create your first event to start capturing buyer intent</p>
-              </div>
-            ) : null}
-          {myEvents.map(ev=>{
-              const st = statusStyle[ev.status];
-              return (
-                <div key={ev.id} style={{background:C.white,border:`2px solid ${C.navy}`,borderRadius:14,padding:18,cursor:"pointer",transition:"all .15s",position:"relative"}}
-                  onMouseOver={e=>{e.currentTarget.style.boxShadow="0 6px 24px rgba(13,27,62,0.12)";}}
-                  onMouseOut={e=>{e.currentTarget.style.boxShadow="none";}}>
-                  <div style={{position:"absolute",top:14,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#DBEAFE",color:C.blue,fontWeight:700}}>REGISTERED</div>
-                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                    <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{EX_TYPES.find(t=>t.id===ev.type)?.icon||"🎪"}</div>
-                    <div>
-                      <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0,lineHeight:1.3}}>{ev.name}</p>
-                      <p style={{fontSize:11,color:C.muted,margin:0}}>{ev.date_from} – {ev.date_to}</p>
-                    </div>
-                  </div>
-                  <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
-                  <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product})}
-                    style={{width:"100%",padding:"9px 0",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-                    Open Fingoh ↗
-                  </button>
-                </div>
-              );
-            })}
-            {/* Create new tile */}
-            <div onClick={onCreateEvent}
-              style={{border:"2px dashed #CBD5E1",borderRadius:14,padding:18,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,minHeight:160,transition:"all .15s"}}
-              onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background="#F8FBFF";}}
-              onMouseOut={e=>{e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.background="transparent";}}>
-              <div style={{width:40,height:40,borderRadius:"50%",background:C.ltblue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>＋</div>
-              <p style={{fontSize:12,fontWeight:600,color:C.muted,margin:0,textAlign:"center"}}>Create a new event</p>
-            </div>
-          </div>
-        </div>
+        {/* My events — split into Upcoming and Past */}
+        {(()=>{
+          const today = new Date().toISOString().slice(0,10);
+          const activeEvents = myEvents.filter(ev => ev.status !== "archived");
+          const upcoming = activeEvents.filter(ev => !ev.date_to || ev.date_to >= today);
+          const past     = activeEvents.filter(ev => ev.date_to && ev.date_to < today);
 
+          const EventCard = ({ev}) => (
+            <div key={ev.id} style={{background:C.white,border:`2px solid ${C.navy}`,borderRadius:14,padding:18,cursor:"pointer",transition:"all .15s",position:"relative"}}
+              onMouseOver={e=>{e.currentTarget.style.boxShadow="0 6px 24px rgba(13,27,62,0.12)";}}
+              onMouseOut={e=>{e.currentTarget.style.boxShadow="none";}}>
+              <div style={{position:"absolute",top:14,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#DBEAFE",color:C.blue,fontWeight:700}}>REGISTERED</div>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{EX_TYPES.find(t=>t.id===ev.type)?.icon||"🎪"}</div>
+                <div>
+                  <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0,lineHeight:1.3}}>{ev.name}</p>
+                  <p style={{fontSize:11,color:C.muted,margin:0}}>{ev.date_from} – {ev.date_to}</p>
+                </div>
+              </div>
+              <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
+              <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product})}
+                style={{width:"100%",padding:"9px 0",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                Open Fingoh ↗
+              </button>
+            </div>
+          );
+
+          const PastEventCard = ({ev}) => (
+            <div key={ev.id} style={{background:C.white,border:`1px solid #E2E8F0`,borderRadius:14,padding:18,cursor:"pointer",transition:"all .15s",position:"relative",opacity:0.85}}
+              onMouseOver={e=>{e.currentTarget.style.boxShadow="0 6px 24px rgba(13,27,62,0.08)";e.currentTarget.style.opacity=1;}}
+              onMouseOut={e=>{e.currentTarget.style.boxShadow="none";e.currentTarget.style.opacity=0.85;}}>
+              <div style={{position:"absolute",top:14,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#F1F5F9",color:C.muted,fontWeight:700}}>COMPLETED</div>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                <div style={{width:38,height:38,borderRadius:10,background:"#F1F5F9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{EX_TYPES.find(t=>t.id===ev.type)?.icon||"🎪"}</div>
+                <div>
+                  <p style={{fontSize:13,fontWeight:700,color:C.dark,margin:0,lineHeight:1.3}}>{ev.name}</p>
+                  <p style={{fontSize:11,color:C.muted,margin:0}}>{ev.date_from} – {ev.date_to}</p>
+                </div>
+              </div>
+              <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
+              <button onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product})}
+                style={{width:"100%",padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                View results ↗
+              </button>
+            </div>
+          );
+
+          return (<>
+            {/* Upcoming events */}
+            <div style={{marginBottom:32}}>
+              <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:12}}>Upcoming events</p>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+                {eventsLoading ? (
+                  <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:C.muted,fontSize:13}}>Loading your events…</div>
+                ) : upcoming.length===0 ? (
+                  <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:C.muted}}>
+                    <div style={{fontSize:32,marginBottom:10}}>🎪</div>
+                    <p style={{fontSize:14,fontWeight:600,margin:0,marginBottom:4}}>No upcoming events</p>
+                    <p style={{fontSize:12,color:C.muted2,margin:0}}>Create your first event to start capturing buyer intent</p>
+                  </div>
+                ) : null}
+                {upcoming.map(ev => <EventCard key={ev.id} ev={ev}/>)}
+                {/* Create new tile */}
+                <div onClick={onCreateEvent}
+                  style={{border:"2px dashed #CBD5E1",borderRadius:14,padding:18,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,minHeight:160,transition:"all .15s"}}
+                  onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background="#F8FBFF";}}
+                  onMouseOut={e=>{e.currentTarget.style.borderColor="#CBD5E1";e.currentTarget.style.background="transparent";}}>
+                  <div style={{width:40,height:40,borderRadius:"50%",background:C.ltblue,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>＋</div>
+                  <p style={{fontSize:12,fontWeight:600,color:C.muted,margin:0,textAlign:"center"}}>Create a new event</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Past events */}
+            {!eventsLoading && past.length > 0 && (
+              <div style={{marginBottom:32}}>
+                <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:12}}>Past events</p>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
+                  {past.map(ev => <PastEventCard key={ev.id} ev={ev}/>)}
+                </div>
+              </div>
+            )}
+          </>);
+        })()}
       </div>
     </div>
   );
@@ -4481,13 +4519,15 @@ function AgentTriggerButton({onClick, queueCount}) {
 // ═══════════════════════════════════════════════════════════════════
 // EVENT SETUP SUMMARY
 // ═══════════════════════════════════════════════════════════════════
-function EventSetup({ex, onUpdate}) {
+function EventSetup({ex, onUpdate, onDelete}) {
   if (!ex) return null;
 
   const [editing, setEditing] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState(null);
   const [saved, setSaved]     = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [form, setForm] = useState({
     name: ex.name || "", venue: ex.venue || "", country: ex.country || "",
@@ -4551,6 +4591,23 @@ function EventSetup({ex, onUpdate}) {
       setError(e.message || "Save failed — please try again");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const deleteEvent = async () => {
+    setDeleting(true); setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
+        method: "DELETE",
+        headers: { "x-fingoh-auth": `Bearer ${token}` }
+      });
+      if (!res.ok && res.status !== 204) throw new Error("Failed to delete event");
+      if (onDelete) onDelete();
+    } catch (e) {
+      setError(e.message || "Delete failed — please try again");
+      setDeleting(false);
     }
   };
 
@@ -4757,6 +4814,30 @@ function EventSetup({ex, onUpdate}) {
           <p style={{fontSize:11,color:C.purple,margin:0,fontWeight:500}}>✦ Fingoh uses this intent statement to tune IEI scores, agent prompts, and live visitor alerts specifically for your goals.</p>
         </div>
       </Section>
+
+      {/* Danger zone — delete event */}
+      <div style={{background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:14,padding:20,marginTop:24}}>
+        <p style={{fontSize:13,fontWeight:700,color:"#991B1B",marginBottom:4}}>⚠ Danger zone</p>
+        <p style={{fontSize:12,color:"#7F1D1D",marginBottom:14,lineHeight:1.6}}>Deleting this event archives it and removes it from your active events list. Visitor data and signals are preserved but no longer accessible from the dashboard.</p>
+        {!confirmDelete ? (
+          <button onClick={()=>setConfirmDelete(true)}
+            style={{padding:"9px 18px",background:C.white,color:"#DC2626",border:"1.5px solid #DC2626",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+            🗑 Delete event
+          </button>
+        ) : (
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <span style={{fontSize:12,color:"#991B1B",fontWeight:600}}>Are you sure? This cannot be undone.</span>
+            <button onClick={()=>setConfirmDelete(false)} disabled={deleting}
+              style={{padding:"8px 16px",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+              Cancel
+            </button>
+            <button onClick={deleteEvent} disabled={deleting}
+              style={{padding:"8px 16px",background:"#DC2626",color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:deleting?"not-allowed":"pointer",fontFamily:F}}>
+              {deleting?"Deleting…":"Yes, delete permanently"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -4968,7 +5049,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {screen==="outcomes"    && <OutcomesDashboard ex={ex}/>}
         {screen==="export"      && <LeadExport ex={ex}/>}
         {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
-        {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx}/>}
+        {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}}/>}
       </NavShell>
       {agentOpen && <AgentPanel ex={ex} onClose={()=>setAgentOpen(false)}/>}
     </>
