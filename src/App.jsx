@@ -930,10 +930,11 @@ function EventHome({onLaunch, onCreateEvent}) {
                     icpRole: full.icp?.roles || [], icpSize: full.icp?.company_sizes || [], icpReason: full.icp?.visit_reasons || [],
                     intentWhy: full.intent?.intent_why || "", intentBuyers: full.intent?.intent_buyers || "",
                     intentSignals: full.intent?.intent_signals || [], buyerSignals: full.intent?.buyer_signals || [],
+                    isPast: true,
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
-                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product});
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,isPast:true});
                 }
               }}
                 style={{width:"100%",padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
@@ -4717,8 +4718,12 @@ function EventSetup({ex, onUpdate, onDelete}) {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {saved && <span style={{fontSize:12,color:C.green,fontWeight:600}}>✓ Saved</span>}
-          <span style={{fontSize:11,padding:"5px 13px",borderRadius:99,background:C.ltgrn,border:"1px solid #86EFAC",color:"#14532D",fontWeight:700}}>✓ Active</span>
-          {!editing ? (
+          {ex.isPast ? (
+            <span style={{fontSize:11,padding:"5px 13px",borderRadius:99,background:"#F1F5F9",border:"1px solid #CBD5E1",color:C.muted,fontWeight:700}}>Past event · Read only</span>
+          ) : (
+            <span style={{fontSize:11,padding:"5px 13px",borderRadius:99,background:C.ltgrn,border:"1px solid #86EFAC",color:"#14532D",fontWeight:700}}>✓ Active</span>
+          )}
+          {ex.isPast ? null : !editing ? (
             <button onClick={startEdit}
               style={{padding:"8px 16px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
               ✎ Edit
@@ -4850,6 +4855,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
       </Section>
 
       {/* Danger zone — delete event */}
+      {!ex.isPast && (
       <div style={{background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:14,padding:20,marginTop:24}}>
         <p style={{fontSize:13,fontWeight:700,color:"#991B1B",marginBottom:4}}>⚠ Danger zone</p>
         <p style={{fontSize:12,color:"#7F1D1D",marginBottom:14,lineHeight:1.6}}>Deleting this event archives it and removes it from your active events list. Visitor data and signals are preserved but no longer accessible from the dashboard.</p>
@@ -4872,6 +4878,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
@@ -4880,6 +4887,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
 // NAV SHELL
 // ═══════════════════════════════════════════════════════════════════
 function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents}) {
+  const isPast = !!ex?.isPast;
+
   const PHASES = [
     {
       id:"pre",
@@ -4887,7 +4896,9 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       color:"#7C3AED",
       bg:"#F5F3FF",
       border:"#DDD6FE",
-      items:[
+      items: isPast ? [
+        {id:"iei",         label:"IEI Analysis",     icon:"◎"},
+      ] : [
         {id:"audience",    label:"Audience Upload",  icon:"⬆"},
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
       ]
@@ -4898,7 +4909,9 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       color:C.tealIEI,
       bg:C.tealLt,
       border:"#99F6E4",
-      items:[
+      items: isPast ? [
+        {id:"live",        label:"Live Dashboard",   icon:"◉"},
+      ] : [
         {id:"live",        label:"Live Dashboard",   icon:"◉"},
         {id:"staff",       label:"Staff App",        icon:"📱"},
       ]
@@ -4948,9 +4961,15 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <AgentTriggerButton onClick={onAgent} queueCount={agentCount}/>
-            <span style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",background:C.ltgrn,borderRadius:99,border:"1px solid #86EFAC",fontSize:10,fontWeight:700,color:"#14532D"}}>
-              <span style={{width:5,height:5,borderRadius:"50%",background:"#16A34A",display:"inline-block"}}/>LIVE · Day 2
-            </span>
+            {isPast ? (
+              <span style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",background:"#F1F5F9",borderRadius:99,border:"1px solid #CBD5E1",fontSize:10,fontWeight:700,color:C.muted}}>
+                <span style={{width:5,height:5,borderRadius:"50%",background:"#94A3B8",display:"inline-block"}}/>Past event · Read only
+              </span>
+            ) : (
+              <span style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",background:C.ltgrn,borderRadius:99,border:"1px solid #86EFAC",fontSize:10,fontWeight:700,color:"#14532D"}}>
+                <span style={{width:5,height:5,borderRadius:"50%",background:"#16A34A",display:"inline-block"}}/>LIVE · Day 2
+              </span>
+            )}
           </div>
         </div>
 
