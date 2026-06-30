@@ -261,15 +261,6 @@ const Tab       = ({id,label,active,onClick})=><button onClick={()=>onClick(id)}
 // SCREEN 1 — Login + Exhibition Setup
 // ═══════════════════════════════════════════════════════════════════
 // ── Sample event catalogue data ───────────────────────────────────────────────
-const EVENT_CATALOGUE = [
-  {id:"evt1", name:"MedTech Asia 2025", type:"medtech", sector:"Healthcare", icon:"🏥", dateFrom:"2025-10-15", dateTo:"2025-10-17", venue:"Marina Bay Sands Expo, Singapore", country:"Singapore", exhibitors:312, visitors:8400, status:"open", daysLeft:44, organiser:"Informa Markets", boothsLeft:18, tags:["Medical Devices","Diagnostics","Digital Health"]},
-  {id:"evt2", name:"Health & Wellness Summit 2025", type:"wellness", sector:"Healthcare", icon:"🧘", dateFrom:"2025-11-08", dateTo:"2025-11-09", venue:"IMPACT Arena, Bangkok", country:"Thailand", exhibitors:178, visitors:4200, status:"open", daysLeft:68, organiser:"UBM Asia", boothsLeft:7, tags:["Wellness","Fitness","Nutrition"]},
-  {id:"evt3", name:"Smart Tech ASEAN 2025", type:"tech", sector:"Technology", icon:"💻", dateFrom:"2025-09-22", dateTo:"2025-09-25", venue:"KLCC Convention Centre, Kuala Lumpur", country:"Malaysia", exhibitors:540, visitors:14000, status:"closing", daysLeft:11, organiser:"Reed Exhibitions", boothsLeft:3, tags:["IT","Cloud","AI & Analytics"]},
-  {id:"evt4", name:"SEAPH Pharma Expo 2025", type:"pharma", sector:"Healthcare", icon:"💊", dateFrom:"2025-12-03", dateTo:"2025-12-05", venue:"Jakarta Convention Centre", country:"Indonesia", exhibitors:220, visitors:5800, status:"open", daysLeft:93, organiser:"PT Dyandra Promosindo", boothsLeft:34, tags:["Pharma","Biotech","Regulatory"]},
-  {id:"evt5", name:"BuildTech Asia 2025", type:"construction", sector:"Built Env", icon:"🏗️", dateFrom:"2025-10-28", dateTo:"2025-10-31", venue:"Suntec Convention & Exhibition, Singapore", country:"Singapore", exhibitors:410, visitors:9600, status:"open", daysLeft:57, organiser:"BEF Asia", boothsLeft:22, tags:["Construction","Smart Buildings","M&E"]},
-  {id:"evt6", name:"FinTech Festival Asia 2025", type:"finance", sector:"Finance", icon:"🏦", dateFrom:"2025-11-19", dateTo:"2025-11-21", venue:"Sands Expo, Singapore", country:"Singapore", exhibitors:680, visitors:22000, status:"open", daysLeft:79, organiser:"Monetary Authority of Singapore", boothsLeft:5, tags:["Payments","RegTech","Digital Banking"]},
-];
-
 // ── Create Event Wizard ───────────────────────────────────────────────────────
 function CreateEventWizard({onBack, onCreated}) {
   const [step, setStep] = useState(1);
@@ -713,9 +704,6 @@ function CreateEventWizard({onBack, onCreated}) {
 
 // ── Post-login Event Home ─────────────────────────────────────────────────────
 function EventHome({onLaunch, onCreateEvent}) {
-  const [search, setSearch]   = useState("");
-  const [sector, setSector]   = useState("All");
-  const [hovered, setHovered] = useState(null);
   const [showTeam, setShowTeam] = useState(false);
 
   // Real API state
@@ -764,14 +752,6 @@ function EventHome({onLaunch, onCreateEvent}) {
 
   const iS = {width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none",background:C.white};
   const lS = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:.08};
-
-  const sectors = ["All", ...new Set(EVENT_CATALOGUE.map(e => e.sector))];
-  const filtered = EVENT_CATALOGUE.filter(e => {
-    const matchSector = sector==="All" || e.sector===sector;
-    const q = search.toLowerCase();
-    const matchSearch = !q || e.name.toLowerCase().includes(q) || e.venue.toLowerCase().includes(q) || e.tags.some(t=>t.toLowerCase().includes(q));
-    return matchSector && matchSearch;
-  });
 
   const statusStyle = {
     open:    {bg:C.ltgrn,   tc:"#14532D", label:"Open"},
@@ -881,16 +861,20 @@ function EventHome({onLaunch, onCreateEvent}) {
           </button>
         </div>
 
-        {/* My events strip — mocked as "active" */}
+        {/* My events */}
         <div style={{marginBottom:32}}>
-          <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:12}}>My active events</p>
+          <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:12}}>My events</p>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-            {eventsLoading ? null : myEvents.length===0 ? (
-            <div style={{gridColumn:"1/-1",padding:20,textAlign:"center",color:C.muted,fontSize:12}}>
-              No events yet — create your first event
-            </div>
-          ) : null}
-          {myEvents.slice(0,2).map(ev=>{
+            {eventsLoading ? (
+              <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:C.muted,fontSize:13}}>Loading your events…</div>
+            ) : myEvents.length===0 ? (
+              <div style={{gridColumn:"1/-1",padding:40,textAlign:"center",color:C.muted}}>
+                <div style={{fontSize:32,marginBottom:10}}>🎪</div>
+                <p style={{fontSize:14,fontWeight:600,margin:0,marginBottom:4}}>No events yet</p>
+                <p style={{fontSize:12,color:C.muted2,margin:0}}>Create your first event to start capturing buyer intent</p>
+              </div>
+            ) : null}
+          {myEvents.map(ev=>{
               const st = statusStyle[ev.status];
               return (
                 <div key={ev.id} style={{background:C.white,border:`2px solid ${C.navy}`,borderRadius:14,padding:18,cursor:"pointer",transition:"all .15s",position:"relative"}}
@@ -923,83 +907,6 @@ function EventHome({onLaunch, onCreateEvent}) {
           </div>
         </div>
 
-        {/* Catalogue */}
-        <div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-            <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,margin:0}}>Event catalogue — join as exhibitor</p>
-            <div style={{display:"flex",gap:10,alignItems:"center"}}>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search events…"
-                style={{padding:"7px 13px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontFamily:F,outline:"none",width:200,background:C.white}}/>
-              <div style={{display:"flex",gap:4}}>
-                {sectors.map(s=>(
-                  <button key={s} onClick={()=>setSector(s)}
-                    style={{padding:"6px 12px",borderRadius:7,border:"none",cursor:"pointer",fontSize:11,fontWeight:600,background:sector===s?C.navy:"transparent",color:sector===s?C.white:C.muted,fontFamily:F}}>
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
-            {filtered.map(ev=>{
-              const st = statusStyle[ev.status];
-              const isHov = hovered===ev.id;
-              return (
-                <div key={ev.id}
-                  onMouseOver={()=>setHovered(ev.id)} onMouseOut={()=>setHovered(null)}
-                  style={{background:C.white,border:`1px solid ${isHov?"#C7D0E8":"#E2E8F0"}`,borderRadius:14,overflow:"hidden",transition:"all .15s",boxShadow:isHov?"0 6px 24px rgba(13,27,62,0.1)":"none"}}>
-                  {/* Card header */}
-                  <div style={{padding:"16px 18px",borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>{ev.icon}</div>
-                      <div>
-                        <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0,lineHeight:1.3}}>{ev.name}</p>
-                        <p style={{fontSize:11,color:C.muted,margin:0}}>{ev.organiser}</p>
-                      </div>
-                    </div>
-                    <span style={{fontSize:10,padding:"3px 8px",borderRadius:99,background:st.bg,color:st.tc,fontWeight:700,flexShrink:0,marginLeft:8}}>{st.label}</span>
-                  </div>
-
-                  {/* Card body */}
-                  <div style={{padding:"14px 18px"}}>
-                    <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:4}}>📅 {ev.dateFrom} – {ev.dateTo}</p>
-                    <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:12}}>📍 {ev.venue}</p>
-                    <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
-                      {ev.tags.map((t,i)=><span key={i} style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:C.ltnavy,color:C.navy,fontWeight:500}}>{t}</span>)}
-                    </div>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:14}}>
-                      {[["Exhibitors",ev.exhibitors],["Expected visitors",ev.visitors.toLocaleString()],["Booths left",ev.boothsLeft]].map(([lbl,val])=>(
-                        <div key={lbl} style={{textAlign:"center",padding:"8px 0",background:C.light,borderRadius:8}}>
-                          <p style={{fontSize:14,fontWeight:800,color:C.navy,margin:0}}>{val}</p>
-                          <p style={{fontSize:9,color:C.muted,margin:0,marginTop:1}}>{lbl}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {ev.status==="closing" && (
-                      <div style={{padding:"6px 10px",background:C.ltylw,border:"1px solid #FCD34D",borderRadius:8,marginBottom:10}}>
-                        <p style={{fontSize:11,color:C.amber,margin:0,fontWeight:600}}>⚡ Only {ev.daysLeft} days left to register</p>
-                      </div>
-                    )}
-                    <button
-                      onClick={()=>onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.dateFrom,dateTo:ev.dateTo,venue:ev.venue,company:"Siemens Healthineers",product:"Diagnostic imaging & AI-powered radiology solutions"})}
-                      style={{width:"100%",padding:"9px 0",background:ev.status==="closed"?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:ev.status==="closed"?"not-allowed":"pointer",fontFamily:F,transition:"background .12s"}}>
-                      {ev.status==="closed"?"Closed":"Register & launch Fingoh ↗"}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {filtered.length===0 && (
-            <div style={{textAlign:"center",padding:"60px 20px",color:C.muted}}>
-              <div style={{fontSize:36,marginBottom:12}}>🔍</div>
-              <p style={{fontSize:14,fontWeight:600,margin:0}}>No events match your search</p>
-              <p style={{fontSize:12,color:C.muted2,marginTop:4}}>Try a different keyword or sector filter</p>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
