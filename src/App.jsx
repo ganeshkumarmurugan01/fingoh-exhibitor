@@ -5048,6 +5048,116 @@ function EventSetup({ex, onUpdate, onDelete}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// MEETING RESPONSE PAGE — public page for accept/decline links
+// ═══════════════════════════════════════════════════════════════════
+function MeetingResponsePage({token}) {
+  const [status, setStatus]   = useState("loading"); // loading|success|error|already
+  const [action, setAction]   = useState(null);
+  const [meeting, setMeeting] = useState(null);
+  const [error, setError]     = useState(null);
+
+  React.useEffect(()=>{
+    if (!token) { setStatus("error"); setError("Invalid link — no token found."); return; }
+    // Call the public respond endpoint
+    fetch(`/api/proxy?slug=v1/meetings/respond/${token}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.detail) throw new Error(data.detail);
+        setAction(data.action);
+        setMeeting(data.meeting);
+        setStatus(data.status === "already_responded" ? "already" : "success");
+      })
+      .catch(e => { setStatus("error"); setError(e.message || "Something went wrong"); });
+  },[token]);
+
+  const F = "'DM Sans', system-ui, sans-serif";
+  const navy = "#0D1B3E";
+
+  if (status === "loading") return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,background:"#F8FAFC"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:40,height:40,border:"3px solid #E2E8F0",borderTopColor:navy,borderRadius:"50%",animation:"spin 1s linear infinite",margin:"0 auto 16px"}}/>
+        <p style={{color:"#64748B",fontSize:14}}>Processing your response…</p>
+      </div>
+    </div>
+  );
+
+  if (status === "error") return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,background:"#F8FAFC"}}>
+      <div style={{textAlign:"center",maxWidth:400,padding:32}}>
+        <div style={{fontSize:48,marginBottom:16}}>⚠️</div>
+        <h2 style={{fontSize:20,fontWeight:700,color:navy,marginBottom:8}}>Link Error</h2>
+        <p style={{color:"#64748B",lineHeight:1.6}}>{error || "This link is invalid or has expired."}</p>
+      </div>
+    </div>
+  );
+
+  if (status === "already") return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,background:"#F8FAFC"}}>
+      <div style={{textAlign:"center",maxWidth:400,padding:32}}>
+        <div style={{fontSize:48,marginBottom:16}}>✅</div>
+        <h2 style={{fontSize:20,fontWeight:700,color:navy,marginBottom:8}}>Already Responded</h2>
+        <p style={{color:"#64748B",lineHeight:1.6}}>You have already responded to this meeting request.</p>
+      </div>
+    </div>
+  );
+
+  const accepted = action === "accept";
+  const dt = meeting?.proposed_datetime;
+  let dtFmt = dt;
+  try { dtFmt = new Date(dt).toLocaleString("en-IN", {weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}); } catch {}
+
+  return (
+    <div style={{minHeight:"100vh",background:"#F8FAFC",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div style={{maxWidth:480,width:"100%"}}>
+        {/* Header */}
+        <div style={{background:navy,borderRadius:"14px 14px 0 0",padding:"24px 28px",textAlign:"center"}}>
+          <img src="/Fingoh_White.png" alt="Fingoh" style={{height:28,marginBottom:12}} onError={e=>{e.target.style.display="none"}}/>
+          <h1 style={{color:"white",fontSize:22,fontWeight:800,margin:0}}>
+            {accepted ? "✓ Meeting Confirmed!" : "Meeting Declined"}
+          </h1>
+        </div>
+
+        {/* Body */}
+        <div style={{background:"white",border:"1px solid #E2E8F0",borderTop:"none",padding:"28px",borderRadius:"0 0 14px 14px"}}>
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:56,marginBottom:12}}>{accepted ? "🤝" : "👋"}</div>
+            <p style={{fontSize:15,color:"#475569",lineHeight:1.6}}>
+              {accepted
+                ? "Thank you for confirming! The exhibitor will be in touch with final details."
+                : "No problem — we've let the exhibitor know you won't be able to make this meeting."}
+            </p>
+          </div>
+
+          {/* Meeting details */}
+          {meeting && accepted && (
+            <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"16px 18px",marginBottom:20}}>
+              <p style={{fontSize:11,fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.08,marginBottom:10}}>Meeting Details</p>
+              {dtFmt && <div style={{display:"flex",gap:10,marginBottom:7}}><span style={{fontSize:14}}>📅</span><span style={{fontSize:13,color:"#1E293B"}}>{dtFmt}</span></div>}
+              {meeting.duration_minutes && <div style={{display:"flex",gap:10,marginBottom:7}}><span style={{fontSize:14}}>⏱</span><span style={{fontSize:13,color:"#1E293B"}}>{meeting.duration_minutes} minutes</span></div>}
+              {meeting.location && <div style={{display:"flex",gap:10,marginBottom:7}}><span style={{fontSize:14}}>📍</span><span style={{fontSize:13,color:"#1E293B"}}>{meeting.location}</span></div>}
+              {meeting.topic && <div style={{display:"flex",gap:10}}><span style={{fontSize:14}}>💬</span><span style={{fontSize:13,color:"#1E293B"}}>{meeting.topic}</span></div>}
+            </div>
+          )}
+
+          <div style={{textAlign:"center",padding:"14px",background:accepted?"#F0FDF4":"#FEF2F2",borderRadius:8,border:`1px solid ${accepted?"#86EFAC":"#FCA5A5"}`}}>
+            <p style={{fontSize:12,color:accepted?"#14532D":"#991B1B",margin:0,fontWeight:500}}>
+              {accepted
+                ? "A calendar invite will be sent to your email shortly."
+                : "Feel free to reach out if you'd like to reschedule."}
+            </p>
+          </div>
+
+          <p style={{textAlign:"center",fontSize:11,color:"#94A3B8",marginTop:20,margin:"20px 0 0 0"}}>
+            Powered by Fingoh · AI-powered trade fair intelligence
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // NAV SHELL
 // ═══════════════════════════════════════════════════════════════════
 function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents}) {
@@ -5243,6 +5353,13 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
   }, [])
 
   const agentQueue = INITIAL_QUEUE.length
+
+  // Meeting response page — public, no auth needed
+  if (window.location.pathname === "/meeting") {
+    const params = new URLSearchParams(window.location.search);
+    const token  = params.get("token");
+    return <MeetingResponsePage token={token}/>;
+  }
 
   if (authLoading) return (
     <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"DM Sans, sans-serif",fontSize:14,color:"#64748B"}}>
