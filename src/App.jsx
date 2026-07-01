@@ -1471,12 +1471,15 @@ function AudienceUpload({ex, onNext}) {
                   <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:18}}>Import a CSV or Excel export from your CRM, event platform, or organiser backend. Fingoh enriches each contact, scores against your ICP, and queues them for IEI analysis automatically.</p>
                   <p style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:.06}}>Required & optional columns</p>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20}}>
-                    {[["first_name","req"],["last_name","req"],["email","req"],["company","req"],["job_title","req"],["country","opt"],["linkedin_url","opt"],["phone","opt"],["categories_interest","opt"],["primary_reason","opt"],["company_size","opt"],["incumbent_vendor","opt"]].map(([f,t])=>(
+                    {[["first_name","req"],["last_name","req"],["email","req"],["company","req"],["job_title","req"],["country","opt"],["linkedin_url","opt"],["phone","opt"],["categories_interest","opt"],["primary_reason","opt"],["company_size","opt"],["incumbent_vendor","opt"],["meeting_interest","opt"]].map(([f,t])=>(
                       <div key={f} style={{padding:"5px 9px",background:t==="req"?C.ltnavy:C.light,borderRadius:6,fontSize:10,color:t==="req"?C.navy:C.muted,fontFamily:"monospace",fontWeight:t==="req"?700:400,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                         <span>{f}</span>
                         {t==="req"&&<span style={{fontSize:8,background:C.navy,color:C.white,padding:"1px 5px",borderRadius:3}}>REQ</span>}
                       </div>
                     ))}
+                  </div>
+                  <div style={{background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11,color:"#14532D"}}>
+                    💡 <strong>meeting_interest</strong> column accepts: <code>yes</code> / <code>no</code> / <code>true</code> / <code>false</code> / <code>1</code> / <code>0</code> — boosts meeting match score for interested visitors
                   </div>
                   <div style={{border:"2px dashed #CBD5E1",borderRadius:12,padding:48,textAlign:"center",transition:"all .15s"}}
                     onMouseOver={e=>{e.currentTarget.style.borderColor=C.blue;e.currentTarget.style.background="#F8FBFF";}}
