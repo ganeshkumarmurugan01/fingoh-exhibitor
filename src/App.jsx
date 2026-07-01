@@ -2917,7 +2917,9 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
               <p style={{fontSize:10,fontWeight:700,color:TS[p.tier]?.tc||C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:4}}>
                 {aiRec ? "✦ AI recommended action" : "Recommended action"}
               </p>
-              {aiRecLoading ? (
+              {signals.length === 0 ? (
+                <p style={{fontSize:12,color:C.muted2,fontStyle:"italic",margin:0}}>No recommendation yet — log a conversation via Staff App to generate a personalised next step.</p>
+              ) : aiRecLoading ? (
                 <p style={{fontSize:11,color:C.muted,margin:0}}>Generating personalised recommendation…</p>
               ) : aiRec ? (
                 <p style={{fontSize:12,color:TS[p.tier]?.tc||C.muted,lineHeight:1.7,margin:0}}>{aiRec}</p>
