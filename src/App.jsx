@@ -1040,6 +1040,7 @@ function ManualEntryForm({eventId, onSaved}) {
   const [form, setForm] = React.useState({
     first_name:"", last_name:"", email:"", job_title:"", company:"",
     country:"", phone:"", city:"", categories_interest:"", primary_reason:"",
+    meeting_interest:"",
   });
   const [saving, setSaving] = React.useState(false);
   const [error, setError]   = React.useState("");
@@ -1053,7 +1054,9 @@ function ManualEntryForm({eventId, onSaved}) {
     }
     setSaving(true); setError("");
     try {
-      const csv = `first_name,last_name,email,job_title,company,country,phone,city,categories_interest,primary_reason\n${Object.values(form).map(v=>`"${(v||"").replace(/"/g,'""')}"`).join(",")}`;
+      const {meeting_interest, ...formWithoutMI} = form;
+      const miVal = meeting_interest === "yes" ? "yes" : meeting_interest === "no" ? "no" : "";
+      const csv = `first_name,last_name,email,job_title,company,country,phone,city,categories_interest,primary_reason,meeting_interest\n${Object.values(formWithoutMI).map(v=>`"${(v||"").replace(/"/g,'""')}"`).join(",")},${miVal}`;
       const fd = new FormData();
       fd.append("file", new Blob([csv], {type:"text/csv"}), "manual.csv");
       const { data:{ session } } = await supabase.auth.getSession();
@@ -1089,6 +1092,20 @@ function ManualEntryForm({eventId, onSaved}) {
         <div style={{gridColumn:"span 2"}}>
           <label style={lS}>Categories of interest</label>
           <input style={iS} placeholder="e.g. Electronic Components, Connectors, PCB" value={form.categories_interest} onChange={e=>setForm(f=>({...f,categories_interest:e.target.value}))}/>
+        </div>
+        <div style={{gridColumn:"span 2"}}>
+          <label style={lS}>Interested in a dedicated meeting with our team? *</label>
+          <div style={{display:"flex",gap:10,marginTop:4}}>
+            {[["yes","✓ Yes, I'm interested"],["no","✗ Not this time"],["",  "Not specified"]].map(([val,lbl])=>(
+              <button key={val} onClick={()=>setForm(f=>({...f,meeting_interest:val}))}
+                style={{flex:1,padding:"10px 12px",borderRadius:8,border:`2px solid ${form.meeting_interest===val?(val==="yes"?C.green:val==="no"?"#DC2626":"#94A3B8"):"#E2E8F0"}`,
+                  background:form.meeting_interest===val?(val==="yes"?"#DCFCE7":val==="no"?"#FEF2F2":"#F1F5F9"):C.white,
+                  color:form.meeting_interest===val?(val==="yes"?"#14532D":val==="no"?"#991B1B":C.muted):C.muted,
+                  fontFamily:F,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                {lbl}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <div style={{background:"#F0F7FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 14px",fontSize:11,color:"#1E40AF",marginBottom:16}}>
