@@ -2730,7 +2730,35 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
 // ═══════════════════════════════════════════════════════════════════
 function ParticipantDetail({p, onBack}) {
   const [tab,setTab] = useState("signals");
+  const [signals, setSignals] = useState([]);
+  const [loadingSigs, setLoadingSigs] = useState(true);
   const actions={T1:"Assign to AE immediately. Personalised follow-up within 24 hrs.",T2:"SDR follow-up within 48 hrs. Book next step.",T3:"6-week nurture track.",T4:"Quarterly newsletter only.",T5:"Archive — do not pursue."};
+
+  // Load real conversation signals for this visitor
+  React.useEffect(()=>{
+    if (!p?.contactId && !p?.id) { setLoadingSigs(false); return; }
+    const contactId = p.contactId || p.id;
+    supabase.from("conversation_signals")
+      .select("*")
+      .eq("contact_id", contactId)
+      .order("created_at", {ascending: false})
+      .then(({data}) => {
+        setSignals(data || []);
+        setLoadingSigs(false);
+      })
+      .catch(()=>setLoadingSigs(false));
+  },[p?.contactId, p?.id]);
+
+  // Derive category scores from real signals
+  const latestSig = signals[0] || null;
+  const convQuality   = latestSig ? Math.round((latestSig.conversation_quality||0) / 5 * 100) : 0;
+  const meetingScore  = latestSig ? (
+    (latestSig.meeting_booked ? 40 : 0) +
+    (latestSig.demo_requested ? 30 : 0) +
+    (latestSig.return_visit   ? 30 : 0)
+  ) : 0;
+  const registrationScore = Math.round((p.ieiScore||0) * 0.6);
+  const firmographicScore = Math.round((p.ieiScore||0) * 0.7);
   return (
     <div style={{padding:24,maxWidth:940,margin:"0 auto",fontFamily:F}}>
       <button onClick={onBack} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:C.muted,marginBottom:18,padding:0,fontFamily:F,display:"flex",alignItems:"center",gap:5}}>← Back to dashboard</button>
@@ -2759,23 +2787,74 @@ function ParticipantDetail({p, onBack}) {
       {tab==="signals" && (
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
           <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:18}}>
-            <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:12}}>{p.id===1?SIGNALS_P1.length:p.signals||1} captured signals</h3>
-            {(p.id===1?SIGNALS_P1:[{type:"Badge scan",icon:"◉",weight:"Low",score:2.7,time:p.time||"—",notes:"Booth scan — no additional qualification yet"}]).map((s,i)=>(
-              <div key={i} style={{padding:"9px 11px",background:C.light,borderRadius:8,marginBottom:7,display:"flex",gap:9,alignItems:"flex-start"}}>
-                <div style={{width:26,height:26,borderRadius:6,background:C.white,border:"1px solid #E2E8F0",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,flexShrink:0}}>{s.icon}</div>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{fontSize:12,fontWeight:600,color:C.dark}}>{s.type}</span><span style={{fontSize:11,fontWeight:700,color:C.green}}>+{s.score}</span></div>
-                  <p style={{fontSize:11,color:C.muted,lineHeight:1.4,margin:0}}>{s.notes}</p>
-                  <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}><span style={{fontSize:10,color:C.muted2}}>{s.weight}</span><span style={{fontSize:10,color:C.muted2}}>{s.time}</span></div>
-                </div>
+            <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:12}}>
+              {loadingSigs ? "Loading signals…" : `${signals.length} captured signal${signals.length!==1?"s":""}`}
+            </h3>
+            {!loadingSigs && signals.length === 0 && (
+              <div style={{padding:"24px 0",textAlign:"center",color:C.muted}}>
+                <div style={{fontSize:28,marginBottom:8}}>📋</div>
+                <p style={{fontSize:13,fontWeight:600,margin:0,marginBottom:4}}>No signals logged yet</p>
+                <p style={{fontSize:11,color:C.muted2,margin:0}}>Use the Staff App to log a conversation with this visitor</p>
               </div>
-            ))}
+            )}
+            {signals.map((sig,i)=>{
+              const time = new Date(sig.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+              const cq = sig.conversation_quality || 0;
+              const cqLabel = cq>=4?"Active buyer":cq>=3?"Strong evaluator":cq>=2?"Polite interest":"Pass-through";
+              return (
+                <div key={sig.id} style={{padding:"10px 12px",background:C.light,borderRadius:8,marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                    <span style={{fontSize:12,fontWeight:700,color:C.navy}}>Conversation logged</span>
+                    <span style={{fontSize:10,color:C.muted2}}>{time}</span>
+                  </div>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
+                    <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:C.white,border:"1px solid #E2E8F0",color:C.dark}}>
+                      Quality: {cq}/5 — {cqLabel}
+                    </span>
+                    {sig.return_visit && <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#FEF3C7",color:"#92400E",fontWeight:600}}>↩ Return visit</span>}
+                    {sig.demo_requested && <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#DBEAFE",color:"#1E3A8A",fontWeight:600}}>▶ Demo attended</span>}
+                    {sig.meeting_booked && <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#DCFCE7",color:"#14532D",fontWeight:600}}>✓ Meeting booked</span>}
+                    {sig.badge_scan && <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#F3F4F6",color:C.muted,fontWeight:600}}>◉ Badge scanned</span>}
+                    {sig.buying_group && <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:C.ltpur,color:C.purple,fontWeight:600}}>👥 Buying group</span>}
+                  </div>
+                  {sig.urgency && <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:4}}>Urgency: <strong>{sig.urgency}</strong></p>}
+                  {sig.notes && <p style={{fontSize:11,color:C.dark,lineHeight:1.5,margin:0,marginBottom:4}}>📝 {sig.notes}</p>}
+                  {sig.ai_intent_level && (
+                    <div style={{marginTop:6,padding:"6px 8px",background:"white",borderRadius:6,border:"1px solid #E2E8F0"}}>
+                      <p style={{fontSize:10,fontWeight:700,color:C.muted,margin:0,marginBottom:2}}>AI ANALYSIS</p>
+                      <p style={{fontSize:11,color:sig.ai_intent_level==="strong"?C.green:sig.ai_intent_level==="moderate"?C.amber:C.red,fontWeight:600,margin:0}}>
+                        Intent: {sig.ai_intent_level}
+                        {sig.ai_score_delta ? ` · Score delta: ${sig.ai_score_delta}` : ""}
+                      </p>
+                      {sig.ai_buying_signals?.length > 0 && (
+                        <p style={{fontSize:10,color:C.muted,margin:"3px 0 0 0"}}>{sig.ai_buying_signals.slice(0,3).join(" · ")}</p>
+                      )}
+                    </div>
+                  )}
+                  <p style={{fontSize:10,color:C.muted2,margin:"4px 0 0 0"}}>Logged by {sig.staff_name || "staff"}</p>
+                </div>
+              );
+            })}
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:18}}>
               <h3 style={{fontSize:14,fontWeight:600,color:C.navy,marginBottom:12}}>Category scores</h3>
-              {[["On-site behaviour",p.id===1?82:p.score-20,C.blue],["Meetings",p.id===1?90:p.score-10,C.green],["Registration",p.id===1?65:45,C.yellow],["Firmographic",p.id===1?75:50,C.purple]].map(([cat,sc,col])=>(
-                <div key={cat} style={{marginBottom:9}}><span style={{fontSize:11,color:C.muted,display:"block",marginBottom:2}}>{cat}</span><ScoreBar score={Math.min(sc,100)} small/></div>
+              {[
+                ["On-site behaviour", signals.length>0 ? convQuality : null, C.blue, "Conversation quality from Staff App"],
+                ["Meetings & intent", signals.length>0 ? meetingScore : null, C.green, "Meeting booked, demo, return visit"],
+                ["Registration", registrationScore, C.yellow, "Pre-event IEI registration signals"],
+                ["Firmographic", firmographicScore, C.purple, "ICP fit, seniority, company size"],
+              ].map(([cat,sc,col,hint])=>(
+                <div key={cat} style={{marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                    <span style={{fontSize:11,color:C.muted}}>{cat}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:sc!==null?col:C.muted2}}>{sc!==null?sc:"—"}</span>
+                  </div>
+                  {sc!==null ? <ScoreBar score={Math.min(sc,100)} small/> : (
+                    <div style={{height:6,background:"#F1F5F9",borderRadius:3}}/>
+                  )}
+                  <p style={{fontSize:9,color:C.muted2,margin:"2px 0 0 0"}}>{hint}</p>
+                </div>
               ))}
             </div>
             <div style={{background:TS[p.tier]?.bg||"#F1F5F9",border:`1px solid ${TS[p.tier]?.bc||"#E2E8F0"}`,borderRadius:12,padding:14}}>
