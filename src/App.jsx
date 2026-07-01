@@ -2775,7 +2775,14 @@ function ParticipantDetail({p, onBack}) {
           <div style={{display:"flex",gap:16,alignItems:"center"}}>
             <div style={{textAlign:"center"}}><div style={{fontSize:11,color:C.muted,marginBottom:2}}>IEI pre-event</div><div style={{fontSize:26,fontWeight:800,color:p.ieiScore>=75?C.green:p.ieiScore>=50?C.blue:C.yellow,letterSpacing:"-0.03em"}}>{p.ieiScore}</div></div>
             <div style={{width:1,height:40,background:"#E2E8F0"}}/>
-            <div style={{textAlign:"center"}}><div style={{fontSize:11,color:C.muted,marginBottom:2}}>Live score</div><div style={{fontSize:26,fontWeight:800,color:p.score>=60?C.green:p.score>=40?C.blue:C.yellow,letterSpacing:"-0.03em"}}>{p.score}</div></div>
+            <div style={{textAlign:"center"}}>
+                <div style={{fontSize:11,color:C.muted,marginBottom:2}}>Live score</div>
+                {p.hasOnsite && p.liveScore ? (
+                  <div style={{fontSize:26,fontWeight:800,color:p.liveScore>=60?C.green:p.liveScore>=40?C.blue:C.yellow,letterSpacing:"-0.03em"}}>{p.liveScore}</div>
+                ) : (
+                  <div style={{fontSize:16,fontWeight:600,color:C.muted2,letterSpacing:"-0.01em"}}>Not logged</div>
+                )}
+              </div>
           </div>
         </div>
       </div>
