@@ -3001,13 +3001,21 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
           <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
             <thead><tr style={{background:"#F8FAFC"}}>{["Dimension","Max","IEI pre","Live","Note"].map(h=><th key={h} style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>{h}</th>)}</tr></thead>
             <tbody>
-              {[
-                ["Profile match",35,p.icp==="Perfect"?32:24,"—","IEI gate — ICP multiplier"],
-                ["Role & seniority",25,p.role==="EXECUTIVE"?23:18,"—","Authority scoring"],
-                ["Company signals",20,18,"—","Enrichment-based"],
-                ["On-site behaviour","—","—",p.id===1?82:p.score-20,"Conv. quality, return visits, demo"],
-                ["Meeting signals","—","—",p.id===1?90:p.score-10,"Attendance, no-shows"],
-              ].map(([d,max,iei,lv,note],i)=>(
+              {(()=>{
+                const sig = signals[0] || null;
+                const onsiteBehaviour = sig ? Math.round((sig.conversation_quality||0)/5*100) : null;
+                const meetingSignals  = sig ? Math.min(100, (sig.meeting_booked?40:0)+(sig.demo_requested?30:0)+(sig.return_visit?30:0)) : null;
+                const profileScore    = p.ieiScore ? Math.round(p.ieiScore*0.35) : "—";
+                const seniorityScore  = p.ieiScore ? Math.round(p.ieiScore*0.25) : "—";
+                const companyScore    = p.ieiScore ? Math.round(p.ieiScore*0.20) : "—";
+                return [
+                  ["Profile match",      35, profileScore,   "—",              "IEI gate — ICP multiplier"],
+                  ["Role & seniority",   25, seniorityScore, "—",              "Authority scoring"],
+                  ["Company signals",    20, companyScore,   "—",              "Enrichment-based"],
+                  ["On-site behaviour",  "—","—",            onsiteBehaviour!==null?onsiteBehaviour:"Not logged", "Conv. quality, return visits, demo"],
+                  ["Meeting signals",    "—","—",            meetingSignals!==null?meetingSignals:"Not logged",   "Meeting booked, demo, return visit"],
+                ];
+              })().map(([d,max,iei,lv,note],i)=>(
                 <tr key={d} style={{borderBottom:"1px solid #F1F5F9",background:i%2===0?C.white:"#FAFAFA"}}>
                   <td style={{padding:"8px 12px",fontWeight:500,color:C.dark}}>{d}</td>
                   <td style={{padding:"8px 12px",fontFamily:"monospace",color:C.muted}}>{max}</td>
