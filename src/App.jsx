@@ -2734,13 +2734,56 @@ function ParticipantDetail({p, onBack}) {
   const [loadingSigs, setLoadingSigs] = useState(true);
   const actions={T1:"Assign to AE immediately. Personalised follow-up within 24 hrs.",T2:"SDR follow-up within 48 hrs. Book next step.",T3:"6-week nurture track.",T4:"Quarterly newsletter only.",T5:"Archive — do not pursue."};
 
+  const [aiRec, setAiRec] = useState(null);
+  const [aiRecLoading, setAiRecLoading] = useState(false);
+
+  // Generate AI recommendation when signals load
+  React.useEffect(()=>{
+    if (loadingSigs || signals.length === 0) return;
+    setAiRecLoading(true);
+    const latestSig = signals[0];
+    const prompt = `You are a B2B sales intelligence agent. Based on this visitor's profile and on-site signals, give ONE specific, actionable next step recommendation (2-3 sentences max, no bullet points, no generic advice).
+
+Visitor: ${p.name}, ${p.title} at ${p.company} (${p.ieiTier} tier, IEI score: ${p.ieiScore})
+On-site signals:
+- Conversation quality: ${latestSig.conversation_quality}/5
+- Questions asked: ${Array.isArray(latestSig.question_types) ? latestSig.question_types.join(", ") : latestSig.question_types || "general"}
+- Meeting booked: ${latestSig.meeting_booked ? "Yes" : "No"}
+- Return visit: ${latestSig.return_visit ? "Yes" : "No"}
+- Demo attended: ${latestSig.demo_requested ? "Yes" : "No"}
+- Urgency: ${latestSig.urgency || "not specified"}
+- Buying group present: ${latestSig.buying_group ? "Yes" : "No"}
+- Notes: ${latestSig.notes || "none"}
+${latestSig.ai_intent_level ? `- AI intent level: ${latestSig.ai_intent_level}` : ""}
+${latestSig.ai_buying_signals?.length ? `- AI buying signals: ${latestSig.ai_buying_signals.join(", ")}` : ""}
+
+Give a specific, personalised next step for the exhibitor's sales team. Reference the visitor's role and company. Be direct and actionable.`;
+
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 200,
+        messages: [{ role: "user", content: prompt }]
+      })
+    })
+    .then(r => r.json())
+    .then(data => {
+      const text = data.content?.[0]?.text || "";
+      if (text) setAiRec(text);
+      setAiRecLoading(false);
+    })
+    .catch(()=>setAiRecLoading(false));
+  }, [loadingSigs, signals.length]);
+
   // Load real conversation signals for this visitor
   React.useEffect(()=>{
     if (!p?.contactId && !p?.id) { setLoadingSigs(false); return; }
     const contactId = p.contactId || p.id;
     supabase.from("conversation_signals")
       .select("*")
-      .eq("contact_id", contactId)
+      .eq("contact_id", String(contactId))
       .order("created_at", {ascending: false})
       .then(({data}) => {
         setSignals(data || []);
@@ -2865,8 +2908,16 @@ function ParticipantDetail({p, onBack}) {
               ))}
             </div>
             <div style={{background:TS[p.tier]?.bg||"#F1F5F9",border:`1px solid ${TS[p.tier]?.bc||"#E2E8F0"}`,borderRadius:12,padding:14}}>
-              <p style={{fontSize:10,fontWeight:700,color:TS[p.tier]?.tc||C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:4}}>Recommended action</p>
-              <p style={{fontSize:12,color:TS[p.tier]?.tc||C.muted,lineHeight:1.6,margin:0}}>{actions[p.tier]}</p>
+              <p style={{fontSize:10,fontWeight:700,color:TS[p.tier]?.tc||C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:4}}>
+                {aiRec ? "✦ AI recommended action" : "Recommended action"}
+              </p>
+              {aiRecLoading ? (
+                <p style={{fontSize:11,color:C.muted,margin:0}}>Generating personalised recommendation…</p>
+              ) : aiRec ? (
+                <p style={{fontSize:12,color:TS[p.tier]?.tc||C.muted,lineHeight:1.7,margin:0}}>{aiRec}</p>
+              ) : (
+                <p style={{fontSize:12,color:TS[p.tier]?.tc||C.muted,lineHeight:1.6,margin:0}}>{actions[p.tier]}</p>
+              )}
             </div>
           </div>
         </div>
