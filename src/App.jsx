@@ -2936,27 +2936,37 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{background:"linear-gradient(135deg,#111827,#1E2A3A)",borderRadius:10,padding:"13px 16px"}}>
                 <p style={{fontSize:10,letterSpacing:.1,textTransform:"uppercase",color:"rgba(255,255,255,0.3)",marginBottom:6}}>Visitor profile</p>
-                <p style={{fontSize:12,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{p.name} from {p.company} — {p.title}. Pre-event IEI score: {p.ieiScore} ({p.ieiTier} tier). {p.hasOnsite?"On-site signals logged.":"Not yet logged on-site."}</p>
+                <p style={{fontSize:12,lineHeight:1.75,color:"rgba(255,255,255,0.85)",margin:0}}>{p.name} from {p.company} — {p.title}. Pre-event IEI score: {p.ieiScore} ({p.ieiTier} tier). {signals.length>0?"On-site signals logged.":"Not yet logged on-site."}</p>
               </div>
               <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
                 <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>Pre-event IEI score</p>
                 <p style={{fontSize:28,fontWeight:800,color:p.ieiScore>=75?C.red:p.ieiScore>=50?C.yellow:C.blue,margin:0}}>{p.ieiScore} <span style={{fontSize:12,fontWeight:600}}>{p.ieiTier}</span></p>
               </div>
-              {p.hasOnsite && (
+              {signals.length > 0 && p.liveScore ? (
                 <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:9,padding:"11px 14px"}}>
                   <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>On-site IEI score</p>
                   <p style={{fontSize:28,fontWeight:800,color:p.liveScore>=75?C.red:p.liveScore>=50?C.yellow:C.blue,margin:0}}>{p.liveScore} <span style={{fontSize:12,fontWeight:600}}>{p.liveTier}</span></p>
                 </div>
-              )}
+              ) : null}
             </div>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:9,padding:"11px 14px"}}>
-                <p style={{fontSize:10,fontWeight:700,color:"#1E3A8A",textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>Recommended action</p>
-                <p style={{fontSize:12,lineHeight:1.6,color:"#1E3A8A",margin:0}}>
-                  {p.ieiTier==="Hot"?"High-priority lead — assign to AE immediately. Follow up within 24 hrs.":
-                   p.ieiTier==="Warm"?"Active evaluator — SDR follow-up within 48 hrs. Book a discovery call.":
-                   "Nurture track — add to 6-week email sequence."}
+                <p style={{fontSize:10,fontWeight:700,color:"#1E3A8A",textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>
+                  {aiRec ? "✦ AI recommended action" : "Recommended action"}
                 </p>
+                {signals.length === 0 ? (
+                  <p style={{fontSize:12,color:C.muted2,fontStyle:"italic",margin:0}}>No recommendation yet — log a conversation via Staff App to generate a personalised next step.</p>
+                ) : aiRecLoading ? (
+                  <p style={{fontSize:12,color:"#1E3A8A",margin:0}}>Generating personalised recommendation…</p>
+                ) : aiRec ? (
+                  <p style={{fontSize:12,lineHeight:1.7,color:"#1E3A8A",margin:0}}>{aiRec}</p>
+                ) : (
+                  <p style={{fontSize:12,lineHeight:1.6,color:"#1E3A8A",margin:0}}>
+                    {p.ieiTier==="Hot"?"High-priority lead — assign to AE immediately. Follow up within 24 hrs.":
+                     p.ieiTier==="Warm"?"Active evaluator — SDR follow-up within 48 hrs. Book a discovery call.":
+                     "Nurture track — add to 6-week email sequence."}
+                  </p>
+                )}
               </div>
               <div style={{background:"#FFF8F0",border:"1px solid #FFD9AA",borderRadius:9,padding:"11px 14px"}}>
                 <p style={{fontSize:10,fontWeight:700,color:C.amber,textTransform:"uppercase",letterSpacing:.1,marginBottom:5}}>💡 Deep IEI brief available</p>
