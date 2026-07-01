@@ -2438,9 +2438,11 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   const visitors = contacts.map(c=>{
     const sig = signals.filter(s=>s.contact_id===c.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     const latestSig = sig[0];
-    const liveScore  = c.onsite_iei_score || null;   // null if not yet logged on-site
-    const liveTier   = c.onsite_iei_tier  || null;
-    const displayTier = c.onsite_iei_tier || c.iei_tier || "Cool";
+    // Only use onsite score if there are signals from the CURRENT event
+    const hasCurrentEventSig = sig.length > 0;
+    const liveScore  = hasCurrentEventSig ? (c.onsite_iei_score || null) : null;
+    const liveTier   = hasCurrentEventSig ? (c.onsite_iei_tier  || null) : null;
+    const displayTier = (hasCurrentEventSig && c.onsite_iei_tier) ? c.onsite_iei_tier : (c.iei_tier || "Cool");
     const liveTierT   = displayTier==="Hot"?"T1":displayTier==="Warm"?"T2":displayTier==="Cool"?"T3":"T4";
     const lastSignal = latestSig ? (
       latestSig.meeting_booked?"Meeting booked":
@@ -2667,15 +2669,14 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                         <span style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:`${ieiTierColor(v.ieiTier)}18`,color:ieiTierColor(v.ieiTier),fontWeight:700,border:`1px solid ${ieiTierColor(v.ieiTier)}30`}}>{v.ieiTier}</span>
                       </div>
                     </td>
-                    {/* Live score — only show if logged on-site */}
+                    {/* Live score — only show if logged on-site for current event */}
                     <td style={{padding:"9px 12px",minWidth:130}}>
                       {v.liveScore!==null ? (
                         <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{fontSize:15,fontWeight:800,color:v.liveScore>=70?C.green:v.liveScore>=45?C.blue:C.yellow,minWidth:26,letterSpacing:"-0.02em"}}>{v.liveScore}</span>
                           <ScoreBar score={v.liveScore} small/>
                         </div>
                       ) : (
-                        <span style={{fontSize:11,color:C.muted2}}>Not logged</span>
+                        <span style={{fontSize:11,color:C.muted2,fontStyle:"italic"}}>Not logged</span>
                       )}
                     </td>
                     <td style={{padding:"9px 12px"}}><TierBadge t={v.tier}/></td>
