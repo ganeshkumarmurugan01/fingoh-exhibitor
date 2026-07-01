@@ -1620,6 +1620,306 @@ function AudienceUpload({ex, onNext}) {
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// SCREEN — Meetings (Pre-event + During Event)
+// ═══════════════════════════════════════════════════════════════════
+function MeetingsScreen({ex}) {
+  const [prospects, setProspects]   = useState([]);
+  const [meetings,  setMeetings]    = useState([]);
+  const [loading,   setLoading]     = useState(true);
+  const [tab,       setTab]         = useState("prospects"); // prospects | scheduled
+  const [showModal, setShowModal]   = useState(false);
+  const [selContact, setSelContact] = useState(null);
+  const [sending,   setSending]     = useState(false);
+  const [sent,      setSent]        = useState({});
+  const [form, setForm] = useState({
+    date: "", time: "", duration: "30",
+    location: "", topic: "", notes: "",
+  });
+
+  const loadData = React.useCallback(()=>{
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token || "";
+      const headers = {"x-fingoh-auth": `Bearer ${token}`};
+
+      // Load prospects
+      fetch(`/api/proxy?slug=v1/meetings/${ex.id}/prospects`, {headers})
+        .then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setProspects(data); setLoading(false); })
+        .catch(()=>setLoading(false));
+
+      // Load scheduled meetings
+      fetch(`/api/proxy?slug=v1/meetings/${ex.id}`, {headers})
+        .then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setMeetings(data); })
+        .catch(()=>{});
+    });
+  },[ex?.id]);
+
+  useEffect(()=>{ loadData(); },[loadData]);
+
+  // Supabase Realtime for meeting status updates
+  useEffect(()=>{
+    if (!ex?.id) return;
+    const channel = supabase.channel(`meetings-${ex.id}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"meeting_requests",filter:`event_id=eq.${ex.id}`},
+        ()=>loadData())
+      .subscribe();
+    return ()=>supabase.removeChannel(channel);
+  },[ex?.id, loadData]);
+
+  const openModal = (contact) => {
+    setSelContact(contact);
+    setForm({date:"",time:"",duration:"30",location:"",topic:"",notes:""});
+    setShowModal(true);
+  };
+
+  const sendRequest = async () => {
+    if (!selContact || !form.date || !form.time) return;
+    setSending(true);
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const proposed_datetime = new Date(`${form.date}T${form.time}`).toISOString();
+      const res = await fetch(`/api/proxy?slug=v1/meetings`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body: JSON.stringify({
+          event_id:           ex.id,
+          contact_id:         selContact.contact_id,
+          proposed_datetime,
+          duration_minutes:   parseInt(form.duration),
+          location:           form.location,
+          topic:              form.topic,
+          notes:              form.notes,
+          requested_by_name:  session?.user?.email || "",
+          requested_by_email: session?.user?.email || "",
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSent(prev=>({...prev,[selContact.contact_id]:true}));
+        setShowModal(false);
+        loadData();
+      } else {
+        alert(data.detail || "Failed to send meeting request");
+      }
+    } catch(e) {
+      alert("Failed to send request");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const statusColor = {pending:"#F59E0B",accepted:"#16A34A",declined:"#DC2626",completed:"#6366F1",cancelled:"#94A3B8"};
+  const statusIcon  = {pending:"⏳",accepted:"✓",declined:"✗",completed:"✦",cancelled:"—"};
+
+  const iS = {width:"100%",padding:"8px 10px",border:"1px solid #E2E8F0",borderRadius:7,fontSize:12,fontFamily:F,outline:"none",boxSizing:"border-box"};
+  const lS = {fontSize:10,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:4};
+
+  return (
+    <div style={{padding:24,maxWidth:1100,margin:"0 auto",fontFamily:F}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+        <div>
+          <h1 style={{fontSize:20,fontWeight:700,color:C.navy,letterSpacing:"-0.02em",marginBottom:3}}>Meeting Match</h1>
+          <p style={{fontSize:13,color:C.muted,margin:0}}>{ex.company} · {ex.name} · LambdaMART-ranked prospects</p>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          {[["prospects","🎯 Prospects"],["scheduled","📅 Scheduled"]].map(([id,lbl])=>(
+            <button key={id} onClick={()=>setTab(id)}
+              style={{padding:"7px 16px",borderRadius:8,border:"none",cursor:"pointer",
+                background:tab===id?C.navy:"white",color:tab===id?C.white:C.muted,
+                fontFamily:F,fontWeight:600,fontSize:12,border:`1px solid ${tab===id?C.navy:"#E2E8F0"}`}}>
+              {lbl} {id==="scheduled"&&meetings.length>0?`(${meetings.length})`:""}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Summary stats */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
+        {[
+          [prospects.length, "Total prospects", C.navy],
+          [meetings.filter(m=>m.status==="pending").length, "Requests sent", C.amber],
+          [meetings.filter(m=>m.status==="accepted").length, "Accepted", C.green],
+          [meetings.filter(m=>m.status==="completed").length, "Completed", C.purple],
+        ].map(([v,l,c])=><Stat key={l} val={v} lbl={l} color={c}/>)}
+      </div>
+
+      {/* Prospects tab */}
+      {tab==="prospects" && (
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+          <div style={{padding:"10px 18px",background:"#FAFAFA",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Ranked by LambdaMART match score</span>
+            <span style={{fontSize:11,color:C.muted}}>{prospects.length} contacts scored</span>
+          </div>
+          {/* Column headers */}
+          <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 100px 120px",gap:8,padding:"6px 18px",background:"#F8FAFC",borderBottom:"1px solid #F1F5F9"}}>
+            {["Visitor","Company","IEI","Match","Prob","Action"].map(h=>(
+              <div key={h} style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04}}>{h}</div>
+            ))}
+          </div>
+          {loading ? (
+            <div style={{padding:40,textAlign:"center",color:C.muted}}>Loading prospects…</div>
+          ) : prospects.map((p,i)=>{
+            const hasMeeting = p.meeting_status;
+            const isSent     = sent[p.contact_id] || hasMeeting;
+            const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
+            return (
+              <div key={p.contact_id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 100px 120px",gap:8,padding:"10px 18px",borderBottom:"1px solid #F8FAFC",alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+                <div>
+                  <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{p.name}</p>
+                  <p style={{fontSize:11,color:C.muted,margin:0}}>{p.designation}</p>
+                </div>
+                <div>
+                  <p style={{fontSize:12,color:C.dark,margin:0}}>{p.company}</p>
+                  <p style={{fontSize:10,color:C.muted2,margin:0}}>{p.country}</p>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{fontSize:14,fontWeight:800,color:p.iei_tier==="Hot"?C.red:p.iei_tier==="Warm"?C.yellow:C.blue}}>{Math.round(p.iei_score)}</span>
+                  <span style={{fontSize:9,padding:"1px 5px",borderRadius:99,background:p.iei_tier==="Hot"?"#FEE2E2":p.iei_tier==="Warm"?"#FEF3C7":"#DBEAFE",color:p.iei_tier==="Hot"?"#ef4444":p.iei_tier==="Warm"?"#f97316":C.blue,fontWeight:700}}>{p.iei_tier}</span>
+                </div>
+                <div>
+                  <span style={{fontSize:15,fontWeight:800,color:matchColor}}>{Math.round(p.match_score)}</span>
+                </div>
+                <div>
+                  <div style={{height:6,background:"#F1F5F9",borderRadius:3,overflow:"hidden",marginBottom:3}}>
+                    <div style={{height:"100%",width:`${Math.round(p.meeting_prob*100)}%`,background:matchColor,borderRadius:3}}/>
+                  </div>
+                  <span style={{fontSize:10,color:matchColor,fontWeight:600}}>{Math.round(p.meeting_prob*100)}%</span>
+                </div>
+                <div>
+                  {isSent ? (
+                    <span style={{fontSize:11,padding:"4px 10px",borderRadius:99,background:statusColor[p.meeting_status]+"20",color:statusColor[p.meeting_status]||C.green,fontWeight:700,border:`1px solid ${statusColor[p.meeting_status]||C.green}40`}}>
+                      {statusIcon[p.meeting_status]||"✓"} {p.meeting_status||"Sent"}
+                    </span>
+                  ) : (
+                    <button onClick={()=>openModal(p)}
+                      style={{padding:"5px 12px",background:C.navy,color:C.white,border:"none",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      + Request
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Scheduled meetings tab */}
+      {tab==="scheduled" && (
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+          {meetings.length===0 ? (
+            <div style={{padding:40,textAlign:"center",color:C.muted}}>
+              <div style={{fontSize:32,marginBottom:10}}>📅</div>
+              <p style={{fontSize:13,fontWeight:600,margin:0,marginBottom:4}}>No meetings scheduled yet</p>
+              <p style={{fontSize:11,color:C.muted2,margin:0}}>Send meeting requests from the Prospects tab</p>
+            </div>
+          ) : meetings.map((m,i)=>{
+            const contact = m.audience_contacts || {};
+            const dt = m.proposed_datetime ? new Date(m.proposed_datetime).toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "—";
+            return (
+              <div key={m.id} style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 120px",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+                <div>
+                  <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{contact.name||"—"}</p>
+                  <p style={{fontSize:11,color:C.muted,margin:0}}>{contact.designation||"—"} · {contact.company||"—"}</p>
+                </div>
+                <div>
+                  <p style={{fontSize:12,color:C.dark,margin:0}}>📅 {dt}</p>
+                  <p style={{fontSize:11,color:C.muted,margin:0}}>⏱ {m.duration_minutes} min</p>
+                </div>
+                <div>
+                  {m.location && <p style={{fontSize:11,color:C.muted,margin:0}}>📍 {m.location}</p>}
+                  {m.topic && <p style={{fontSize:11,color:C.dark,margin:"2px 0 0 0"}}>💬 {m.topic}</p>}
+                </div>
+                <div>
+                  <span style={{fontSize:11,padding:"4px 10px",borderRadius:99,background:(statusColor[m.status]||C.muted)+"20",color:statusColor[m.status]||C.muted,fontWeight:700,border:`1px solid ${(statusColor[m.status]||C.muted)}40`}}>
+                    {statusIcon[m.status]||"?"} {m.status}
+                  </span>
+                </div>
+                <div>
+                  {m.status==="accepted" && (
+                    <button onClick={async()=>{
+                      const {data:{session}} = await supabase.auth.getSession();
+                      const token = session?.access_token||"";
+                      await fetch(`/api/proxy?slug=v1/meetings/${m.id}/complete`,{
+                        method:"PATCH",headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+                        body:JSON.stringify({staff_completion_notes:""})
+                      });
+                      loadData();
+                    }} style={{padding:"5px 12px",background:C.purple,color:C.white,border:"none",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      ✦ Complete
+                    </button>
+                  )}
+                  {m.status==="pending" && (
+                    <button onClick={async()=>{
+                      const {data:{session}} = await supabase.auth.getSession();
+                      const token = session?.access_token||"";
+                      await fetch(`/api/proxy?slug=v1/meetings/${m.id}/cancel`,{
+                        method:"PATCH",headers:{"x-fingoh-auth":`Bearer ${token}`}
+                      });
+                      loadData();
+                    }} style={{padding:"5px 12px",background:C.white,color:C.red,border:`1px solid ${C.red}`,borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Send Meeting Request Modal */}
+      {showModal && selContact && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{background:C.white,borderRadius:14,padding:28,maxWidth:480,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+              <h2 style={{fontSize:16,fontWeight:700,color:C.navy,margin:0}}>Request Meeting</h2>
+              <button onClick={()=>setShowModal(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:C.muted}}>✕</button>
+            </div>
+
+            {/* Visitor info */}
+            <div style={{background:C.light,borderRadius:8,padding:"10px 14px",marginBottom:16}}>
+              <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0}}>{selContact.name}</p>
+              <p style={{fontSize:11,color:C.muted,margin:0}}>{selContact.designation} · {selContact.company}</p>
+              <p style={{fontSize:11,color:C.muted2,margin:"2px 0 0 0"}}>✉ {selContact.email}</p>
+            </div>
+
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div><label style={lS}>Date *</label><input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={iS}/></div>
+                <div><label style={lS}>Time *</label><input type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} style={iS}/></div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div>
+                  <label style={lS}>Duration</label>
+                  <select value={form.duration} onChange={e=>setForm(p=>({...p,duration:e.target.value}))} style={iS}>
+                    {["15","20","30","45","60"].map(d=><option key={d} value={d}>{d} minutes</option>)}
+                  </select>
+                </div>
+                <div><label style={lS}>Location</label><input value={form.location} onChange={e=>setForm(p=>({...p,location:e.target.value}))} placeholder="Booth B12 / Meeting room 3" style={iS}/></div>
+              </div>
+              <div><label style={lS}>Topic</label><input value={form.topic} onChange={e=>setForm(p=>({...p,topic:e.target.value}))} placeholder="Electronics component sourcing discussion" style={iS}/></div>
+              <div><label style={lS}>Notes (optional)</label><textarea value={form.notes} onChange={e=>setForm(p=>({...p,notes:e.target.value}))} rows={2} placeholder="Any specific agenda items…" style={{...iS,resize:"vertical"}}/></div>
+            </div>
+
+            <div style={{display:"flex",gap:10,marginTop:20}}>
+              <button onClick={()=>setShowModal(false)} style={{flex:1,padding:"10px 0",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Cancel</button>
+              <button onClick={sendRequest} disabled={sending||!form.date||!form.time}
+                style={{flex:2,padding:"10px 0",background:(!form.date||!form.time||sending)?"#CBD5E1":C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:(!form.date||!form.time||sending)?"not-allowed":"pointer",fontFamily:F}}>
+                {sending?"Sending…":"✉ Send Meeting Request"}
+              </button>
+            </div>
+            <p style={{fontSize:10,color:C.muted2,textAlign:"center",marginTop:10,margin:"10px 0 0 0"}}>An email with Accept/Decline links will be sent to {selContact.email}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // SCREEN — IEI Analysis (Pre-event)
 // Cox PH attendance prediction · IEI tier & score · no regProb
@@ -5172,9 +5472,11 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       border:"#DDD6FE",
       items: isPast ? [
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
+        {id:"meetings",    label:"Meetings",          icon:"🤝"},
       ] : [
         {id:"audience",    label:"Audience Upload",  icon:"⬆"},
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
+        {id:"meetings",    label:"Meetings",          icon:"🤝"},
       ]
     },
     {
@@ -5386,6 +5688,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueue} onBackToEvents={()=>{setScreen("events");setSelP(null);}}>
         {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")}/>}
         {screen==="iei"         && <IEIAnalysis ex={ex}/>}
+        {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
         {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
         {screen==="outcomes"    && <OutcomesDashboard ex={ex}/>}
