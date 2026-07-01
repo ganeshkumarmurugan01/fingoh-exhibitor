@@ -2453,6 +2453,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     return {
       id:        c.id,
       contactId: c.id,
+      eventId:   ex?.id || null,
       name:      c.name || c.email,
       title:     c.designation || "—",
       company:   c.company || "—",
@@ -2781,11 +2782,14 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
   React.useEffect(()=>{
     if (!p?.contactId && !p?.id) { setLoadingSigs(false); return; }
     const contactId = p.contactId || p.id;
-    supabase.from("conversation_signals")
+    // Filter by event_id so we only show signals from the current event
+    const eventId = p.eventId || p.event_id || null;
+    let query = supabase.from("conversation_signals")
       .select("*")
       .eq("contact_id", String(contactId))
-      .order("created_at", {ascending: false})
-      .then(({data}) => {
+      .order("created_at", {ascending: false});
+    if (eventId) query = query.eq("event_id", eventId);
+    query.then(({data}) => {
         setSignals(data || []);
         setLoadingSigs(false);
       })
@@ -2820,8 +2824,10 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
             <div style={{width:1,height:40,background:"#E2E8F0"}}/>
             <div style={{textAlign:"center"}}>
                 <div style={{fontSize:11,color:C.muted,marginBottom:2}}>Live score</div>
-                {p.hasOnsite && p.liveScore ? (
+                {!loadingSigs && signals.length > 0 && p.liveScore ? (
                   <div style={{fontSize:26,fontWeight:800,color:p.liveScore>=60?C.green:p.liveScore>=40?C.blue:C.yellow,letterSpacing:"-0.03em"}}>{p.liveScore}</div>
+                ) : loadingSigs ? (
+                  <div style={{fontSize:16,fontWeight:600,color:C.muted2}}>…</div>
                 ) : (
                   <div style={{fontSize:16,fontWeight:600,color:C.muted2,letterSpacing:"-0.01em"}}>Not logged</div>
                 )}
