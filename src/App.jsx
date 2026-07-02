@@ -2850,7 +2850,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     const sig = signals.filter(s=>s.contact_id===c.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
     const latestSig = sig[0];
     // Only use onsite score if there are signals from the CURRENT event
-    const hasCurrentEventSig = sig.length > 0;
+    const hasCurrentEventSig = sig.length > 0 || c.onsite_iei_score != null;
     const liveScore  = hasCurrentEventSig ? (c.onsite_iei_score || null) : null;
     const liveTier   = hasCurrentEventSig ? (c.onsite_iei_tier  || null) : null;
     const displayTier = (hasCurrentEventSig && c.onsite_iei_tier) ? c.onsite_iei_tier : (c.iei_tier || "Cool");
