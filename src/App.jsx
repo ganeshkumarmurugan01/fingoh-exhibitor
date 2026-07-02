@@ -2856,13 +2856,15 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     const displayTier = (hasCurrentEventSig && c.onsite_iei_tier) ? c.onsite_iei_tier : (c.iei_tier || "Cool");
     const liveTierT   = displayTier==="Hot"?"T1":displayTier==="Warm"?"T2":displayTier==="Cool"?"T3":"T4";
     const lastSignal = latestSig ? (
+      latestSig.meeting_completed?"Meeting completed":
       latestSig.meeting_booked?"Meeting booked":
       latestSig.demo_requested?"Demo requested":
       latestSig.return_visit?"Return visit":
       latestSig.badge_scan?"Badge scanned":
       `Conv quality: ${(latestSig.conversation_quality*10).toFixed(0)}/10`
-    ) : "—";
-    const lastTime = latestSig ? new Date(latestSig.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
+    ) : c.meeting?.status==="completed" ? "Meeting completed" : "—";
+    const lastTime = latestSig ? new Date(latestSig.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})
+      : c.meeting?.completed_at ? new Date(c.meeting.completed_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
     return {
       id:        c.id,
       contactId: c.id,
@@ -3087,8 +3089,9 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                     {/* Live score — only show if logged on-site for current event */}
                     <td style={{padding:"9px 12px",minWidth:130}}>
                       {v.liveScore!==null ? (
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <ScoreBar score={v.liveScore} small/>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontSize:20,fontWeight:800,color:v.liveTier==="Hot"?"#DC2626":v.liveTier==="Warm"?"#D97706":v.liveTier==="Cool"?"#2563EB":"#94A3B8",letterSpacing:"-0.02em"}}>{v.liveScore}</span>
+                          {v.liveTier && <span style={{fontSize:9,padding:"2px 6px",borderRadius:99,background:v.liveTier==="Hot"?"#FEE2E2":v.liveTier==="Warm"?"#FEF3C7":v.liveTier==="Cool"?"#DBEAFE":"#F1F5F9",color:v.liveTier==="Hot"?"#991B1B":v.liveTier==="Warm"?"#92400E":v.liveTier==="Cool"?"#1E3A8A":"#475569",fontWeight:700}}>{v.liveTier}</span>}
                         </div>
                       ) : (
                         <span style={{fontSize:11,color:C.muted2,fontStyle:"italic"}}>Not logged</span>
