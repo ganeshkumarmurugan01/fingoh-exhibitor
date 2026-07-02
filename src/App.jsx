@@ -2878,7 +2878,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       liveTier:  liveTier,
       tier:      liveTierT,
       score:     liveScore ? Math.round(liveScore) : Math.round(c.iei_score||0),
-      staffName: latestSig?.staff_name || null,
+      staffName: latestSig?.staff_name || c.meeting?.requested_by_name || null,
       lastSig:   lastSignal,
       time:      lastTime,
       hasOnsite: !!c.onsite_iei_score,
@@ -3124,12 +3124,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
 
-        {/* Alerts panel */}
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
-          <div style={{padding:"12px 14px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:13,fontWeight:600,color:C.navy}}>Live alerts</span>
-            <span style={{fontSize:10,fontWeight:700,background:C.red,color:C.white,padding:"2px 8px",borderRadius:99}}>{alerts.length}</span>
-          </div>
+       
           <div style={{padding:10,display:"flex",flexDirection:"column",gap:7}}>
             {alerts.length===0 ? (
               <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:12}}>No signals logged yet — use Staff App to log on-site conversations</div>
