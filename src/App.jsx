@@ -2709,6 +2709,13 @@ function MeetingOverviewModal({data, onClose}) {
   const dt = meeting.proposed_datetime ? new Date(meeting.proposed_datetime) : null;
   const dtFmt = dt ? dt.toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "—";
   const s = MEETING_STATUS_STYLE[meeting.status] || MEETING_STATUS_STYLE.pending;
+  const actualStart = meeting.actual_start_time ? new Date(meeting.actual_start_time) : null;
+  const actualEnd   = meeting.actual_end_time   ? new Date(meeting.actual_end_time)   : null;
+  const actualRange = actualStart
+    ? `${actualStart.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"})}${actualEnd ? " – "+actualEnd.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : " (ongoing)"}`
+    : null;
+  const actualDurationMin = (actualStart && actualEnd) ? Math.round((actualEnd - actualStart) / 60000) : null;
+  const ai = meeting.ai_analysis || null;
   const Row = ({label, value}) => value ? (
     <div style={{padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
       <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,marginBottom:2}}>{label}</div>
@@ -2717,7 +2724,7 @@ function MeetingOverviewModal({data, onClose}) {
   ) : null;
   return (
     <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(13,27,62,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:14,padding:22,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:14,padding:22,maxWidth:400,width:"100%",maxHeight:"85vh",overflowY:"auto",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
           <div>
             <div style={{fontSize:15,fontWeight:700,color:C.navy}}>{name}</div>
@@ -2725,12 +2732,32 @@ function MeetingOverviewModal({data, onClose}) {
           </div>
           <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,background:s.bg,color:s.fg,border:`1px solid ${s.border}`}}>{s.label}</span>
         </div>
-        <Row label="Date & time" value={dtFmt}/>
-        <Row label="Duration" value={meeting.duration_minutes ? `${meeting.duration_minutes} min` : null}/>
+        <Row label="Scheduled for" value={dtFmt}/>
+        <Row label="Planned duration" value={meeting.duration_minutes ? `${meeting.duration_minutes} min` : null}/>
+        <Row label="Actual time" value={actualRange}/>
+        <Row label="Actual duration" value={actualDurationMin!==null ? `${actualDurationMin} min` : null}/>
         <Row label="Location" value={meeting.location}/>
         <Row label="Topic" value={meeting.topic}/>
         <Row label="Notes (pre-meeting)" value={meeting.notes}/>
         <Row label="Staff completion notes" value={meeting.staff_completion_notes}/>
+        {ai && (
+          <div style={{padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,marginBottom:6}}>AI analysis</div>
+            {ai.intentLevel && <div style={{fontSize:12,marginBottom:4}}><strong style={{color:C.navy}}>Intent:</strong> {ai.intentLevel} {ai.scoreDelta ? `(${ai.scoreDelta})` : ""}</div>}
+            {ai.recommendedAction && <div style={{fontSize:12,marginBottom:4}}><strong style={{color:C.navy}}>Next step:</strong> {ai.recommendedAction}</div>}
+            {ai.followUpHook && <div style={{fontSize:12,marginBottom:4}}><strong style={{color:C.navy}}>Follow-up:</strong> {ai.followUpHook}</div>}
+            {(ai.buyingSignals||[]).length>0 && (
+              <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:4}}>
+                {ai.buyingSignals.map((sig,i)=>(<span key={i} style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:"#F0FDF4",color:"#16A34A",border:"1px solid #86EFAC"}}>{sig}</span>))}
+              </div>
+            )}
+            {(ai.redFlags||[]).length>0 && (
+              <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:4}}>
+                {ai.redFlags.map((f,i)=>(<span key={i} style={{fontSize:9,padding:"2px 7px",borderRadius:99,background:"#FEF2F2",color:"#DC2626",border:"1px solid #FECACA"}}>{f}</span>))}
+              </div>
+            )}
+          </div>
+        )}
         <Row label="Completed at" value={meeting.completed_at ? new Date(meeting.completed_at).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : null}/>
         <button onClick={onClose} style={{marginTop:14,width:"100%",padding:"9px 0",borderRadius:9,border:"1px solid #E2E8F0",background:"#F8FAFC",color:C.muted,fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:F}}>Close</button>
       </div>
