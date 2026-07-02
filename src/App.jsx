@@ -2684,6 +2684,60 @@ function IEIAnalysis({ex}) {
   );
 }
 
+const MEETING_STATUS_STYLE = {
+  pending:   {label:"Pending",   bg:"#FFFBEB", fg:"#D97706", border:"#FDE68A"},
+  accepted:  {label:"Accepted",  bg:"#EFF6FF", fg:"#2563EB", border:"#BFDBFE"},
+  declined:  {label:"Declined",  bg:"#FEF2F2", fg:"#DC2626", border:"#FECACA"},
+  completed: {label:"Completed", bg:"#F0FDF4", fg:"#16A34A", border:"#86EFAC"},
+  cancelled: {label:"Cancelled", bg:"#F8FAFC", fg:"#64748B", border:"#E2E8F0"},
+};
+
+function MeetingBadge({status, onClick}) {
+  if (!status) return <span style={{fontSize:11,color:C.muted2}}>—</span>;
+  const s = MEETING_STATUS_STYLE[status] || MEETING_STATUS_STYLE.pending;
+  return (
+    <button onClick={onClick} disabled={!onClick} style={{
+      fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,
+      background:s.bg,color:s.fg,border:`1px solid ${s.border}`,
+      cursor:onClick?"pointer":"default",fontFamily:F,letterSpacing:.02,
+    }}>{s.label}</button>
+  );
+}
+
+function MeetingOverviewModal({data, onClose}) {
+  const {name, meeting} = data;
+  const dt = meeting.proposed_datetime ? new Date(meeting.proposed_datetime) : null;
+  const dtFmt = dt ? dt.toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : "—";
+  const s = MEETING_STATUS_STYLE[meeting.status] || MEETING_STATUS_STYLE.pending;
+  const Row = ({label, value}) => value ? (
+    <div style={{padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
+      <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,marginBottom:2}}>{label}</div>
+      <div style={{fontSize:13,color:C.dark}}>{value}</div>
+    </div>
+  ) : null;
+  return (
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(13,27,62,0.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.white,borderRadius:14,padding:22,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,.25)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+          <div>
+            <div style={{fontSize:15,fontWeight:700,color:C.navy}}>{name}</div>
+            <div style={{fontSize:11,color:C.muted}}>Meeting overview</div>
+          </div>
+          <span style={{fontSize:10,fontWeight:700,padding:"3px 9px",borderRadius:99,background:s.bg,color:s.fg,border:`1px solid ${s.border}`}}>{s.label}</span>
+        </div>
+        <Row label="Date & time" value={dtFmt}/>
+        <Row label="Duration" value={meeting.duration_minutes ? `${meeting.duration_minutes} min` : null}/>
+        <Row label="Location" value={meeting.location}/>
+        <Row label="Topic" value={meeting.topic}/>
+        <Row label="Notes (pre-meeting)" value={meeting.notes}/>
+        <Row label="Staff completion notes" value={meeting.staff_completion_notes}/>
+        <Row label="Completed at" value={meeting.completed_at ? new Date(meeting.completed_at).toLocaleString([], {dateStyle:"medium", timeStyle:"short"}) : null}/>
+        <button onClick={onClose} style={{marginTop:14,width:"100%",padding:"9px 0",borderRadius:9,border:"1px solid #E2E8F0",background:"#F8FAFC",color:C.muted,fontWeight:600,fontSize:12,cursor:"pointer",fontFamily:F}}>Close</button>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // SCREEN 4 — Live Dashboard
 // ═══════════════════════════════════════════════════════════════════
@@ -2743,6 +2797,16 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         ));
         setLastRefresh(new Date());
       })
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "meeting_requests",
+        filter: `event_id=eq.${ex.id}`,
+      }, () => {
+        // Meeting status changed (visitor accept/decline, or staff marked
+        // complete) — refetch contacts so meeting_status/meeting stay fresh.
+        loadData();
+      })
       .subscribe();
 
     return () => supabase.removeChannel(channel);
@@ -2789,6 +2853,8 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       lastSig:   lastSignal,
       time:      lastTime,
       hasOnsite: !!c.onsite_iei_score,
+      meetingStatus: c.meeting_status || null,
+      meeting:       c.meeting || null,
     };
   });
 
@@ -2800,6 +2866,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   const [fMinScore,setFMinScore] = useState(0);
   const [sortCol,  setSortCol]  = useState("liveScore");
   const [sortDir,  setSortDir]  = useState("desc");
+  const [meetingModal, setMeetingModal] = useState(null); // {name, meeting} | null
 
   const toggleSort = col => {
     if(sortCol===col) setSortDir(d=>d==="desc"?"asc":"desc");
@@ -2967,11 +3034,12 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                   <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,whiteSpace:"nowrap"}}>Staff</th>
                   <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,whiteSpace:"nowrap"}}>Last signal</th>
                   <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,whiteSpace:"nowrap"}}>Time</th>
+                  <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,whiteSpace:"nowrap"}}>Meeting</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length===0 ? (
-                  <tr><td colSpan={9} style={{padding:"36px 0",textAlign:"center",color:C.muted,fontSize:13}}>No visitors match the current filters</td></tr>
+                  <tr><td colSpan={10} style={{padding:"36px 0",textAlign:"center",color:C.muted,fontSize:13}}>No visitors match the current filters</td></tr>
                 ) : filtered.map((v,i)=>(
                   <tr key={v.id} onClick={()=>onParticipant(v)} style={{borderTop:"1px solid #F1F5F9",cursor:"pointer"}}
                     onMouseOver={e=>e.currentTarget.style.background="#F8FAFC"}
@@ -3012,12 +3080,19 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                     </td>
                     <td style={{padding:"9px 12px",fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>{v.lastSig}</td>
                     <td style={{padding:"9px 12px",fontSize:11,color:C.muted2}}>{v.time}</td>
+                    <td style={{padding:"9px 12px",whiteSpace:"nowrap"}}>
+                      <MeetingBadge
+                        status={v.meetingStatus}
+                        onClick={v.meeting ? (e)=>{ e.stopPropagation(); setMeetingModal({name:v.name, meeting:v.meeting}); } : undefined}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </div>
+        {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
 
         {/* Alerts panel */}
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
