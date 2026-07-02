@@ -2990,7 +2990,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         <div style={{display:"flex",gap:16,marginTop:8}}>{tiers.map(({t,n,c})=><div key={t} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:11,color:C.muted}}>{t}: {Math.round(n/tot*100)}%</span></div>)}</div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 290px",gap:16}}>
+      <div style={{display:"block"}}>
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
           {/* ── Filter bar ── */}
@@ -3123,33 +3123,14 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           </div>
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
-
-       
-          <div style={{padding:10,display:"flex",flexDirection:"column",gap:7}}>
-            {alerts.length===0 ? (
-              <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:12}}>No signals logged yet — use Staff App to log on-site conversations</div>
-            ) : alerts.map(a=>(
-              <div key={a.id} style={{padding:"9px 11px",background:`${a.color}10`,border:`1px solid ${a.color}30`,borderRadius:9,borderLeft:`3px solid ${a.color}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-                  <span style={{fontSize:11,fontWeight:700,color:a.color}}>{a.name}</span>
-                  <span style={{fontSize:10,color:C.muted2}}>{a.time}</span>
-                </div>
-                <p style={{fontSize:11,color:C.dark,lineHeight:1.4,margin:0}}>{a.msg}</p>
-              </div>
-            ))}
-          </div>
-          <div style={{padding:"8px 14px",borderTop:"1px solid #F1F5F9"}}>
-            <p style={{fontSize:11,color:C.muted,textAlign:"center",margin:0}}>Real-time via SSE</p>
-          </div>
-        </div>
-      </div>
-    </div>
+  </div>
+  </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
 // SCREEN 5 — Participant Detail
-// ═══════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════
+
 function ParticipantDetail({p, onBack}) {
   const [tab,setTab] = useState("signals");
   const [signals, setSignals] = useState([]);
