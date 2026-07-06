@@ -1395,9 +1395,41 @@ function AudienceUpload({ex, onNext}) {
     document.head.appendChild(style);
     return () => document.head.removeChild(style);
   }, []);
+  // Check CRM connection status on mount + handle OAuth callback return
+  React.useEffect(()=>{
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get("crm_connected");
+    const crmErr    = params.get("crm_error");
+    if (connected || crmErr) {
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+      if (connected) setSource("database");
+    }
+    // Fetch current CRM status for this event
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token || "";
+      fetch(`/api/v1/crm/status?event_id=${ex.id}`, {
+        headers: {"x-fingoh-auth": `Bearer ${token}`}
+      })
+      .then(r=>r.json())
+      .then(data=>{
+        const zoho = (data.connections||[]).find(c=>c.provider==="zoho");
+        if (zoho) {
+          setCrmStatus(zoho);
+          setDbConnected(true);
+          if (zoho.record_count) setTotalRecords(p => p + zoho.record_count);
+        }
+      })
+      .catch(()=>{});
+    });
+  },[ex?.id]);
   const [source, setSource] = useState("upload");
   const [uploadDone, setUploadDone]   = useState(false);
   const [dbConnected, setDbConnected] = useState(false);
+  const [crmStatus, setCrmStatus]     = useState(null); // {provider, status, record_count, last_synced_at}
+  const [crmLoading, setCrmLoading]   = useState(false);
+  const [crmSyncing, setCrmSyncing]   = useState(false);
   const [regLive, setRegLive]         = useState(false);
   const [uploading, setUploading]     = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -1526,25 +1558,107 @@ function AudienceUpload({ex, onNext}) {
           {source==="database" && (
             <div style={{padding:28}}>
               <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>Connect your contact database</p>
-              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>Pull contacts directly from your CRM or data warehouse. Fingoh maps fields automatically and syncs contact updates in real time throughout the event.</p>
+              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>Pull contacts directly from your CRM. Fingoh maps fields automatically and syncs contacts into your audience pipeline.</p>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
-                {[["Salesforce CRM","🟦","sfdc"],["HubSpot","🟠","hs"],["Zoho CRM","🟥","zoho"],["Microsoft Dynamics","🔵","ms"],["Pipedrive","🟢","pd"],["Custom / REST API","⚙️","api"]].map(([name,icon,id])=>(
-                  <div key={id} onClick={()=>{if(!dbConnected){setDbConnected(true);setTotalRecords(p=>p+1240);}}}
-                    style={{padding:"14px 18px",border:`1.5px solid ${dbConnected&&id==="sfdc"?C.green:"#E2E8F0"}`,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",gap:10,background:dbConnected&&id==="sfdc"?C.ltgrn:C.white,transition:"all .12s"}}
-                    onMouseOver={e=>{if(!dbConnected)e.currentTarget.style.borderColor=C.blue;}}
-                    onMouseOut={e=>{if(!dbConnected)e.currentTarget.style.borderColor="#E2E8F0";}}>
-                    <span style={{fontSize:20}}>{icon}</span>
-                    <div>
-                      <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:0}}>{name}</p>
-                      {dbConnected&&id==="sfdc" && <p style={{fontSize:10,color:C.green,margin:0,fontWeight:600}}>✓ Connected · 1,240 contacts synced</p>}
+                {[
+                  ["Zoho CRM","🟥","zoho",true],
+                  ["Salesforce CRM","🟦","sfdc",false],
+                  ["HubSpot","🟠","hs",false],
+                  ["Microsoft Dynamics","🔵","ms",false],
+                  ["Pipedrive","🟢","pd",false],
+                  ["Custom / REST API","⚙️","api",false],
+                ].map(([name,icon,id,supported])=>{
+                  const isConnected = crmStatus?.provider===id || (crmStatus?.provider==="zoho"&&id==="zoho");
+                  return (
+                    <div key={id}
+                      onClick={async()=>{
+                        if (!supported) return;
+                        if (isConnected) return;
+                        setCrmLoading(true);
+                        const {data:{session}} = await supabase.auth.getSession();
+                        const token = session?.access_token||"";
+                        const r = await fetch(`/api/v1/crm/zoho/auth-url?event_id=${ex.id}`,{
+                          headers:{"x-fingoh-auth":`Bearer ${token}`}
+                        });
+                        const data = await r.json();
+                        setCrmLoading(false);
+                        if (data.url) window.location.href = data.url;
+                      }}
+                      style={{
+                        padding:"14px 18px",
+                        border:`1.5px solid ${isConnected?C.green:supported?"#E2E8F0":"#F1F5F9"}`,
+                        borderRadius:10,
+                        cursor:supported&&!isConnected?"pointer":"default",
+                        display:"flex",alignItems:"center",gap:10,
+                        background:isConnected?C.ltgrn:supported?C.white:"#FAFAFA",
+                        opacity:supported?1:0.5,
+                        transition:"all .12s",
+                        position:"relative",
+                      }}>
+                      <span style={{fontSize:20}}>{icon}</span>
+                      <div style={{flex:1}}>
+                        <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:0}}>{name}</p>
+                        {isConnected && <p style={{fontSize:10,color:C.green,margin:0,fontWeight:600}}>✓ Connected · {crmStatus?.record_count||0} contacts synced</p>}
+                        {!supported && <p style={{fontSize:10,color:C.muted,margin:0}}>Coming soon</p>}
+                        {supported&&!isConnected&&id==="zoho" && <p style={{fontSize:10,color:C.blue,margin:0}}>Click to connect</p>}
+                      </div>
+                      {crmLoading&&id==="zoho"&&!isConnected && (
+                        <div style={{width:14,height:14,border:"2px solid #E2E8F0",borderTop:`2px solid ${C.navy}`,borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
-              {dbConnected && (
-                <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:10,padding:"12px 16px"}}>
-                  <p style={{fontSize:12,fontWeight:600,color:"#1E3A8A",marginBottom:4}}>Live sync active</p>
-                  <p style={{fontSize:11,color:"#1E3A8A",margin:0}}>Fingoh will monitor your Salesforce CRM and automatically score new contacts added before the event. Field mapping: Name ✓ · Email ✓ · Title ✓ · Account ✓ · LinkedIn ✓</p>
+
+              {crmStatus?.provider==="zoho" && (
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  <div style={{background:C.ltblue,border:"1px solid #93C5FD",borderRadius:10,padding:"12px 16px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <p style={{fontSize:12,fontWeight:600,color:"#1E3A8A",margin:0}}>
+                        {crmStatus.status==="synced" ? "✓ Sync complete" : crmStatus.status==="syncing" ? "⟳ Syncing..." : "Connected"}
+                      </p>
+                      <div style={{display:"flex",gap:8}}>
+                        <button
+                          disabled={crmSyncing}
+                          onClick={async()=>{
+                            setCrmSyncing(true);
+                            const {data:{session}} = await supabase.auth.getSession();
+                            const token = session?.access_token||"";
+                            const r = await fetch(`/api/v1/crm/zoho/sync?event_id=${ex.id}`,{
+                              method:"POST",
+                              headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"}
+                            });
+                            const data = await r.json();
+                            if (data.ok) {
+                              setCrmStatus(s=>({...s,status:"synced",record_count:data.synced}));
+                              setTotalRecords(data.synced);
+                            }
+                            setCrmSyncing(false);
+                          }}
+                          style={{padding:"4px 12px",background:crmSyncing?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:crmSyncing?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:5}}>
+                          {crmSyncing ? <><div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .8s linear infinite"}}/> Syncing…</> : "↻ Re-sync"}
+                        </button>
+                        <button
+                          onClick={async()=>{
+                            const {data:{session}} = await supabase.auth.getSession();
+                            const token = session?.access_token||"";
+                            await fetch(`/api/v1/crm/zoho/disconnect?event_id=${ex.id}`,{
+                              method:"DELETE",
+                              headers:{"x-fingoh-auth":`Bearer ${token}`}
+                            });
+                            setCrmStatus(null);
+                            setDbConnected(false);
+                          }}
+                          style={{padding:"4px 12px",background:"#FEE2E2",color:"#991B1B",border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                          Disconnect
+                        </button>
+                      </div>
+                    </div>
+                    <p style={{fontSize:11,color:"#1E3A8A",margin:0}}>
+                      Zoho CRM · {crmStatus.record_count||0} contacts imported · Field mapping: Name ✓ · Email ✓ · Title ✓ · Company ✓ · Industry ✓
+                      {crmStatus.last_synced_at && ` · Last synced ${new Date(crmStatus.last_synced_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`}
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
