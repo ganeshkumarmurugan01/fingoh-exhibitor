@@ -2864,8 +2864,8 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       `Conv quality: ${(latestSig.conversation_quality*10).toFixed(0)}/10`
     ) : c.meeting?.status==="completed" ? "Meeting completed" : "—";
      const lastTime = latestSig ? new Date(latestSig.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})
-      : (c.meeting?.actual_start_time && c.meeting?.actual_end_time)
-        ? `${Math.round((new Date(c.meeting.actual_end_time) - new Date(c.meeting.actual_start_time)) / 60000)} min`
+      : c.meeting?.actual_start_time
+        ? `${Math.round((new Date(c.meeting.actual_end_time || c.meeting.completed_at) - new Date(c.meeting.actual_start_time)) / 60000)} min`
         : c.meeting?.completed_at ? new Date(c.meeting.completed_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}) : "";
     return {
       id:        c.id,
