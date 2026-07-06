@@ -1629,6 +1629,7 @@ function AudienceUpload({ex, onNext}) {
                               method:"POST",
                               headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"}
                             });
+                            if (!r.ok) { alert(`Sync error: ${r.status} ${await r.text()}`); setCrmSyncing(false); return; }
                             const data = await r.json();
                             if (data.ok) {
                               setCrmStatus(s=>({...s,status:"synced",record_count:data.synced}));
