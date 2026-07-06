@@ -881,7 +881,10 @@ function EventHome({onLaunch, onCreateEvent}) {
                 </div>
               </div>
               <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
-              <button onClick={async ()=>{
+              <button onClick={async (e)=>{
+                const btn = e.currentTarget;
+                btn.disabled = true;
+                btn.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="animation:spin 0.8s linear infinite;flex-shrink:0"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Opening…</span>';
                 try {
                   const full = await getEvent(ev.id);
                   onLaunch({
