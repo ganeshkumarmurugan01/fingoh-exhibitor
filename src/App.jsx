@@ -1825,7 +1825,7 @@ function MeetingsScreen({ex}) {
       const url = isReschedule
           ? `/api/proxy?slug=v1/meetings/${rescheduleId}/reschedule`
           : `/api/proxy?slug=v1/meetings`;
-        await fetch(url,{
+        const res = await fetch(url,{await fetch(url,{
           method: isReschedule ? "PATCH" : "POST",
         headers: {"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
         body: JSON.stringify({
