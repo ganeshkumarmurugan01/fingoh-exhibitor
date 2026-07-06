@@ -1580,8 +1580,9 @@ function AudienceUpload({ex, onNext}) {
                         const r = await fetch(`/api/v1/crm/zoho/auth-url?event_id=${ex.id}`,{
                           headers:{"x-fingoh-auth":`Bearer ${token}`}
                         });
-                        const data = await r.json();
                         setCrmLoading(false);
+                        if (!r.ok) { alert(`CRM error: ${r.status} ${await r.text()}`); return; }
+                        const data = await r.json();
                         if (data.url) window.location.href = data.url;
                       }}
                       style={{
