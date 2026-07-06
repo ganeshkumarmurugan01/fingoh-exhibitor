@@ -1770,6 +1770,7 @@ function MeetingsScreen({ex}) {
   const [tab,       setTab]         = useState("prospects"); // prospects | scheduled
   const [showModal, setShowModal]   = useState(false);
   const [selContact, setSelContact] = useState(null);
+  const [rescheduleId, setRescheduleId] = useState(null); // meeting id being rescheduled
   const [sending,   setSending]     = useState(false);
   const [sent,      setSent]        = useState({});
   const [form, setForm] = useState({
@@ -1815,13 +1816,17 @@ function MeetingsScreen({ex}) {
 
   const sendRequest = async () => {
     if (!selContact || !form.date || !form.time) return;
+    const isReschedule = !!rescheduleId;
     setSending(true);
     try {
       const {data:{session}} = await supabase.auth.getSession();
       const token = session?.access_token || "";
       const proposed_datetime = new Date(`${form.date}T${form.time}`).toISOString();
-      const res = await fetch(`/api/proxy?slug=v1/meetings`, {
-        method: "POST",
+      const url = isReschedule
+          ? `/api/proxy?slug=v1/meetings/${rescheduleId}/reschedule`
+          : `/api/proxy?slug=v1/meetings`;
+        await fetch(url,{
+          method: isReschedule ? "PATCH" : "POST",
         headers: {"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
         body: JSON.stringify({
           event_id:           ex.id,
@@ -1839,6 +1844,7 @@ function MeetingsScreen({ex}) {
       if (res.ok) {
         setSent(prev=>({...prev,[selContact.contact_id]:true}));
         setShowModal(false);
+        setRescheduleId(null);
         loadData();
       } else {
         alert(data.detail || "Failed to send meeting request");
@@ -1977,7 +1983,32 @@ function MeetingsScreen({ex}) {
                     {statusIcon[m.status]||"?"} {m.status}
                   </span>
                 </div>
-                <div>
+                <div style={{display:"flex",gap:6}}>
+                  {(m.status==="pending"||m.status==="accepted"||m.status==="declined"||m.status==="cancelled") && (
+                    <button onClick={async()=>{
+                      // Pre-fill form with existing meeting data
+                      const dt = m.proposed_datetime ? new Date(m.proposed_datetime) : new Date();
+                      setForm({
+                        date: dt.toISOString().slice(0,10),
+                        time: dt.toTimeString().slice(0,5),
+                        duration: String(m.duration_minutes||30),
+                        location: m.location||"",
+                        topic: m.topic||"",
+                        notes: m.notes||"",
+                      });
+                      // Find contact for this meeting
+                      const contact = prospects.find(p=>p.contactId===m.contact_id) || {
+                        name: m.requested_by_name||"Contact",
+                        designation:"", company:"", email:"",
+                        contactId: m.contact_id,
+                      };
+                      setSelContact(contact);
+                      setRescheduleId(m.id);
+                      setShowModal(true);
+                    }} style={{padding:"5px 12px",background:C.white,color:C.blue,border:`1px solid ${C.blue}`,borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      ↺ Reschedule
+                    </button>
+                  )}
                   {m.status==="accepted" && (
                     <button onClick={async()=>{
                       const {data:{session}} = await supabase.auth.getSession();
@@ -2015,7 +2046,7 @@ function MeetingsScreen({ex}) {
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
           <div style={{background:C.white,borderRadius:14,padding:28,maxWidth:480,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-              <h2 style={{fontSize:16,fontWeight:700,color:C.navy,margin:0}}>Request Meeting</h2>
+              <h2 style={{fontSize:16,fontWeight:700,color:C.navy,margin:0}}>{rescheduleId ? "↺ Reschedule Meeting" : "Request Meeting"}</h2>
               <button onClick={()=>setShowModal(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:C.muted}}>✕</button>
             </div>
 
@@ -2048,7 +2079,7 @@ function MeetingsScreen({ex}) {
               <button onClick={()=>setShowModal(false)} style={{flex:1,padding:"10px 0",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Cancel</button>
               <button onClick={sendRequest} disabled={sending||!form.date||!form.time}
                 style={{flex:2,padding:"10px 0",background:(!form.date||!form.time||sending)?"#CBD5E1":C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:(!form.date||!form.time||sending)?"not-allowed":"pointer",fontFamily:F}}>
-                {sending?"Sending…":"✉ Send Meeting Request"}
+                {sending?"Sending…": rescheduleId ? "↺ Send Reschedule" : "✉ Send Meeting Request"}
               </button>
             </div>
             <p style={{fontSize:10,color:C.muted2,textAlign:"center",marginTop:10,margin:"10px 0 0 0"}}>An email with Accept/Decline links will be sent to {selContact.email}</p>
