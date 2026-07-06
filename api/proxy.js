@@ -25,7 +25,7 @@ export default async function handler(req, res) {
     res.status(upstream.status).setHeader('content-type', 'application/json').send(data)
   } catch (err) {
     console.error('[proxy] CRASH:', err.message, err.stack)
-    res.status(502).json({ detail: 'Proxy error: ' + err.message })
+    res.status(500).json({ detail: 'Proxy error: ' + err.message, stack: err.stack })
   }
 }
 
