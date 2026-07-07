@@ -1965,7 +1965,7 @@ function MeetingsScreen({ex}) {
             const contact = m.audience_contacts || {};
             const dt = m.proposed_datetime ? new Date(m.proposed_datetime).toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "—";
             return (
-              <div key={m.id} style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 120px",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+              <div key={m.id} style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 180px",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
                 <div>
                   <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{contact.name||"—"}</p>
                   <p style={{fontSize:11,color:C.muted,margin:0}}>{contact.designation||"—"} · {contact.company||"—"}</p>
@@ -1983,7 +1983,7 @@ function MeetingsScreen({ex}) {
                     {statusIcon[m.status]||"?"} {m.status}
                   </span>
                 </div>
-                <div style={{display:"flex",gap:6}}>
+                <div style={{display:"flex",gap:6,alignItems:"center",justifyContent:"flex-end",flexWrap:"wrap"}}>
                   {(m.status==="pending"||m.status==="accepted"||m.status==="declined"||m.status==="cancelled") && (
                     <button onClick={async()=>{
                       // Pre-fill form with existing meeting data
@@ -2047,7 +2047,7 @@ function MeetingsScreen({ex}) {
           <div style={{background:C.white,borderRadius:14,padding:28,maxWidth:480,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
               <h2 style={{fontSize:16,fontWeight:700,color:C.navy,margin:0}}>{rescheduleId ? "↺ Reschedule Meeting" : "Request Meeting"}</h2>
-              <button onClick={()=>setShowModal(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:C.muted}}>✕</button>
+              <button onClick={()=>{ setShowModal(false); setRescheduleId(null); }} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:C.muted}}>✕</button>
             </div>
 
             {/* Visitor info */}
