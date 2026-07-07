@@ -1997,10 +1997,13 @@ function MeetingsScreen({ex}) {
                         notes: m.notes||"",
                       });
                       // Find contact for this meeting
+                      const ac = m.audience_contacts || {};
                       const contact = prospects.find(p=>p.contactId===m.contact_id) || {
-                        name: m.requested_by_name||"Contact",
-                        designation:"", company:"", email:"",
-                        contactId: m.contact_id,
+                        name:        ac.name || "Contact",
+                        designation: ac.designation || "",
+                        company:     ac.company || "",
+                        email:       ac.email || "",
+                        contactId:   m.contact_id,
                       };
                       setSelContact(contact);
                       setRescheduleId(m.id);
