@@ -4263,7 +4263,18 @@ function LeadExport({ex}) {
             {exportedHot?"✓ Exported":"⬇ Export CSV"}
           </button>
         </div>
-
+      {/* Column headers */}
+        <div style={{padding:"6px 18px",display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px",gap:10,background:"#F8FAFC",borderBottom:"1px solid #F1F5F9"}}>
+          {["Visitor","IEI Score","Attend prob","Meeting","On-site"].map(h=>(
+            <div key={h} style={{fontSize:10,fontWeight:600,color:C.muted,textAlign:h==="Visitor"?"left":"center"}}>{h}</div>
+          ))}
+        </div>
+        {hot.length>0 ? hot.map((c,i)=>(
+          <LeadRow key={c.id} c={c} i={i} accent="#DC2626" textColor="#991B1B" bgLight="#FEE2E2"/>
+        )) : (
+          <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:13}}>No Hot leads yet</div>
+        )}
+      </div>
       {/* Warm leads */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
         <div style={{padding:"12px 18px",background:C.ltblue,borderBottom:"1px solid #93C5FD",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
