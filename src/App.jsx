@@ -4224,6 +4224,35 @@ function LeadExport({ex}) {
       {/* Hot leads */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",marginBottom:14}}>
         <div style={{padding:"12px 18px",background:C.ltgrn,borderBottom:"1px solid #86EFAC",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        {/* CRM Push banner */}
+      <div style={{background:crmConnected?"#EFF6FF":"#F8FAFC",border:`1px solid ${crmConnected?"#BFDBFE":"#E2E8F0"}`,borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <p style={{fontSize:13,fontWeight:600,color:crmConnected?C.navy:C.muted,margin:0}}>
+            {crmConnected ? "🟥 Zoho CRM connected — push leads directly" : "Connect Zoho CRM to push leads directly"}
+          </p>
+          <p style={{fontSize:11,color:C.muted,margin:"2px 0 0 0"}}>
+            {crmConnected
+              ? "Pushes Hot + Warm leads with full IEI research, meeting notes and conversation signals as Zoho Leads"
+              : "Go to Audience → Contact Database to connect your CRM"}
+          </p>
+          {pushedCRM && (
+            <p style={{fontSize:11,color:C.green,margin:"4px 0 0 0",fontWeight:600}}>
+              ✓ {pushedCRM.pushed} of {pushedCRM.total} leads pushed to Zoho CRM
+              {pushedCRM.errors?.length>0 && ` · ${pushedCRM.errors.length} errors`}
+            </p>
+          )}
+        </div>
+        {crmConnected && (
+          <button
+            disabled={pushingCRM}
+            onClick={()=>pushToZohoCRM("Hot,Warm")}
+            style={{padding:"9px 18px",background:pushingCRM?"#CBD5E1":pushedCRM?"#16A34A":"#1E3A8A",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:pushingCRM?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6,flexShrink:0,marginLeft:16}}>
+            {pushingCRM
+              ? <><div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .8s linear infinite"}}/> Pushing…</>
+              : pushedCRM ? `✓ ${pushedCRM.pushed} leads pushed` : "🟥 Push to Zoho CRM"}
+          </button>
+        )}
+      </div>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:14,fontWeight:700,color:"#14532D"}}>🔥 Hot leads · Immediate action</span>
             <span style={{fontSize:10,background:"#DCFCE7",color:"#14532D",padding:"2px 8px",borderRadius:99,fontWeight:700,border:"1px solid #86EFAC"}}>{hot.length} leads</span>
