@@ -4129,7 +4129,7 @@ function LeadExport({ex}) {
   const warm = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Warm")
                         .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
   const scored = contacts.filter(c => c.onsite_iei_score).length;
-
+  const exportCSV = (leads, filename) => {
   const headers = ["Name","Company","Designation","Email","Phone","Country","IEI Tier","IEI Score","Onsite IEI Score","Attend Prob","Meeting Status"];
     const rows = leads.map(c => [
       c.name||"", c.company||"", c.designation||"", c.email||"", c.phone||"", c.country||"",
