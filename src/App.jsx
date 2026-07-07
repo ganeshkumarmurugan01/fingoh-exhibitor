@@ -4136,6 +4136,7 @@ function LeadExport({ex}) {
     const score    = c.onsite_iei_score || c.iei_score || 0;
     const tier     = c.onsite_iei_tier  || c.iei_tier  || "";
     const initials = (c.name||"?").split(" ").map(n=>n[0]).join("").slice(0,2).toUpperCase();
+    const meetingStatus = c.meeting_status || null;
     const meetingBooked = c.onsite_signals?.meeting_booked;
     return (
       <div style={{padding:"12px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px",gap:10,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
@@ -4157,7 +4158,9 @@ function LeadExport({ex}) {
         </div>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Meeting</div>
-          <div style={{fontSize:13,fontWeight:700,color:meetingBooked?C.green:C.muted}}>{meetingBooked?"✓ Yes":"—"}</div>
+         <div style={{fontSize:11,fontWeight:700,color:meetingStatus==="completed"?C.green:meetingStatus==="accepted"?"#2563EB":meetingStatus==="pending"?"#D97706":C.muted}}>
+            {meetingStatus==="completed"?"✦ Completed":meetingStatus==="accepted"?"✓ Accepted":meetingStatus==="pending"?"⏳ Pending":meetingBooked?"✓ Booked":"—"}
+          </div>
         </div>
         <div style={{textAlign:"center"}}>
           <div style={{fontSize:10,color:C.muted,marginBottom:2}}>On-site</div>
