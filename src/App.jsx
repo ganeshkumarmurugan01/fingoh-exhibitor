@@ -4221,10 +4221,7 @@ function LeadExport({ex}) {
         ].map(([v,l,c])=><Stat key={l} val={v} lbl={l} color={c}/>)}
       </div>
 
-      {/* Hot leads */}
-      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",marginBottom:14}}>
-        <div style={{padding:"12px 18px",background:C.ltgrn,borderBottom:"1px solid #86EFAC",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        {/* CRM Push banner */}
+      {/* CRM Push banner */}
       <div style={{background:crmConnected?"#EFF6FF":"#F8FAFC",border:`1px solid ${crmConnected?"#BFDBFE":"#E2E8F0"}`,borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
           <p style={{fontSize:13,fontWeight:600,color:crmConnected?C.navy:C.muted,margin:0}}>
@@ -4253,6 +4250,10 @@ function LeadExport({ex}) {
           </button>
         )}
       </div>
+
+      {/* Hot leads */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",marginBottom:14}}>
+        <div style={{padding:"12px 18px",background:C.ltgrn,borderBottom:"1px solid #86EFAC",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:14,fontWeight:700,color:"#14532D"}}>🔥 Hot leads · Immediate action</span>
             <span style={{fontSize:10,background:"#DCFCE7",color:"#14532D",padding:"2px 8px",borderRadius:99,fontWeight:700,border:"1px solid #86EFAC"}}>{hot.length} leads</span>
@@ -4262,18 +4263,6 @@ function LeadExport({ex}) {
             {exportedHot?"✓ Exported":"⬇ Export CSV"}
           </button>
         </div>
-        {/* Column headers */}
-        <div style={{padding:"6px 18px",display:"grid",gridTemplateColumns:"1fr 80px 80px 80px 80px",gap:10,background:"#F8FAFC",borderBottom:"1px solid #F1F5F9"}}>
-          {["Visitor","IEI Score","Attend prob","Meeting","On-site"].map(h=>(
-            <div key={h} style={{fontSize:10,fontWeight:600,color:C.muted,textAlign:h==="Visitor"?"left":"center"}}>{h}</div>
-          ))}
-        </div>
-        {hot.length>0 ? hot.map((c,i)=>(
-          <LeadRow key={c.id} c={c} i={i} accent="#ef4444" textColor="#14532D" bgLight="#DCFCE7"/>
-        )) : (
-          <div style={{padding:20,textAlign:"center",color:C.muted,fontSize:13}}>No Hot leads yet — upload contacts and score with IEI</div>
-        )}
-      </div>
 
       {/* Warm leads */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
