@@ -4093,6 +4093,9 @@ function LeadExport({ex}) {
   const [loading, setLoading]   = useState(true);
   const [exportedHot, setExportedHot]   = useState(false);
   const [exportedWarm, setExportedWarm] = useState(false);
+  const [pushingCRM, setPushingCRM]   = useState(false);
+  const [pushedCRM, setPushedCRM]     = useState(null); // {pushed, total, errors}
+  const [crmConnected, setCrmConnected] = useState(false);
 
   useEffect(() => {
     if (!ex?.id) return;
@@ -4107,6 +4110,19 @@ function LeadExport({ex}) {
     });
   }, [ex?.id]);
 
+  useEffect(()=>{
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token||"";
+      fetch(`/api/v1/crm/status?event_id=${ex.id}`,{
+        headers:{"x-fingoh-auth":`Bearer ${token}`}
+      }).then(r=>r.json()).then(data=>{
+        const zoho = (data.connections||[]).find(c=>c.provider==="zoho");
+        if (zoho) setCrmConnected(true);
+      }).catch(()=>{});
+    });
+  },[ex?.id]);
+
   // Use onsite tier/score if available, fall back to pre-event
   const hot  = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Hot")
                         .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
@@ -4114,15 +4130,14 @@ function LeadExport({ex}) {
                         .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
   const scored = contacts.filter(c => c.onsite_iei_score).length;
 
-  const exportCSV = (leads, filename) => {
-    const headers = ["Name","Company","Designation","Email","Phone","Country","IEI Tier","IEI Score","Onsite IEI Score","Attend Prob","Meeting Booked"];
+  const headers = ["Name","Company","Designation","Email","Phone","Country","IEI Tier","IEI Score","Onsite IEI Score","Attend Prob","Meeting Status"];
     const rows = leads.map(c => [
       c.name||"", c.company||"", c.designation||"", c.email||"", c.phone||"", c.country||"",
       c.onsite_iei_tier||c.iei_tier||"",
       (c.iei_score||0).toFixed(1),
       c.onsite_iei_score?(c.onsite_iei_score).toFixed(1):"—",
       c.reg_prob?((c.reg_prob)*100).toFixed(0)+"%":"—",
-      c.onsite_signals?.meeting_booked?"Yes":"No",
+      c.meeting_status||"—",
     ]);
     const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], {type:"text/csv"});
@@ -4131,7 +4146,24 @@ function LeadExport({ex}) {
     a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
   };
-
+  const pushToZohoCRM = async (tiers="Hot,Warm") => {
+    setPushingCRM(true);
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token||"";
+      const r = await fetch(`/api/v1/crm/zoho/push-leads?event_id=${ex.id}&tiers=${encodeURIComponent(tiers)}`,{
+        method:"POST",
+        headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"}
+      });
+      if (!r.ok) { alert(`CRM push failed: ${r.status} ${await r.text()}`); return; }
+      const data = await r.json();
+      setPushedCRM(data);
+    } catch(e) {
+      alert("Failed to push to CRM");
+    } finally {
+      setPushingCRM(false);
+    }
+  };
   const LeadRow = ({c, i, accent, textColor, bgLight}) => {
     const score    = c.onsite_iei_score || c.iei_score || 0;
     const tier     = c.onsite_iei_tier  || c.iei_tier  || "";
