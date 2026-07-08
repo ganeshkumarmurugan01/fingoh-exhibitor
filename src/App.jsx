@@ -776,7 +776,7 @@ function EventHome({onLaunch, onCreateEvent}) {
           </button>
           <div style={{width:1,height:22,background:"#E2E8F0"}}/>
           <span style={{fontSize:12,color:C.muted}}>Siemens Healthineers</span>
-          <div style={{width:30,height:30,borderRadius:"50%",background:C.navy,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700}}>SH</div>
+          <UserMenu/>
         </div>
       </div>
 
