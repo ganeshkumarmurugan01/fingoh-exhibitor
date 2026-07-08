@@ -5779,6 +5779,74 @@ function MeetingResponsePage({token}) {
   );
 }
 
+// UserMenu component
+function UserMenu() {
+  const [open, setOpen] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [pw, setPw] = useState({n:"", c:""});
+  const [err, setErr] = useState("");
+  const [ok, setOk] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const save = async () => {
+    if (pw.n !== pw.c) { setErr("Passwords do not match"); return; }
+    if (pw.n.length < 8) { setErr("Min 8 characters"); return; }
+    setLoading(true); setErr("");
+    const { error } = await supabase.auth.updateUser({ password: pw.n });
+    if (error) setErr(error.message);
+    else { setOk(true); setTimeout(()=>{ setShowPw(false); setOk(false); setPw({n:"",c:""}); },2000); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{position:"relative",display:"inline-block"}}>
+      <button onClick={()=>setOpen(o=>!o)}
+        style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:7,border:"1px solid #E2E8F0",cursor:"pointer",background:"transparent",fontSize:11,fontWeight:600,color:"#475569",fontFamily:F}}>
+        <div style={{width:22,height:22,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>G</div>
+        <span>v</span>
+      </button>
+      {open && (
+        <div style={{position:"absolute",top:"110%",right:0,marginTop:4,background:"#fff",border:"1px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:1000,minWidth:170,overflow:"hidden"}} onClick={()=>setOpen(false)}>
+          <button onClick={()=>setShowPw(true)}
+            style={{width:"100%",padding:"10px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#1E293B",cursor:"pointer",fontFamily:F}}>
+            Change password
+          </button>
+          <div style={{height:1,background:"#F1F5F9"}}/>
+          <button onClick={()=>supabase.auth.signOut()}
+            style={{width:"100%",padding:"10px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#DC2626",cursor:"pointer",fontFamily:F}}>
+            Sign out
+          </button>
+        </div>
+      )}
+      {showPw && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setShowPw(false)}>
+          <div style={{background:"#fff",borderRadius:14,padding:28,maxWidth:360,width:"100%"}} onClick={e=>e.stopPropagation()}>
+            <h3 style={{fontSize:15,fontWeight:700,color:"#0D1B3E",margin:"0 0 18px 0"}}>Change Password</h3>
+            {ok ? (
+              <p style={{textAlign:"center",color:"#16A34A",fontWeight:600}}>Password updated!</p>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                <input type="password" placeholder="New password (min 8 chars)" value={pw.n} onChange={e=>setPw(p=>({...p,n:e.target.value}))}
+                  style={{padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
+                <input type="password" placeholder="Confirm password" value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))}
+                  style={{padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
+                {err && <p style={{color:"#DC2626",fontSize:12,margin:0}}>{err}</p>}
+                <div style={{display:"flex",gap:8,marginTop:4}}>
+                  <button onClick={()=>setShowPw(false)} style={{flex:1,padding:"9px 0",background:"#fff",color:"#94A3B8",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Cancel</button>
+                  <button onClick={save} disabled={loading} style={{flex:2,padding:"9px 0",background:loading?"#CBD5E1":"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                    {loading ? "Saving..." : "Update"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ═══════════════════════════════════════════════════════════════════
 // NAV SHELL
 // ═══════════════════════════════════════════════════════════════════
@@ -5868,6 +5936,8 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
                 <span style={{width:5,height:5,borderRadius:"50%",background:"#16A34A",display:"inline-block"}}/>LIVE · Day 2
               </span>
             )}
+            <div style={{width:1,height:20,background:"#E2E8F0",margin:"0 8px"}}/>
+            <UserMenu/>
           </div>
         </div>
 
