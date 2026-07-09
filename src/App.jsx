@@ -5162,7 +5162,48 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
     }
   };
 
-  const approve  = (id) => setApproved(p  => ({ ...p, [id]: true }));
+  const [sending, setSending] = useState({});
+  const [sendResult, setSendResult] = useState({});
+
+  const approve = async (item) => {
+    if (item.agentId === "routing") {
+      setApproved(p => ({ ...p, [item.id]: true }));
+      return;
+    }
+    if (!outputs[item.id]) {
+      setApproved(p => ({ ...p, [item.id]: true }));
+      return;
+    }
+    setSending(p => ({ ...p, [item.id]: true }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch("/api/v1/agent/send", {
+        method: "POST",
+        headers: {
+          "Content-Type":  "application/json",
+          "x-fingoh-auth": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          event_id:       ex?.id,
+          contact_id:     item.id,
+          agent_id:       item.agentId,
+          generated_text: outputs[item.id],
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSendResult(p => ({ ...p, [item.id]: { ok: true, to: data.to, subject: data.subject } }));
+      } else {
+        setSendResult(p => ({ ...p, [item.id]: { ok: false, error: data.detail || "Send failed" } }));
+      }
+    } catch(e) {
+      setSendResult(p => ({ ...p, [item.id]: { ok: false, error: e.message } }));
+    } finally {
+      setSending(p => ({ ...p, [item.id]: false }));
+      setApproved(p => ({ ...p, [item.id]: true }));
+    }
+  };
   const dismiss  = (id) => setDismissed(p => ({ ...p, [id]: true }));
 
   // ── Approval badge style ───────────────────────────────────────
@@ -5304,9 +5345,9 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
                           {/* Actions */}
                           {!isDone ? (
                             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                              <button onClick={() => approve(item.id)}
+                              <button onClick={() => approve(item)}
                                 style={{padding:"9px 0",background:C.green,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-                                ✓ Approve
+                                {sending[item.id] ? "Sending…" : "✓ Approve"}
                               </button>
                               <button onClick={() => generate(item)}
                                 style={{padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
@@ -5319,7 +5360,13 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
                             </div>
                           ) : (
                             <div style={{padding:"8px 12px",background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:8,textAlign:"center",fontSize:12,fontWeight:600,color:"#14532D"}}>
-                              ✓ Queued for send · appears in your email/CRM queue
+                              {sendResult[item.id]?.ok
+                ? `✓ Email sent to ${sendResult[item.id].to}`
+                : sendResult[item.id]?.error
+                  ? `✗ ${sendResult[item.id].error}`
+                  : item.agentId === "routing"
+                    ? "✓ Brief approved — route to staff"
+                    : "✓ Queued for send"}
                             </div>
                           )}
                         </div>
