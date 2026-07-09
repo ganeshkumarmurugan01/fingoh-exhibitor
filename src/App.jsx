@@ -5083,7 +5083,14 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
           q.forEach(item => {
             if (item.savedDraft?.text) {
               savedOutputs[item.id] = item.savedDraft.text;
-              savedParsed[item.id]  = item.savedDraft;
+              // Map camelCase for frontend display
+              savedParsed[item.id] = {
+                email1Subject: item.savedDraft.email1Subject,
+                email1Body:    item.savedDraft.email1Body,
+                linkedinText:  item.savedDraft.linkedinText,
+                email2Subject: item.savedDraft.email2Subject,
+                email2Body:    item.savedDraft.email2Body,
+              };
             }
           });
           setOutputs(p => ({ ...p, ...savedOutputs }));
