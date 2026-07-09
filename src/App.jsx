@@ -5061,6 +5061,7 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
   const [convNotes, setConvNotes]     = useState("");
   const [convAnalysis, setConvAnalysis] = useState(null);
   const [analysing, setAnalysing]     = useState(false);
+  const [parsedDrafts, setParsedDrafts] = useState({});
 
   // ── Fetch real agent queue from backend ───────────────────────
   useEffect(() => {
@@ -5076,6 +5077,17 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
           const data = await res.json();
           const q = data.queue || [];
           setQueue(q);
+          // Pre-populate outputs with saved drafts
+          const savedOutputs = {};
+          const savedParsed  = {};
+          q.forEach(item => {
+            if (item.savedDraft?.text) {
+              savedOutputs[item.id] = item.savedDraft.text;
+              savedParsed[item.id]  = item.savedDraft;
+            }
+          });
+          setOutputs(p => ({ ...p, ...savedOutputs }));
+          setParsedDrafts(p => ({ ...p, ...savedParsed }));
           onQueueLoaded && onQueueLoaded(q.filter(i => !i.dismissed).length);
         }
       } catch (e) {
@@ -5105,11 +5117,17 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
           "Content-Type": "application/json",
           "x-fingoh-auth": `Bearer ${token}`,
         },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({
+          prompt,
+          event_id:   ex?.id,
+          contact_id: item.id,
+          agent_id:   item.agentId,
+        }),
       });
       const data = await res.json();
       const text = data.text || "No output generated.";
       setOutputs(p => ({ ...p, [item.id]: text }));
+      setParsedDrafts(p => ({ ...p, [item.id]: data }));
     } catch (e) {
       setOutputs(p => ({ ...p, [item.id]: "Error generating output. Please try again." }));
     } finally {
@@ -5165,7 +5183,7 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
   const [sending, setSending] = useState({});
   const [sendResult, setSendResult] = useState({});
 
-  const approve = async (item) => {
+  const approve = async (item, emailNumber = 1) => {
     if (item.agentId === "routing") {
       setApproved(p => ({ ...p, [item.id]: true }));
       return;
@@ -5174,7 +5192,8 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
       setApproved(p => ({ ...p, [item.id]: true }));
       return;
     }
-    setSending(p => ({ ...p, [item.id]: true }));
+    const sendKey = emailNumber === 2 ? item.id + "_2" : item.id;
+    setSending(p => ({ ...p, [sendKey]: true }));
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
@@ -5188,7 +5207,8 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
           event_id:       ex?.id,
           contact_id:     item.id,
           agent_id:       item.agentId,
-          generated_text: outputs[item.id],
+          generated_text: outputs[item.id] || "",
+          email_number:   emailNumber,
         }),
       });
       const data = await res.json();
@@ -5200,8 +5220,8 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
     } catch(e) {
       setSendResult(p => ({ ...p, [item.id]: { ok: false, error: e.message } }));
     } finally {
-      setSending(p => ({ ...p, [item.id]: false }));
-      setApproved(p => ({ ...p, [item.id]: true }));
+      setSending(p => ({ ...p, [sendKey]: false }));
+      if (emailNumber === 1) setApproved(p => ({ ...p, [item.id]: true }));
     }
   };
   const dismiss  = (id) => setDismissed(p => ({ ...p, [id]: true }));
@@ -5334,44 +5354,92 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
                         </div>
                       )}
 
-                      {out && !isGen && (
+                      {out && !isGen && (() => {
+                        const pd = parsedDrafts[item.id] || {};
+                        const isFollowup = item.agentId === "followup";
+                        const isRouting  = item.agentId === "routing";
+                        return (
                         <div>
-                          {/* Output display */}
-                          <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:12,maxHeight:220,overflowY:"auto"}}>
-                            <p style={{fontSize:11,fontWeight:600,color:agent.color,textTransform:"uppercase",letterSpacing:.06,marginBottom:8}}>Agent output</p>
-                            <pre style={{fontSize:11,lineHeight:1.7,color:C.dark,margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{out}</pre>
-                          </div>
+                          {/* Email 1 */}
+                          {pd.email1Subject && (
+                            <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
+                              <p style={{fontSize:10,fontWeight:700,color:agent.color,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>
+                                {isFollowup ? "Email 1 (Day 1)" : "Outreach Email"} · {pd.email1Subject}
+                              </p>
+                              <pre style={{fontSize:11,lineHeight:1.7,color:C.dark,margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email1Body}</pre>
+                            </div>
+                          )}
+
+                          {/* LinkedIn card (followup only) */}
+                          {isFollowup && pd.linkedinText && (
+                            <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,padding:14,marginBottom:10}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                                <p style={{fontSize:10,fontWeight:700,color:"#1D4ED8",textTransform:"uppercase",letterSpacing:.06,margin:0}}>LinkedIn (Day 3)</p>
+                                <button onClick={() => navigator.clipboard.writeText(pd.linkedinText)}
+                                  style={{fontSize:10,color:"#1D4ED8",background:"none",border:"1px solid #BFDBFE",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:F}}>
+                                  Copy
+                                </button>
+                              </div>
+                              <pre style={{fontSize:11,lineHeight:1.7,color:"#1E3A8A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.linkedinText}</pre>
+                            </div>
+                          )}
+
+                          {/* Email 2 (followup only) */}
+                          {isFollowup && pd.email2Subject && (
+                            <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
+                              <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>
+                                Email 2 (Day 7) · {pd.email2Subject}
+                              </p>
+                              <pre style={{fontSize:11,lineHeight:1.7,color:C.dark,margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email2Body}</pre>
+                            </div>
+                          )}
+
+                          {/* Fallback raw output for routing */}
+                          {isRouting && (
+                            <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
+                              <p style={{fontSize:10,fontWeight:700,color:agent.color,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Staff Brief</p>
+                              <pre style={{fontSize:11,lineHeight:1.7,color:C.dark,margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{out}</pre>
+                            </div>
+                          )}
 
                           {/* Actions */}
                           {!isDone ? (
-                            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-                              <button onClick={() => approve(item)}
-                                style={{padding:"9px 0",background:C.green,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-                                {sending[item.id] ? "Sending…" : "✓ Approve"}
-                              </button>
-                              <button onClick={() => generate(item)}
-                                style={{padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-                                ↻ Regenerate
-                              </button>
+                            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                                <button onClick={() => approve(item)}
+                                  style={{padding:"9px 0",background:C.green,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                                  {sending[item.id] ? "Sending…" : isRouting ? "✓ Approve Brief" : "✓ Send Email 1"}
+                                </button>
+                                <button onClick={() => generate(item)}
+                                  style={{padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                                  ↻ Regenerate
+                                </button>
+                              </div>
+                              {isFollowup && pd.email2Subject && (
+                                <button onClick={() => approve(item, 2)}
+                                  style={{padding:"9px 0",background:"#1D4ED8",color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                                  {sending[item.id + "_2"] ? "Sending…" : "✉ Send Email 2 (Day 7)"}
+                                </button>
+                              )}
                               <button onClick={() => dismiss(item.id)}
-                                style={{padding:"9px 0",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                                style={{padding:"7px 0",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
                                 Dismiss
                               </button>
                             </div>
                           ) : (
                             <div style={{padding:"8px 12px",background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:8,textAlign:"center",fontSize:12,fontWeight:600,color:"#14532D"}}>
                               {sendResult[item.id]?.ok
-                ? `✓ Email sent to ${sendResult[item.id].to}`
-                : sendResult[item.id]?.error
-                  ? `✗ ${sendResult[item.id].error}`
-                  : item.agentId === "routing"
-                    ? "✓ Brief approved — route to staff"
-                    : "✓ Queued for send"}
+                                ? `✓ Email sent to ${sendResult[item.id].to}`
+                                : sendResult[item.id]?.error
+                                  ? `✗ ${sendResult[item.id].error}`
+                                  : isRouting
+                                    ? "✓ Brief approved — route to staff"
+                                    : "✓ Email 1 sent"}
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
+                        );
+                      })()}                    </div>
                   </div>
                 );
               })}
