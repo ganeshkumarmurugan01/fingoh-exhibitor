@@ -4990,13 +4990,17 @@ const INITIAL_QUEUE = [
 
 // ── Context builders for each agent ──────────────────────────────
 function buildAgentPrompt(agentId, item, ex) {
-  const exhibitor = ex?.company || "Siemens Healthineers";
-  const product   = ex?.product  || "Diagnostic imaging & AI-powered radiology solutions";
+  const exhibitor  = ex?.company  || "the exhibitor";
+  const product    = ex?.product  || "our solutions";
+  const eventName  = ex?.name     || "the trade fair";
+  const eventVenue = ex?.venue    || "";
+  const eventAt    = eventVenue ? `${eventName} at ${eventVenue}` : eventName;
 
-  if (agentId === "outreach") return `You are a B2B sales intelligence agent for ${exhibitor}, an exhibitor at MedTech Asia 2025 in Singapore.
+  if (agentId === "outreach") return `You are a B2B sales intelligence agent for ${exhibitor}, an exhibitor at ${eventAt}.
 
-Write a short, highly personalised outreach email to ${item.visitor}, ${item.company} (${item.country}).
+Write a short, highly personalised outreach email to ${item.visitor}, ${item.company}.
 Their IEI intent score is ${item.ieiScore}/100 — they are a high-propensity prospect.
+Role: ${item.role || "unknown"} | Industry: ${item.industry || "unknown"}
 Context: ${item.reason}
 
 The exhibitor's product: ${product}
@@ -5004,17 +5008,17 @@ The exhibitor's product: ${product}
 Rules:
 - Maximum 5 sentences
 - Reference their specific company or role context in the first sentence
-- Mention MedTech Asia 2025 at Marina Bay Sands
+- Mention ${eventAt}
 - Offer one specific hook (e.g. a relevant case study, a private demo, a framework pricing conversation)
 - End with a single clear call to action
 - Tone: direct, professional, no fluff — this is B2B procurement
 - Do NOT start with "Dear" or "I hope this email finds you well"
 - Output: subject line on first line, blank line, then email body only`;
 
-  if (agentId === "routing") return `You are a live event sales routing agent for ${exhibitor} at MedTech Asia 2025.
+  if (agentId === "routing") return `You are a live event sales routing agent for ${exhibitor} at ${eventAt}.
 
-Generate a micro-brief for a sales staff member to approach ${item.visitor} from ${item.company} (${item.country}) right now on the show floor.
-IEI score: ${item.ieiScore}/100. Situation: ${item.reason}
+Generate a micro-brief for a sales staff member to approach ${item.visitor} from ${item.company} right now on the show floor.
+Role: ${item.role || "unknown"} | IEI score: ${item.ieiScore}/100. Situation: ${item.reason}
 
 Output exactly 3 lines:
 Line 1: WHO — name, company, their role/buying context in one sentence
@@ -5025,8 +5029,9 @@ Be specific. This is a real-time alert — the staff member has 10 seconds to re
 
   if (agentId === "followup") return `You are a post-event B2B follow-up agent for ${exhibitor}.
 
-Draft a 3-touch follow-up sequence for ${item.visitor}, ${item.company} (${item.country}).
-They are a T1 lead from MedTech Asia 2025. IEI score: ${item.ieiScore}/100.
+Draft a 3-touch follow-up sequence for ${item.visitor}, ${item.company}.
+They are a top lead from ${eventAt}. IEI score: ${item.ieiScore}/100.
+Role: ${item.role || "unknown"} | Industry: ${item.industry || "unknown"}
 Context: ${item.reason}
 Exhibitor product: ${product}
 
@@ -5047,7 +5052,8 @@ Keep all 3 concise. B2B procurement audience — no fluff.`;
 // ═══════════════════════════════════════════════════════════════════
 function AgentPanel({ex, onClose}) {
   const [activeAgent, setActiveAgent] = useState("outreach");
-  const [queue, setQueue]             = useState(INITIAL_QUEUE);
+  const [queue, setQueue]             = useState([]);
+  const [queueLoading, setQueueLoading] = useState(true);
   const [generating, setGenerating]   = useState({});
   const [outputs, setOutputs]         = useState({});
   const [approved, setApproved]       = useState({});
@@ -5055,6 +5061,28 @@ function AgentPanel({ex, onClose}) {
   const [convNotes, setConvNotes]     = useState("");
   const [convAnalysis, setConvAnalysis] = useState(null);
   const [analysing, setAnalysing]     = useState(false);
+
+  // ── Fetch real agent queue from backend ───────────────────────
+  useEffect(() => {
+    if (!ex?.id) { setQueueLoading(false); return; }
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+        const res = await fetch(`/api/v1/agent/queue?event_id=${ex.id}`, {
+          headers: { "x-fingoh-auth": `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setQueue(data.queue || []);
+        }
+      } catch (e) {
+        console.error("Agent queue fetch failed:", e);
+      } finally {
+        setQueueLoading(false);
+      }
+    })();
+  }, [ex?.id]);
 
   const agent  = AGENT_DEFS.find(a => a.id === activeAgent);
   const items  = queue.filter(q => q.agentId === activeAgent && !dismissed[q.id]);
@@ -6046,7 +6074,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
     return () => subscription.unsubscribe()
   }, [])
 
-  const agentQueue = INITIAL_QUEUE.length
+  const [agentQueueCount, setAgentQueueCount] = useState(0)
 
   // Meeting response page — public, no auth needed
   if (window.location.pathname === "/meeting") {
@@ -6077,7 +6105,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
 
   return (
     <>
-      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueue} onBackToEvents={()=>{setScreen("events");setSelP(null);}}>
+      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}}>
         {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")}/>}
         {screen==="iei"         && <IEIAnalysis ex={ex}/>}
         {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
