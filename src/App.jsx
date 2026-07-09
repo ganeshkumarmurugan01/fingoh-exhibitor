@@ -5097,17 +5097,18 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
     setOutputs(p => ({ ...p, [item.id]: "" }));
     try {
       const prompt = buildAgentPrompt(item.agentId, item, ex);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch("/api/v1/agent/generate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-opus-4-8",
-          max_tokens: 600,
-          messages: [{ role: "user", content: prompt }],
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-fingoh-auth": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
-      const text = data.content?.[0]?.text || "No output generated.";
+      const text = data.text || "No output generated.";
       setOutputs(p => ({ ...p, [item.id]: text }));
     } catch (e) {
       setOutputs(p => ({ ...p, [item.id]: "Error generating output. Please try again." }));
