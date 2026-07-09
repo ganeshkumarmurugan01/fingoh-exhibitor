@@ -3323,7 +3323,7 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-opus-4-8",
         max_tokens: 200,
         messages: [{ role: "user", content: prompt }]
       })
