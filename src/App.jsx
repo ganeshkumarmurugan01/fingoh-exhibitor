@@ -2767,7 +2767,7 @@ function IEIAnalysis({ex}) {
             <div style={{padding:"14px 20px",background:"linear-gradient(135deg,#26215C,#4338A0)",display:"flex",alignItems:"center"}}>
               <div>
                 <p style={{fontSize:15,fontWeight:700,color:C.white,margin:0,marginBottom:2}}>Add visitor & run IEI analysis</p>
-                <p style={{fontSize:11,color:"rgba(255,255,255,0.45)",margin:0}}>Claude Sonnet 4 with web search · ~8–12 seconds</p>
+                <p style={{fontSize:11,color:"rgba(255,255,255,0.45)",margin:0}}>Claude Opus 4.8 with web search · ~8–12 seconds</p>
               </div>
             </div>
             {analysing ? (
@@ -5188,7 +5188,7 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
                 <span style={{fontSize:16,fontWeight:700,color:C.white,letterSpacing:"-0.01em"}}>Fingoh Agent</span>
                 <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"rgba(57,181,74,0.2)",color:"#39B54A",border:"1px solid rgba(57,181,74,0.3)",fontWeight:600}}>LIVE</span>
               </div>
-              <p style={{fontSize:11,color:"rgba(255,255,255,0.45)",margin:0}}>Agentic AI assistant · Claude Sonnet 4 · {ex?.company}</p>
+              <p style={{fontSize:11,color:"rgba(255,255,255,0.45)",margin:0}}>Agentic AI assistant · Claude Opus 4.8 · {ex?.company}</p>
             </div>
             <button onClick={onClose} style={{width:28,height:28,borderRadius:"50%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>✕</button>
           </div>
@@ -5281,14 +5281,14 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
                       {!out && !isGen && (
                         <button onClick={() => generate(item)}
                           style={{width:"100%",padding:"10px 0",background:`linear-gradient(135deg,${agent.color},${agent.color}CC)`,color:C.white,border:"none",borderRadius:9,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
-                          <span style={{fontSize:14}}>✦</span> Generate with Claude Sonnet 4
+                          <span style={{fontSize:14}}>✦</span> Generate with Claude Opus 4.8
                         </button>
                       )}
 
                       {isGen && (
                         <div style={{textAlign:"center",padding:"16px 0"}}>
                           <div style={{fontSize:24,marginBottom:8,color:agent.color}}>◎</div>
-                          <p style={{fontSize:12,color:C.muted,margin:0}}>Claude Sonnet 4 is drafting…</p>
+                          <p style={{fontSize:12,color:C.muted,margin:0}}>Claude Opus 4.8 is drafting…</p>
                         </div>
                       )}
 
@@ -5333,7 +5333,7 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
 
         {/* Footer */}
         <div style={{padding:"10px 22px",borderTop:"1px solid #E2E8F0",background:"#FAFAFA",flexShrink:0,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <p style={{fontSize:10,color:C.muted2,margin:0}}>Powered by Claude Sonnet 4 · All actions require review before sending</p>
+          <p style={{fontSize:10,color:C.muted2,margin:0}}>Powered by Claude Opus 4.8 · All actions require review before sending</p>
           <div style={{display:"flex",gap:4}}>
             {AGENT_DEFS.map(a => {
               const n = queue.filter(q => q.agentId === a.id && !dismissed[q.id] && !approved[q.id]).length;
