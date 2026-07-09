@@ -5479,6 +5479,360 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
   );
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// AGENT PAGE — Full screen agent intelligence hub
+// ═══════════════════════════════════════════════════════════════════
+function AgentPage({ ex, onQueueLoaded }) {
+  const [activeAgent, setActiveAgent]     = useState("outreach");
+  const [queue, setQueue]                 = useState([]);
+  const [queueLoading, setQueueLoading]   = useState(true);
+  const [generating, setGenerating]       = useState({});
+  const [outputs, setOutputs]             = useState({});
+  const [parsedDrafts, setParsedDrafts]   = useState({});
+  const [approved, setApproved]           = useState({});
+  const [dismissed, setDismissed]         = useState({});
+  const [sending, setSending]             = useState({});
+  const [sendResult, setSendResult]       = useState({});
+
+  // ── Fetch queue on mount ───────────────────────────────────────
+  useEffect(() => {
+    if (!ex?.id) { setQueueLoading(false); return; }
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || "";
+        const res = await fetch(`/api/v1/agent/queue?event_id=${ex.id}`, {
+          headers: { "x-fingoh-auth": `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const q = data.queue || [];
+          setQueue(q);
+          const savedOutputs = {};
+          const savedParsed  = {};
+          q.forEach(item => {
+            if (item.savedDraft?.text) {
+              savedOutputs[item.id] = item.savedDraft.text;
+              savedParsed[item.id] = {
+                email1Subject: item.savedDraft.email1Subject,
+                email1Body:    item.savedDraft.email1Body,
+                linkedinText:  item.savedDraft.linkedinText,
+                email2Subject: item.savedDraft.email2Subject,
+                email2Body:    item.savedDraft.email2Body,
+              };
+            }
+          });
+          setOutputs(savedOutputs);
+          setParsedDrafts(savedParsed);
+          onQueueLoaded && onQueueLoaded(q.length);
+        }
+      } catch(e) { console.error("Agent queue fetch failed:", e); }
+      finally { setQueueLoading(false); }
+    })();
+  }, [ex?.id]);
+
+  // ── Generate ───────────────────────────────────────────────────
+  const generate = async (item) => {
+    if (generating[item.id]) return;
+    setGenerating(p => ({ ...p, [item.id]: true }));
+    try {
+      const prompt = buildAgentPrompt(item.agentId, item, ex);
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch("/api/v1/agent/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
+        body: JSON.stringify({ prompt, event_id: ex?.id, contact_id: item.id, agent_id: item.agentId }),
+      });
+      const data = await res.json();
+      setOutputs(p => ({ ...p, [item.id]: data.text || "" }));
+      setParsedDrafts(p => ({ ...p, [item.id]: {
+        email1Subject: data.email1_subject,
+        email1Body:    data.email1_body,
+        linkedinText:  data.linkedin_text,
+        email2Subject: data.email2_subject,
+        email2Body:    data.email2_body,
+      }}));
+    } catch(e) {
+      setOutputs(p => ({ ...p, [item.id]: "Error generating output." }));
+    } finally {
+      setGenerating(p => ({ ...p, [item.id]: false }));
+    }
+  };
+
+  // ── Send ───────────────────────────────────────────────────────
+  const sendEmail = async (item, emailNumber = 1) => {
+    if (item.agentId === "routing") { setApproved(p => ({ ...p, [item.id]: true })); return; }
+    const sendKey = emailNumber === 2 ? item.id + "_2" : item.id;
+    setSending(p => ({ ...p, [sendKey]: true }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch("/api/v1/agent/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
+        body: JSON.stringify({
+          event_id: ex?.id, contact_id: item.id, agent_id: item.agentId,
+          generated_text: outputs[item.id] || "", email_number: emailNumber,
+        }),
+      });
+      const data = await res.json();
+      setSendResult(p => ({ ...p, [sendKey]: res.ok
+        ? { ok: true, to: data.to, subject: data.subject }
+        : { ok: false, error: data.detail || "Send failed" }
+      }));
+      if (emailNumber === 1) setApproved(p => ({ ...p, [item.id]: true }));
+    } catch(e) {
+      setSendResult(p => ({ ...p, [sendKey]: { ok: false, error: e.message } }));
+    } finally {
+      setSending(p => ({ ...p, [sendKey]: false }));
+    }
+  };
+
+  const dismiss = (id) => setDismissed(p => ({ ...p, [id]: true }));
+
+  const AGENT_DEFS = [
+    { id:"outreach", icon:"📤", label:"Outreach",      color:"#7C3AED", desc:"High-intent prospects with no outreach yet" },
+    { id:"routing",  icon:"🔥", label:"Hot Routing",   color:"#EA580C", desc:"Active on floor — route staff now"         },
+    { id:"followup", icon:"✉️", label:"Follow-up",     color:"#0369A1", desc:"Completed meetings — send 3-touch sequence" },
+  ];
+
+  const activeAgentDef = AGENT_DEFS.find(a => a.id === activeAgent);
+  const items = queue.filter(q => q.agentId === activeAgent && !dismissed[q.id]);
+  const totalPending = queue.filter(q => !dismissed[q.id]).length;
+  const totalSent = Object.values(sendResult).filter(r => r?.ok).length;
+
+  return (
+    <div style={{minHeight:"calc(100vh - 88px)",display:"flex",flexDirection:"column",background:"#F8FAFC",fontFamily:F}}>
+
+      {/* Page header */}
+      <div style={{background:"linear-gradient(135deg,#0D1B3E 0%,#1A2A5E 60%,#263B7A 100%)",padding:"24px 32px"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{width:36,height:36,borderRadius:10,background:"rgba(41,171,226,0.2)",border:"1px solid rgba(41,171,226,0.4)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>✦</div>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:20,fontWeight:800,color:"#fff",letterSpacing:"-0.02em"}}>Fingoh Agent</span>
+                <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:"rgba(57,181,74,0.2)",color:"#39B54A",border:"1px solid rgba(57,181,74,0.3)",fontWeight:700}}>LIVE</span>
+              </div>
+              <p style={{fontSize:12,color:"rgba(255,255,255,0.5)",margin:0}}>Agentic AI assistant · Claude Opus 4.8 · {ex?.company}</p>
+            </div>
+          </div>
+          {/* Summary stats */}
+          <div style={{display:"flex",gap:16}}>
+            {[
+              { label:"Pending",  value:totalPending,                color:"#FCD34D" },
+              { label:"Sent",     value:totalSent,                   color:"#34D399" },
+              { label:"Contacts", value:queue.length,                color:"#93C5FD" },
+            ].map(s => (
+              <div key={s.label} style={{textAlign:"center",padding:"8px 16px",background:"rgba(255,255,255,0.08)",borderRadius:10,border:"1px solid rgba(255,255,255,0.12)"}}>
+                <div style={{fontSize:22,fontWeight:800,color:s.color,lineHeight:1}}>{s.value}</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:2}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Agent tabs */}
+        <div style={{display:"flex",gap:10}}>
+          {AGENT_DEFS.map(a => {
+            const count = queue.filter(q => q.agentId === a.id && !dismissed[q.id]).length;
+            const active = activeAgent === a.id;
+            return (
+              <button key={a.id} onClick={() => setActiveAgent(a.id)} style={{
+                display:"flex",alignItems:"center",gap:8,padding:"10px 18px",
+                background:active ? "#fff" : "rgba(255,255,255,0.08)",
+                border:`1px solid ${active ? "#fff" : "rgba(255,255,255,0.15)"}`,
+                borderRadius:10,cursor:"pointer",fontFamily:F,transition:"all .15s",
+              }}>
+                <span style={{fontSize:16}}>{a.icon}</span>
+                <div style={{textAlign:"left"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:active ? a.color : "#fff"}}>{a.label}</div>
+                  <div style={{fontSize:10,color:active ? "#64748B" : "rgba(255,255,255,0.5)"}}>{a.desc}</div>
+                </div>
+                {count > 0 && (
+                  <span style={{marginLeft:4,minWidth:20,height:20,borderRadius:99,background:active ? a.color : "rgba(255,255,255,0.2)",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 6px"}}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Content area */}
+      <div style={{flex:1,padding:"24px 32px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
+
+        {queueLoading ? (
+          <div style={{gridColumn:"1/-1",textAlign:"center",padding:"60px 0",color:"#94A3B8"}}>
+            <div style={{fontSize:32,marginBottom:12}}>✦</div>
+            <p style={{fontSize:14,fontWeight:500,margin:0}}>Loading agent queue…</p>
+          </div>
+        ) : items.length === 0 ? (
+          <div style={{gridColumn:"1/-1",textAlign:"center",padding:"60px 0",color:"#94A3B8"}}>
+            <div style={{fontSize:48,marginBottom:16}}>{activeAgentDef?.icon}</div>
+            <p style={{fontSize:16,fontWeight:600,margin:"0 0 8px",color:"#475569"}}>No pending actions</p>
+            <p style={{fontSize:13,margin:0}}>All {activeAgentDef?.label} items have been reviewed</p>
+          </div>
+        ) : items.map(item => {
+          const pd      = parsedDrafts[item.id] || {};
+          const out     = outputs[item.id];
+          const isGen   = generating[item.id];
+          const isDone  = approved[item.id];
+          const isFollowup = item.agentId === "followup";
+          const isRouting  = item.agentId === "routing";
+          const sendKey2   = item.id + "_2";
+
+          return (
+            <div key={item.id} style={{background:"#fff",borderRadius:14,border:`1px solid ${isDone ? "#86EFAC" : activeAgentDef.color + "30"}`,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+
+              {/* Card header */}
+              <div style={{padding:"14px 18px",background:isDone ? "#F0FDF4" : `${activeAgentDef.color}08`,borderBottom:`1px solid ${isDone ? "#86EFAC" : activeAgentDef.color + "20"}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <span style={{fontSize:14,fontWeight:700,color:isDone ? "#14532D" : "#0F172A"}}>{item.visitor}</span>
+                    {isDone && <span style={{fontSize:10,background:"#DCFCE7",color:"#14532D",padding:"1px 7px",borderRadius:99,fontWeight:700}}>✓ Sent</span>}
+                  </div>
+                  <p style={{fontSize:11,color:"#64748B",margin:"0 0 2px"}}>{item.company}{item.role ? ` · ${item.role}` : ""}</p>
+                  {item.industry && <p style={{fontSize:10,color:"#94A3B8",margin:0}}>{item.industry}</p>}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                  <span style={{fontSize:20,fontWeight:800,color:item.ieiScore >= 75 ? "#16A34A" : "#2563EB"}}>{typeof item.ieiScore === "number" ? item.ieiScore.toFixed(1) : item.ieiScore}</span>
+                  <button onClick={() => dismiss(item.id)} style={{fontSize:12,color:"#94A3B8",background:"none",border:"none",cursor:"pointer",fontFamily:F,padding:4}}>✕</button>
+                </div>
+              </div>
+
+              {/* Reason */}
+              <div style={{padding:"8px 18px",background:"#F8FAFC",borderBottom:`1px solid ${activeAgentDef.color}15`}}>
+                <p style={{fontSize:11,color:"#64748B",margin:0,fontStyle:"italic"}}>⚡ {item.reason}</p>
+              </div>
+
+              {/* Output area */}
+              <div style={{padding:"16px 18px"}}>
+                {!out && !isGen && (
+                  <button onClick={() => generate(item)} style={{
+                    width:"100%",padding:"11px 0",
+                    background:`linear-gradient(135deg,${activeAgentDef.color},${activeAgentDef.color}CC)`,
+                    color:"#fff",border:"none",borderRadius:9,fontSize:12,fontWeight:700,
+                    cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+                  }}>
+                    <span>✦</span> Generate with Claude Opus 4.8
+                  </button>
+                )}
+
+                {isGen && (
+                  <div style={{textAlign:"center",padding:"20px 0"}}>
+                    <div style={{fontSize:28,color:activeAgentDef.color,marginBottom:10}}>◎</div>
+                    <p style={{fontSize:12,color:"#64748B",margin:0}}>Claude Opus 4.8 is drafting…</p>
+                  </div>
+                )}
+
+                {out && !isGen && (
+                  <div>
+                    {/* Email 1 */}
+                    {pd.email1Subject && (
+                      <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
+                        <p style={{fontSize:10,fontWeight:700,color:activeAgentDef.color,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>
+                          {isFollowup ? "Email 1 (Day 1)" : "Outreach Email"} · {pd.email1Subject}
+                        </p>
+                        <pre style={{fontSize:11,lineHeight:1.7,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email1Body}</pre>
+                      </div>
+                    )}
+
+                    {/* LinkedIn */}
+                    {isFollowup && pd.linkedinText && (
+                      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,padding:14,marginBottom:10}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                          <p style={{fontSize:10,fontWeight:700,color:"#1D4ED8",textTransform:"uppercase",letterSpacing:.06,margin:0}}>LinkedIn (Day 3)</p>
+                          <button onClick={() => navigator.clipboard.writeText(pd.linkedinText)}
+                            style={{fontSize:10,color:"#1D4ED8",background:"none",border:"1px solid #BFDBFE",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:F}}>
+                            Copy
+                          </button>
+                        </div>
+                        <pre style={{fontSize:11,lineHeight:1.7,color:"#1E3A8A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.linkedinText}</pre>
+                      </div>
+                    )}
+
+                    {/* Email 2 */}
+                    {isFollowup && pd.email2Subject && (
+                      <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
+                        <p style={{fontSize:10,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>
+                          Email 2 (Day 7) · {pd.email2Subject}
+                        </p>
+                        <pre style={{fontSize:11,lineHeight:1.7,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email2Body}</pre>
+                      </div>
+                    )}
+
+                    {/* Routing brief */}
+                    {isRouting && (
+                      <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:9,padding:14,marginBottom:10}}>
+                        <p style={{fontSize:10,fontWeight:700,color:"#EA580C",textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Staff Brief</p>
+                        <pre style={{fontSize:11,lineHeight:1.7,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{out}</pre>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    {!isDone ? (
+                      <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:4}}>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                          <button onClick={() => sendEmail(item, 1)} style={{
+                            padding:"10px 0",background:isDone ? "#94A3B8" : "#16A34A",
+                            color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,
+                            cursor:"pointer",fontFamily:F,
+                          }}>
+                            {sending[item.id] ? "Sending…" : isRouting ? "✓ Approve Brief" : "✉ Send Email 1"}
+                          </button>
+                          <button onClick={() => generate(item)} style={{
+                            padding:"10px 0",background:"#fff",color:"#0F172A",
+                            border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,
+                            cursor:"pointer",fontFamily:F,
+                          }}>
+                            ↻ Regenerate
+                          </button>
+                        </div>
+                        {isFollowup && pd.email2Subject && (
+                          <button onClick={() => sendEmail(item, 2)} style={{
+                            padding:"10px 0",background:"#1D4ED8",color:"#fff",
+                            border:"none",borderRadius:8,fontSize:12,fontWeight:700,
+                            cursor:"pointer",fontFamily:F,
+                          }}>
+                            {sending[sendKey2] ? "Sending…" : "✉ Send Email 2 (Day 7)"}
+                          </button>
+                        )}
+                        <button onClick={() => dismiss(item.id)} style={{
+                          padding:"8px 0",background:"#fff",color:"#94A3B8",
+                          border:"1px solid #E2E8F0",borderRadius:8,fontSize:11,fontWeight:600,
+                          cursor:"pointer",fontFamily:F,
+                        }}>
+                          Dismiss
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:8,fontSize:12,fontWeight:600,color:"#14532D"}}>
+                        {sendResult[item.id]?.ok
+                          ? `✓ Email 1 sent to ${sendResult[item.id].to}`
+                          : sendResult[item.id]?.error
+                            ? `✗ ${sendResult[item.id].error}`
+                            : isRouting ? "✓ Brief approved" : "✓ Email 1 sent"}
+                        {isFollowup && sendResult[sendKey2]?.ok && (
+                          <div style={{marginTop:4,color:"#1D4ED8"}}>✓ Email 2 sent to {sendResult[sendKey2].to}</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 // ── Agent trigger button — shown in nav ───────────────────────────
 function AgentTriggerButton({onClick, queueCount}) {
   const [pulse, setPulse] = useState(false);
@@ -6038,9 +6392,11 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       border:"#99F6E4",
       items: isPast ? [
         {id:"live",        label:"Live Dashboard",   icon:"◉"},
+        {id:"agent",       label:"Fingoh Agent",     icon:"✦"},
       ] : [
         {id:"live",        label:"Live Dashboard",   icon:"◉"},
         {id:"staff",       label:"Staff App",        icon:"📱"},
+        {id:"agent",       label:"Fingoh Agent",     icon:"✦"},
       ]
     },
     {
@@ -6087,7 +6443,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
             )}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <AgentTriggerButton onClick={onAgent} queueCount={agentCount}/>
+            <AgentTriggerButton onClick={()=>onNav("agent")} queueCount={agentCount}/>
             {isPast ? (
               <span style={{display:"flex",alignItems:"center",gap:5,padding:"4px 10px",background:"#F1F5F9",borderRadius:99,border:"1px solid #CBD5E1",fontSize:10,fontWeight:700,color:C.muted}}>
                 <span style={{width:5,height:5,borderRadius:"50%",background:"#94A3B8",display:"inline-block"}}/>Past event · Read only
@@ -6246,10 +6602,11 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
         {screen==="outcomes"    && <OutcomesDashboard ex={ex}/>}
         {screen==="export"      && <LeadExport ex={ex}/>}
+        {screen==="agent"       && <AgentPage ex={ex} onQueueLoaded={setAgentQueueCount}/>}
         {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
         {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}}/>}
       </NavShell>
-      {agentOpen && <AgentPanel ex={ex} onClose={()=>setAgentOpen(false)} onQueueLoaded={setAgentQueueCount}/>}
+
     </>
   );
 }
