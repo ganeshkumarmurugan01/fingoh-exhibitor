@@ -5127,7 +5127,15 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
       const data = await res.json();
       const text = data.text || "No output generated.";
       setOutputs(p => ({ ...p, [item.id]: text }));
-      setParsedDrafts(p => ({ ...p, [item.id]: data }));
+      // Map snake_case backend keys to camelCase for frontend
+      const parsed = {
+        email1Subject: data.email1_subject,
+        email1Body:    data.email1_body,
+        linkedinText:  data.linkedin_text,
+        email2Subject: data.email2_subject,
+        email2Body:    data.email2_body,
+      };
+      setParsedDrafts(p => ({ ...p, [item.id]: parsed }));
     } catch (e) {
       setOutputs(p => ({ ...p, [item.id]: "Error generating output. Please try again." }));
     } finally {
