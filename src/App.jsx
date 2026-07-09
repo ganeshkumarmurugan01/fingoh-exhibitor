@@ -5101,7 +5101,7 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-opus-4-8",
           max_tokens: 600,
           messages: [{ role: "user", content: prompt }],
         }),
@@ -5144,7 +5144,7 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-opus-4-8",
           max_tokens: 500,
           messages: [{ role: "user", content: prompt }],
         }),
