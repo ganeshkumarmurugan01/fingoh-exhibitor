@@ -5050,7 +5050,7 @@ Keep all 3 concise. B2B procurement audience — no fluff.`;
 // ═══════════════════════════════════════════════════════════════════
 // AGENT PANEL COMPONENT
 // ═══════════════════════════════════════════════════════════════════
-function AgentPanel({ex, onClose}) {
+function AgentPanel({ex, onClose, onQueueLoaded}) {
   const [activeAgent, setActiveAgent] = useState("outreach");
   const [queue, setQueue]             = useState([]);
   const [queueLoading, setQueueLoading] = useState(true);
@@ -5074,7 +5074,9 @@ function AgentPanel({ex, onClose}) {
         });
         if (res.ok) {
           const data = await res.json();
-          setQueue(data.queue || []);
+          const q = data.queue || [];
+          setQueue(q);
+          onQueueLoaded && onQueueLoaded(q.filter(i => !i.dismissed).length);
         }
       } catch (e) {
         console.error("Agent queue fetch failed:", e);
@@ -6116,7 +6118,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
         {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}}/>}
       </NavShell>
-      {agentOpen && <AgentPanel ex={ex} onClose={()=>setAgentOpen(false)}/>}
+      {agentOpen && <AgentPanel ex={ex} onClose={()=>setAgentOpen(false)} onQueueLoaded={setAgentQueueCount}/>}
     </>
   );
 }
