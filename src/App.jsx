@@ -1139,15 +1139,32 @@ function ManualEntryForm({eventId, onSaved}) {
     country:"", phone:"", city:"", categories_interest:"", primary_reason:"",
     meeting_interest:"",
   });
-  const [saving, setSaving] = React.useState(false);
-  const [error, setError]   = React.useState("");
+  const [saving, setSaving]   = React.useState(false);
+  const [error, setError]     = React.useState("");
+  const [fErrors, setFErrors] = React.useState({});
 
   const iS = {width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none",background:"#fff"};
   const lS = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.06};
 
+  const errStyle = {color:"#DC2626",fontSize:11,margin:"3px 0 0"};
+
   async function handleSave() {
-    if (!form.email || !form.company || !form.job_title) {
-      setError("Email, company and job title are required."); return;
+    // Full validation using master validators
+    const fullName = `${form.first_name} ${form.last_name}`.trim();
+    const errs = {};
+    const nameErr = V.name(fullName || form.first_name);
+    if (nameErr) errs.first_name = nameErr;
+    const emailErr = V.email(form.email);
+    if (emailErr) errs.email = emailErr;
+    const titleErr = V.jobTitle(form.job_title);
+    if (titleErr) errs.job_title = titleErr;
+    const compErr = V.companyName(form.company);
+    if (compErr) errs.company = compErr;
+    const phoneErr = V.phone(form.phone);
+    if (phoneErr) errs.phone = phoneErr;
+    setFErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setError("Please fix the errors below."); return;
     }
     setSaving(true); setError("");
     try {
@@ -1162,7 +1179,14 @@ function ManualEntryForm({eventId, onSaved}) {
         method:"POST", headers:{authorization:`Bearer ${token}`}, body:fd,
       });
       if (res.ok) { onSaved && onSaved(); }
-      else { const d = await res.json(); setError(d.detail || "Save failed"); }
+      else {
+        try {
+          const d = await res.json();
+          setError(d.detail || "Save failed");
+        } catch {
+          setError("Server error — please try again");
+        }
+      }
     } catch(e) { setError(e.message); }
     finally { setSaving(false); }
   }
@@ -1174,10 +1198,20 @@ function ManualEntryForm({eventId, onSaved}) {
       {error && <div style={{background:"#FFF0F0",border:"1px solid #FFCCCC",borderRadius:8,padding:"10px 14px",fontSize:12,color:"#C00",marginBottom:14}}>{error}</div>}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         {[["first_name","First name","e.g. Wei"],["last_name","Last name","e.g. Zhang"]].map(([k,l,p])=>(
-          <div key={k}><label style={lS}>{l}</label><input style={iS} placeholder={p} value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}/></div>
+          <div key={k}>
+            <label style={lS}>{l}</label>
+            <input style={{...iS, borderColor: fErrors[k] ? "#DC2626" : "#E2E8F0"}} placeholder={p} value={form[k]}
+              onChange={e=>{setForm(f=>({...f,[k]:e.target.value})); setFErrors(fe=>({...fe,[k]:null}));}}/>
+            {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
+          </div>
         ))}
         {[["email","Email *","e.g. wei@foxconn.com"],["job_title","Job title *","e.g. VP Procurement"],["company","Company *","e.g. Foxconn Technology"],["country","Country","e.g. Taiwan"],["city","City","e.g. Taipei"],["phone","Phone","e.g. +886 2 1234 5678"]].map(([k,l,p])=>(
-          <div key={k}><label style={lS}>{l}</label><input style={iS} placeholder={p} value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))}/></div>
+          <div key={k}>
+            <label style={lS}>{l}</label>
+            <input style={{...iS, borderColor: fErrors[k] ? "#DC2626" : "#E2E8F0"}} placeholder={p} value={form[k]}
+              onChange={e=>{setForm(f=>({...f,[k]:e.target.value})); setFErrors(fe=>({...fe,[k]:null}));}}/>
+            {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
+          </div>
         ))}
         <div style={{gridColumn:"span 2"}}>
           <label style={lS}>Primary reason for attending</label>
