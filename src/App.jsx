@@ -1201,7 +1201,11 @@ function ManualEntryForm({eventId, onSaved}) {
           <div key={k}>
             <label style={lS}>{l}</label>
             <input style={{...iS, borderColor: fErrors[k] ? "#DC2626" : "#E2E8F0"}} placeholder={p} value={form[k]}
-              onChange={e=>{setForm(f=>({...f,[k]:e.target.value})); setFErrors(fe=>({...fe,[k]:null}));}}/>
+              onChange={e=>{
+                const val = e.target.value;
+                setForm(f=>({...f,[k]:val}));
+                setFErrors(fe=>({...fe,[k]: V.name(val)}));
+              }}/>
             {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
           </div>
         ))}
@@ -1209,7 +1213,12 @@ function ManualEntryForm({eventId, onSaved}) {
           <div key={k}>
             <label style={lS}>{l}</label>
             <input style={{...iS, borderColor: fErrors[k] ? "#DC2626" : "#E2E8F0"}} placeholder={p} value={form[k]}
-              onChange={e=>{setForm(f=>({...f,[k]:e.target.value})); setFErrors(fe=>({...fe,[k]:null}));}}/>
+              onChange={e=>{
+                const val = e.target.value;
+                setForm(f=>({...f,[k]:val}));
+                const validator = k==="email" ? V.email : k==="job_title" ? V.jobTitle : k==="company" ? V.companyName : k==="phone" ? V.phone : null;
+                if (validator) setFErrors(fe=>({...fe,[k]: validator(val)}));
+              }}/>
             {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
           </div>
         ))}
