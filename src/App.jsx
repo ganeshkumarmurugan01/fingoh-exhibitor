@@ -1176,7 +1176,7 @@ function ManualEntryForm({eventId, onSaved}) {
       const { data:{ session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
       const res = await fetch(`/api/upload?event_id=${eventId}`, {
-        method:"POST", headers:{authorization:`Bearer ${token}`}, body:fd,
+        method:"POST", headers:{"x-fingoh-auth":`Bearer ${token}`}, body:fd,
       });
       if (res.ok) { onSaved && onSaved(); }
       else {
