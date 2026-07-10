@@ -775,8 +775,8 @@ function EventHome({onLaunch, onCreateEvent}) {
             <span style={{fontSize:10,padding:"1px 6px",borderRadius:99,background:showTeam?"rgba(255,255,255,0.2)":C.ltnavy,color:showTeam?C.white:C.navy,fontWeight:700}}>{staffList.length}</span>
           </button>
           <div style={{width:1,height:22,background:"#E2E8F0"}}/>
-          <span style={{fontSize:12,color:C.muted}}>Siemens Healthineers</span>
-          <UserMenu/>
+          <span style={{fontSize:12,color:C.muted}}>{profile?.org_name || "My Organisation"}</span>
+          <UserMenu profile={profile}/>
         </div>
       </div>
 
@@ -6295,7 +6295,8 @@ function MeetingResponsePage({token}) {
 }
 
 // UserMenu component
-function UserMenu() {
+function UserMenu({ profile } = {}) {
+  const userInitial = (profile?.name || profile?.org_name || "U")[0].toUpperCase();
   const [open, setOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [pw, setPw] = useState({n:"", c:""});
@@ -6317,7 +6318,7 @@ function UserMenu() {
     <div style={{position:"relative",display:"inline-block"}}>
       <button onClick={()=>setOpen(o=>!o)}
         style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:7,border:"1px solid #E2E8F0",cursor:"pointer",background:"transparent",fontSize:11,fontWeight:600,color:"#475569",fontFamily:F}}>
-        <div style={{width:22,height:22,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>G</div>
+        <div style={{width:22,height:22,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>{userInitial}</div>
         <span>v</span>
       </button>
       {open && (
@@ -6454,7 +6455,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
               </span>
             )}
             <div style={{width:1,height:20,background:"#E2E8F0",margin:"0 8px"}}/>
-            <UserMenu/>
+            <UserMenu profile={profile}/>
           </div>
         </div>
 
