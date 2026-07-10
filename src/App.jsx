@@ -775,7 +775,7 @@ function EventHome({onLaunch, onCreateEvent}) {
             <span style={{fontSize:10,padding:"1px 6px",borderRadius:99,background:showTeam?"rgba(255,255,255,0.2)":C.ltnavy,color:showTeam?C.white:C.navy,fontWeight:700}}>{staffList.length}</span>
           </button>
           <div style={{width:1,height:22,background:"#E2E8F0"}}/>
-          <span style={{fontSize:12,color:C.muted}}>{profile?.org_name || "My Organisation"}</span>
+          <span style={{fontSize:12,color:C.muted}}>{profile?.org_name || ex?.company || "My Organisation"}</span>
           <UserMenu profile={profile}/>
         </div>
       </div>
@@ -6366,7 +6366,7 @@ function UserMenu({ profile } = {}) {
 // ═══════════════════════════════════════════════════════════════════
 // NAV SHELL
 // ═══════════════════════════════════════════════════════════════════
-function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents}) {
+function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents, profile}) {
   const isPast = !!ex?.isPast;
 
   const PHASES = [
@@ -6595,7 +6595,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
 
   return (
     <>
-      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}}>
+      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile}>
         {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")}/>}
         {screen==="iei"         && <IEIAnalysis ex={ex}/>}
         {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
