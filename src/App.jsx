@@ -1267,9 +1267,9 @@ function VisitorList({eventId, refreshKey}) {
   const [sortCol, setSortCol]   = React.useState("iei_score");
   const [sortDir, setSortDir]   = React.useState("desc");
 
-  const TIER_COLORS = {Hot:"#ef4444",Warm:"#f97316",Cool:"#3b82f6",Cold:"#9ca3af"};
-  const TIER_BG    = {Hot:"#FEE2E2",Warm:"#FEF3C7",Cool:"#DBEAFE",Cold:"#F1F5F9"};
-  const TIER_TEXT  = {Hot:"#991B1B",Warm:"#92400E",Cool:"#1E40AF",Cold:"#475569"};
+  const TIER_COLORS = {T1:"#ef4444",T2:"#f97316",T3:"#3b82f6",T4:"#9ca3af"};
+  const TIER_BG    = {T1:"#FEE2E2",T2:"#FEF3C7",T3:"#DBEAFE",T4:"#F1F5F9"};
+  const TIER_TEXT  = {T1:"#991B1B",T2:"#92400E",T3:"#1E40AF",T4:"#475569"};
 
   React.useEffect(() => {
     if (!eventId) return;
@@ -1285,7 +1285,7 @@ function VisitorList({eventId, refreshKey}) {
     });
   }, [eventId, refreshKey]);
 
-  const counts = ["Hot","Warm","Cool","Cold"].reduce((a,t) => {
+  const counts = ["T1","T2","T3","T4"].reduce((a,t) => {
     a[t] = contacts.filter(c => c.iei_tier === t).length; return a;
   }, {});
 
@@ -3319,7 +3319,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
             <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
               <div style={{display:"flex",alignItems:"center",gap:6}}>
                 <span style={{fontSize:10,fontWeight:700,color:C.muted2,textTransform:"uppercase",letterSpacing:.08,minWidth:60}}>IEI pre</span>
-                {["All","Hot","Warm","Cool","Cold"].map(t=>(
+                {["All","T1","T2","T3","T4"].map(t=>(
                   <FChip key={t} label={t} active={fIEI===t}
                     color={t==="Hot"?C.red:t==="Warm"?C.amber:t==="Cool"?C.blue:"#94A3B8"}
                     onClick={()=>setFIEI(t)}/>
