@@ -303,11 +303,14 @@ function CreateEventWizard({onBack, onCreated}) {
     <button onClick={onClick} style={{padding:"6px 13px",border:`1.5px solid ${active?C.navy:"#E2E8F0"}`,borderRadius:99,fontSize:12,fontWeight:active?600:400,cursor:"pointer",background:active?C.navy:C.white,color:active?C.white:C.muted,fontFamily:F,transition:"all .12s"}}>{label}</button>
   );
 
-  const evNameErr = V.eventName(evName);
-  const venueErr  = V.venue(venue);
+  const evNameErr  = V.eventName(evName);
+  const venueErr   = V.venue(venue);
   const websiteErr = V.website(website);
   const coNameErr  = V.companyName(coName);
-  const step1OK = evName && dateFrom && dateTo && venue && !evNameErr && !venueErr;
+  const dateRangeErr = dateFrom && dateTo && new Date(dateTo) < new Date(dateFrom)
+    ? "End date must be after start date"
+    : null;
+  const step1OK = evName && dateFrom && dateTo && venue && !evNameErr && !venueErr && !dateRangeErr;
   const step2OK = coName && product;
   const step3OK = selCats.length > 0;
   const step4OK = true;
@@ -442,7 +445,11 @@ function CreateEventWizard({onBack, onCreated}) {
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                     <div><label style={lS}>Start date *</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={iS}/></div>
-                    <div><label style={lS}>End date *</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={iS}/></div>
+                    <div>
+                      <label style={lS}>End date *</label>
+                      <input type="date" value={dateTo} min={dateFrom || undefined} onChange={e=>setDateTo(e.target.value)} style={{...iS, borderColor: dateRangeErr ? "#DC2626" : "#E2E8F0"}}/>
+                      {dateRangeErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{dateRangeErr}</p>}
+                    </div>
                   </div>
                   <div>
                     <label style={lS}>Venue *</label>
