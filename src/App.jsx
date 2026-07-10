@@ -703,7 +703,7 @@ function CreateEventWizard({onBack, onCreated}) {
 }
 
 // ── Post-login Event Home ─────────────────────────────────────────────────────
-function EventHome({onLaunch, onCreateEvent}) {
+function EventHome({onLaunch, onCreateEvent, profile}) {
   const [showTeam, setShowTeam] = useState(false);
 
   // Real API state
@@ -6582,6 +6582,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
     return <LoginScreen onLogin={()=>setScreen("events")}/>;
   if(screen==="events")
     return <EventHome
+      profile={profile}
       onLaunch={cfg=>{setEx(cfg);setScreen("audience");}}
       onCreateEvent={()=>setScreen("create-event")}/>;
 
