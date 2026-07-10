@@ -145,7 +145,7 @@ const ALERTS = [
 
 // ── Shared UI atoms ───────────────────────────────────────────────────────────
 const TS  = {T1:{bg:"#DCFCE7",tc:"#14532D",bc:"#86EFAC"},T2:{bg:"#DBEAFE",tc:"#1E3A8A",bc:"#93C5FD"},T3:{bg:"#FEF9C3",tc:"#713F12",bc:"#FDE047"},T4:{bg:"#F1F5F9",tc:"#475569",bc:"#CBD5E1"},T5:{bg:"#FEE2E2",tc:"#7F1D1D",bc:"#FCA5A5"}};
-const IS  = {Hot:{bg:"#DCFCE7",tc:"#14532D",bc:"#86EFAC"},Warm:{bg:"#DBEAFE",tc:"#1E3A8A",bc:"#93C5FD"},Cool:{bg:"#FEF9C3",tc:"#713F12",bc:"#FDE047"},Cold:{bg:"#FEE2E2",tc:"#7F1D1D",bc:"#FCA5A5"}};
+const IS  = {T1:{bg:"#DCFCE7",tc:"#14532D",bc:"#86EFAC"},T2:{bg:"#DBEAFE",tc:"#1E3A8A",bc:"#93C5FD"},T3:{bg:"#FEF9C3",tc:"#713F12",bc:"#FDE047"},T4:{bg:"#FEE2E2",tc:"#7F1D1D",bc:"#FCA5A5"},Hot:{bg:"#DCFCE7",tc:"#14532D",bc:"#86EFAC"},Warm:{bg:"#DBEAFE",tc:"#1E3A8A",bc:"#93C5FD"},Cool:{bg:"#FEF9C3",tc:"#713F12",bc:"#FDE047"},Cold:{bg:"#FEE2E2",tc:"#7F1D1D",bc:"#FCA5A5"}};
 const TierBadge = ({t, iei})=>{const s=iei?IS[t]:TS[t];return s?<span style={{display:"inline-block",padding:"2px 9px",borderRadius:99,fontSize:10,fontWeight:700,background:s.bg,color:s.tc,border:`1px solid ${s.bc}`}}>{t}</span>:null;};
 const ScoreBar  = ({score,small})=>{const col=score>=75?C.green:score>=50?C.blue:score>=25?C.yellow:C.red;return <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{flex:1,height:small?3:5,background:"#E2E8F0",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${score}%`,background:col,borderRadius:3}}/></div><span style={{fontSize:small?10:12,fontWeight:600,color:col,minWidth:22,textAlign:"right"}}>{score}</span></div>;};
 const Stat      = ({val,lbl,color=C.dark,sub})=><div style={{background:C.white,borderRadius:10,padding:"12px 16px",border:"1px solid #E2E8F0"}}><div style={{fontSize:22,fontWeight:700,color,lineHeight:1,letterSpacing:"-0.03em"}}>{val}</div><div style={{fontSize:11,color:C.muted,marginTop:3}}>{lbl}</div>{sub&&<div style={{fontSize:10,color:C.muted2,marginTop:1}}>{sub}</div>}</div>;
@@ -1357,7 +1357,7 @@ function VisitorList({eventId, refreshKey}) {
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <div style={{display:"flex",gap:4}}>
-            {["All","Hot","Warm","Cool","Cold"].map(t => (
+            {["All","T1","T2","T3","T4"].map(t => (
               <button key={t} onClick={() => setTier(t)}
                 style={{padding:"3px 9px",borderRadius:99,border:`1.5px solid ${TIER_COLORS[t]||C.navy}`,background:tier===t?(TIER_COLORS[t]||C.navy):"transparent",color:tier===t?C.white:(TIER_COLORS[t]||C.navy),fontSize:10,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                 {t}{t!=="All"?` (${counts[t]||0})`:""}
@@ -1427,7 +1427,7 @@ function VisitorList({eventId, refreshKey}) {
         </table>
         <div style={{padding:"8px 14px",background:"#F8FAFC",borderTop:"1px solid #E2E8F0",fontSize:10,color:C.muted,display:"flex",justifyContent:"space-between"}}>
           <span>Showing {filtered.length} of {contacts.length} visitors</span>
-          <span>{counts.Hot||0} Hot · {counts.Warm||0} Warm · {counts.Cool||0} Cool · {counts.Cold||0} Cold</span>
+          <span>{counts.T1||0} T1 · {counts.T2||0} T2 · {counts.T3||0} T3 · {counts.T4||0} T4</span>
         </div>
       </div>
     </div>
@@ -1441,20 +1441,20 @@ function ContactStats({contacts}) {
   const full    = contacts.filter(c => c.name && c.email && c.company && c.designation && c.country && (c.phone || c.city)).length;
   const partial = contacts.filter(c => c.name && c.email && c.company && c.designation && !(c.country && (c.phone || c.city))).length;
   const basic   = contacts.length - full - partial;
-  const hot     = contacts.filter(c => c.iei_tier === "Hot").length;
-  const warm    = contacts.filter(c => c.iei_tier === "Warm").length;
-  const cool    = contacts.filter(c => c.iei_tier === "Cool").length;
-  const cold    = contacts.filter(c => c.iei_tier === "Cold").length;
+  const hot     = contacts.filter(c => c.iei_tier === "T1").length;
+  const warm    = contacts.filter(c => c.iei_tier === "T2").length;
+  const cool    = contacts.filter(c => c.iei_tier === "T3").length;
+  const cold    = contacts.filter(c => c.iei_tier === "T4").length;
   const avg     = (contacts.reduce((s,c) => s + (c.iei_score||0), 0) / contacts.length).toFixed(1);
 
   const TOOLTIPS = {
     "Full":    "Has name, email, company, job title, country, and at least one of phone or city",
     "Partial": "Has name, email, company, and job title — missing location or contact details",
     "Basic":   "Has name and email only — minimal profile data",
-    "Hot":     "IEI score ≥ 75 — active buyer, high purchase intent",
-    "Warm":    "IEI score 50–74 — evaluating, moderate intent",
-    "Cool":    "IEI score 25–49 — researching, low intent",
-    "Cold":    "IEI score < 25 — passive, very low intent",
+    "T1":      "IEI score ≥ 53 — active buyer, high purchase intent",
+    "T2":      "IEI score 43–53 — evaluating, moderate intent",
+    "T3":      "IEI score 36–43 — researching, low intent",
+    "T4":      "IEI score < 36 — passive, very low intent",
   };
 
   function StatItem({label, value, color, tip}) {
@@ -1492,7 +1492,7 @@ function ContactStats({contacts}) {
       <div style={{background:C.light,borderRadius:10,padding:"14px 18px"}}>
         <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 12px"}}>IEI tier distribution · avg {avg}</p>
         <div style={{display:"flex",justifyContent:"space-around"}}>
-          <StatItem label="Hot"  value={hot}  color="#ef4444" tip={TOOLTIPS["Hot"]}/>
+          <StatItem label="T1"   value={hot}  color="#ef4444" tip={TOOLTIPS["T1"]}/>
           <StatItem label="Warm" value={warm} color="#f97316" tip={TOOLTIPS["Warm"]}/>
           <StatItem label="Cool" value={cool} color="#3b82f6" tip={TOOLTIPS["Cool"]}/>
           <StatItem label="Cold" value={cold} color="#9ca3af" tip={TOOLTIPS["Cold"]}/>
