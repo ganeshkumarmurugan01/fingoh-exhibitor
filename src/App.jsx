@@ -291,6 +291,10 @@ function CreateEventWizard({onBack, onCreated}) {
 
   // Step 5 — Exhibitor intent
   const [intentWhy,    setIntentWhy]    = useState("");
+  const [icpResearch,  setIcpResearch]  = useState(null);
+  const [icpLoading,   setIcpLoading]   = useState(false);
+  const [dynamicCats,  setDynamicCats]  = useState([]);
+  const [dynamicRoles, setDynamicRoles] = useState([]);
   const [intentBuyers, setIntentBuyers] = useState("");
 
   const selType = EX_TYPES.find(t => t.id === evType) || EX_TYPES[0];
@@ -311,6 +315,27 @@ function CreateEventWizard({onBack, onCreated}) {
     ? "End date must be after start date"
     : null;
   const step1OK = evName && dateFrom && dateTo && venue && !evNameErr && !venueErr && !dateRangeErr;
+
+  // Fetch real ICP data from Claude when moving from step 1 to step 3
+  const fetchEventICP = async () => {
+    if (!evName || icpResearch) return; // already fetched
+    setIcpLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const params = new URLSearchParams({ event_name: evName, venue: venue || "" });
+      const res = await fetch(`/api/v1/events/research-icp?${params}`, {
+        headers: { "x-fingoh-auth": `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setIcpResearch(data);
+        if (data.visitor_categories?.length > 0) setDynamicCats(data.visitor_categories);
+        if (data.visitor_roles?.length > 0)      setDynamicRoles(data.visitor_roles);
+      }
+    } catch(e) { console.error("ICP research failed:", e); }
+    finally { setIcpLoading(false); }
+  };
   const step2OK = coName && product;
   const step3OK = selCats.length > 0;
   const step4OK = true;
@@ -540,8 +565,22 @@ function CreateEventWizard({onBack, onCreated}) {
             {step===3 && (
               <div>
                 <p style={{fontSize:13,color:C.muted,marginBottom:18}}>Select the visitor categories most relevant to your products. Fingoh will weight IEI scores higher for visitors with matching interests.</p>
+
+                {/* ICP research status */}
+                {icpLoading && (
+                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"12px 16px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,marginBottom:16}}>
+                    <div style={{width:16,height:16,border:"2px solid #3B82F6",borderTopColor:"transparent",borderRadius:"50%",animation:"spin 1s linear infinite",flexShrink:0}}/>
+                    <p style={{fontSize:12,color:"#1D4ED8",margin:0,fontWeight:500}}>✦ Researching {evName} visitor profiles…</p>
+                  </div>
+                )}
+                {icpResearch && !icpLoading && (
+                  <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:10,marginBottom:16}}>
+                    <p style={{fontSize:11,color:"#14532D",margin:0}}>✓ Found real visitor data for <strong>{evName}</strong> · {icpResearch.event_description}</p>
+                  </div>
+                )}
+
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {selType.cats.map(cat=>{
+                  {(dynamicCats.length > 0 ? dynamicCats : selType.cats).map(cat=>{
                     const on = selCats.includes(cat);
                     return (
                       <div key={cat} onClick={()=>toggle(selCats,setSelCats,cat)}
@@ -573,11 +612,22 @@ function CreateEventWizard({onBack, onCreated}) {
                 <div>
                   <p style={{fontSize:12,fontWeight:600,color:C.navy,marginBottom:10}}>Target visitor roles <span style={{fontSize:11,fontWeight:400,color:C.muted}}>(select all that apply)</span></p>
                   <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                    {["C-Suite / CEO / MD","VP / Director","Procurement Manager","Clinical / Technical Lead","IT Manager","Department Head","Business Owner","Consultant / Advisor"].map(r=>
+                    {(dynamicRoles.length > 0 ? dynamicRoles : ["C-Suite / CEO / MD","VP / Director","Procurement Manager","Clinical / Technical Lead","IT Manager","Department Head","Business Owner","Consultant / Advisor"]).map(r=>
                       chip(icpRole.includes(r),r,()=>toggle(icpRole,setIcpRole,r))
                     )}
                   </div>
                 </div>
+                {icpResearch?.industries?.length > 0 && (
+                  <div>
+                    <p style={{fontSize:12,fontWeight:600,color:C.navy,marginBottom:10}}>Target industries <span style={{fontSize:10,fontWeight:400,color:C.muted}}>(from {evName} research)</span></p>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                      {icpResearch.industries.map(ind =>
+                        chip(icpReason.includes(ind), ind, ()=>toggle(icpReason, setIcpReason, ind))
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div>
                   <p style={{fontSize:12,fontWeight:600,color:C.navy,marginBottom:10}}>Target company sizes</p>
                   <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
@@ -696,7 +746,7 @@ function CreateEventWizard({onBack, onCreated}) {
               ))}
             </div>
             {step < TOTAL ? (
-              <button onClick={()=>canNext&&setStep(s=>s+1)} disabled={!canNext}
+              <button onClick={()=>{if(canNext){if(step===1)fetchEventICP();setStep(s=>s+1);}}} disabled={!canNext}
                 style={{padding:"9px 22px",background:canNext?C.blue:"#CBD5E1",color:C.white,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:canNext?"pointer":"not-allowed",fontFamily:F}}>
                 Next →
               </button>
