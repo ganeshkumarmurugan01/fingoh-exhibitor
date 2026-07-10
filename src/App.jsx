@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
+import { V, validateForm, SCHEMAS, validateCSVRow } from "./lib/validators.js";
 
 
 // ── Brand ─────────────────────────────────────────────────────────────────────
@@ -302,7 +303,11 @@ function CreateEventWizard({onBack, onCreated}) {
     <button onClick={onClick} style={{padding:"6px 13px",border:`1.5px solid ${active?C.navy:"#E2E8F0"}`,borderRadius:99,fontSize:12,fontWeight:active?600:400,cursor:"pointer",background:active?C.navy:C.white,color:active?C.white:C.muted,fontFamily:F,transition:"all .12s"}}>{label}</button>
   );
 
-  const step1OK = evName && dateFrom && dateTo && venue;
+  const evNameErr = V.eventName(evName);
+  const venueErr  = V.venue(venue);
+  const websiteErr = V.website(website);
+  const coNameErr  = V.companyName(coName);
+  const step1OK = evName && dateFrom && dateTo && venue && !evNameErr && !venueErr;
   const step2OK = coName && product;
   const step3OK = selCats.length > 0;
   const step4OK = true;
@@ -430,12 +435,20 @@ function CreateEventWizard({onBack, onCreated}) {
             {step===1 && (
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28}}>
                 <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                  <div><label style={lS}>Exhibition name *</label><input value={evName} onChange={e=>setEvName(e.target.value)} placeholder="e.g. MedTech Asia 2025" style={iS}/></div>
+                  <div>
+                    <label style={lS}>Exhibition name *</label>
+                    <input value={evName} onChange={e=>setEvName(e.target.value)} placeholder="e.g. MedTech Asia 2025" style={{...iS, borderColor: evName && evNameErr ? "#DC2626" : "#E2E8F0"}}/>
+                    {evName && evNameErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{evNameErr}</p>}
+                  </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                     <div><label style={lS}>Start date *</label><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={iS}/></div>
                     <div><label style={lS}>End date *</label><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={iS}/></div>
                   </div>
-                  <div><label style={lS}>Venue *</label><input value={venue} onChange={e=>setVenue(e.target.value)} placeholder="e.g. Marina Bay Sands Expo, Singapore" style={iS}/></div>
+                  <div>
+                    <label style={lS}>Venue *</label>
+                    <input value={venue} onChange={e=>setVenue(e.target.value)} placeholder="e.g. Marina Bay Sands Expo, Singapore" style={{...iS, borderColor: venue && venueErr ? "#DC2626" : "#E2E8F0"}}/>
+                    {venue && venueErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{venueErr}</p>}
+                  </div>
                   <div>
                     <label style={lS}>Country</label>
                     <select value={country} onChange={e=>setCountry(e.target.value)} style={{...iS,height:40}}>
@@ -470,9 +483,17 @@ function CreateEventWizard({onBack, onCreated}) {
             {step===2 && (
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:28}}>
                 <div style={{display:"flex",flexDirection:"column",gap:16}}>
-                  <div><label style={lS}>Company name *</label><input value={coName} onChange={e=>setCoName(e.target.value)} style={iS}/></div>
+                  <div>
+                    <label style={lS}>Company name *</label>
+                    <input value={coName} onChange={e=>setCoName(e.target.value)} style={{...iS, borderColor: coName && coNameErr ? "#DC2626" : "#E2E8F0"}}/>
+                    {coName && coNameErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{coNameErr}</p>}
+                  </div>
                   <div><label style={lS}>Product / solution *</label><input value={product} onChange={e=>setProduct(e.target.value)} placeholder="e.g. Diagnostic imaging & AI-powered radiology" style={iS}/></div>
-                  <div><label style={lS}>Company website</label><input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://www.company.com" style={iS}/></div>
+                  <div>
+                    <label style={lS}>Company website</label>
+                    <input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://www.company.com" style={{...iS, borderColor: website && websiteErr ? "#DC2626" : "#E2E8F0"}}/>
+                    {website && websiteErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{websiteErr}</p>}
+                  </div>
                   <div>
                     <label style={lS}>Booth size (sqm)</label>
                     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
@@ -734,8 +755,12 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
       .catch(() => setStaffLoading(false));
   }, []);
 
+  const [staffErrors, setStaffErrors] = useState({});
+
   const addStaff = () => {
-    if(!sfReady) return;
+    const errors = validateForm(staffForm, SCHEMAS.staff);
+    setStaffErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     setStaffError(null);
     apiAddStaff(staffForm)
       .then(s => {
@@ -800,9 +825,21 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
               <div style={{background:C.light,border:"1px solid #E2E8F0",borderRadius:12,padding:18,height:"fit-content"}}>
                 <p style={{fontSize:11,fontWeight:700,color:C.navy,textTransform:"uppercase",letterSpacing:.06,margin:0,marginBottom:14}}>Add team member</p>
                 <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
-                  <div><label style={lS}>Full name *</label><input value={staffForm.name} onChange={e=>sfUpd("name",e.target.value)} placeholder="e.g. Raj Kumar" style={iS}/></div>
-                  <div><label style={lS}>Work email *</label><input value={staffForm.email} onChange={e=>sfUpd("email",e.target.value)} placeholder="raj.kumar@company.com" style={iS}/></div>
-                  <div><label style={lS}>Job title *</label><input value={staffForm.title} onChange={e=>sfUpd("title",e.target.value)} placeholder="e.g. Senior Sales Manager" style={iS}/></div>
+                  <div>
+                    <label style={lS}>Full name *</label>
+                    <input value={staffForm.name} onChange={e=>{sfUpd("name",e.target.value); setStaffErrors(p=>({...p,name:V.name(e.target.value)}));}} placeholder="e.g. Raj Kumar" style={{...iS, borderColor: staffErrors.name ? "#DC2626" : "#E2E8F0"}}/>
+                    {staffErrors.name && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{staffErrors.name}</p>}
+                  </div>
+                  <div>
+                    <label style={lS}>Work email *</label>
+                    <input value={staffForm.email} onChange={e=>{sfUpd("email",e.target.value); setStaffErrors(p=>({...p,email:V.email(e.target.value)}));}} placeholder="raj.kumar@company.com" style={{...iS, borderColor: staffErrors.email ? "#DC2626" : "#E2E8F0"}}/>
+                    {staffErrors.email && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{staffErrors.email}</p>}
+                  </div>
+                  <div>
+                    <label style={lS}>Job title *</label>
+                    <input value={staffForm.title} onChange={e=>{sfUpd("title",e.target.value); setStaffErrors(p=>({...p,title:V.jobTitle(e.target.value)}));}} placeholder="e.g. Senior Sales Manager" style={{...iS, borderColor: staffErrors.title ? "#DC2626" : "#E2E8F0"}}/>
+                    {staffErrors.title && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{staffErrors.title}</p>}
+                  </div>
                   <div><label style={lS}>Responsible for</label><input value={staffForm.responsibility} onChange={e=>sfUpd("responsibility",e.target.value)} placeholder="e.g. CT & MRI — large accounts" style={iS}/></div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -6313,7 +6350,8 @@ function UserMenu({ profile } = {}) {
   }, [profile?.name]);
 
   const saveName = async () => {
-    if (!userName.trim()) return;
+    const nameErr = V.name(userName);
+    if (nameErr) { setErr(nameErr); return; }
     setLoading(true); setErr("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
