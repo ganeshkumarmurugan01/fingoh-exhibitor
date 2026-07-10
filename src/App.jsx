@@ -6297,62 +6297,133 @@ function MeetingResponsePage({token}) {
 // UserMenu component
 function UserMenu({ profile } = {}) {
   const userInitial = (profile?.name || profile?.org_name || "U")[0].toUpperCase();
-  const [open, setOpen] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [pw, setPw] = useState({n:"", c:""});
-  const [err, setErr] = useState("");
-  const [ok, setOk] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [open, setOpen]           = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [userName, setUserName]   = useState(profile?.name || "");
+  const [pw, setPw]               = useState({n:"", c:""});
+  const [err, setErr]             = useState("");
+  const [ok, setOk]               = useState(false);
+  const [nameOk, setNameOk]       = useState(false);
+  const [loading, setLoading]     = useState(false);
+  const [showPwSection, setShowPwSection] = useState(false);
 
-  const save = async () => {
+  // Sync name when profile loads
+  React.useEffect(() => {
+    if (profile?.name) setUserName(profile.name);
+  }, [profile?.name]);
+
+  const saveName = async () => {
+    if (!userName.trim()) return;
+    setLoading(true); setErr("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch("/api/v1/onboarding/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
+        body: JSON.stringify({ name: userName.trim() }),
+      });
+      if (!res.ok) throw new Error("Failed to update name");
+      setNameOk(true);
+      setTimeout(() => setNameOk(false), 2000);
+    } catch(e) { setErr(e.message); }
+    setLoading(false);
+  };
+
+  const savePw = async () => {
     if (pw.n !== pw.c) { setErr("Passwords do not match"); return; }
     if (pw.n.length < 8) { setErr("Min 8 characters"); return; }
     setLoading(true); setErr("");
     const { error } = await supabase.auth.updateUser({ password: pw.n });
     if (error) setErr(error.message);
-    else { setOk(true); setTimeout(()=>{ setShowPw(false); setOk(false); setPw({n:"",c:""}); },2000); }
+    else { setOk(true); setTimeout(()=>{ setOk(false); setPw({n:"",c:""}); setShowPwSection(false); },2000); }
     setLoading(false);
   };
+
+  const ReadRow = ({label, value}) => (
+    <div style={{marginBottom:12}}>
+      <p style={{fontSize:10,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.06,margin:"0 0 3px"}}>{label}</p>
+      <p style={{fontSize:13,color:"#0F172A",margin:0,fontWeight:500}}>{value || "—"}</p>
+    </div>
+  );
 
   return (
     <div style={{position:"relative",display:"inline-block"}}>
       <button onClick={()=>setOpen(o=>!o)}
         style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:7,border:"1px solid #E2E8F0",cursor:"pointer",background:"transparent",fontSize:11,fontWeight:600,color:"#475569",fontFamily:F}}>
         <div style={{width:22,height:22,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>{userInitial}</div>
-        <span>v</span>
+        <span>▾</span>
       </button>
+
       {open && (
-        <div style={{position:"absolute",top:"110%",right:0,marginTop:4,background:"#fff",border:"1px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:1000,minWidth:170,overflow:"hidden"}} onClick={()=>setOpen(false)}>
-          <button onClick={()=>setShowPw(true)}
-            style={{width:"100%",padding:"10px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#1E293B",cursor:"pointer",fontFamily:F}}>
-            Change password
+        <div style={{position:"absolute",top:"110%",right:0,marginTop:4,background:"#fff",border:"1px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:1000,minWidth:180,overflow:"hidden"}} onClick={()=>setOpen(false)}>
+          <button onClick={(e)=>{e.stopPropagation(); setOpen(false); setShowProfile(true);}}
+            style={{width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#1E293B",cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8}}>
+            <span>👤</span> Profile settings
           </button>
           <div style={{height:1,background:"#F1F5F9"}}/>
           <button onClick={()=>supabase.auth.signOut()}
-            style={{width:"100%",padding:"10px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#DC2626",cursor:"pointer",fontFamily:F}}>
-            Sign out
+            style={{width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#DC2626",cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8}}>
+            <span>↪</span> Sign out
           </button>
         </div>
       )}
-      {showPw && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setShowPw(false)}>
-          <div style={{background:"#fff",borderRadius:14,padding:28,maxWidth:360,width:"100%"}} onClick={e=>e.stopPropagation()}>
-            <h3 style={{fontSize:15,fontWeight:700,color:"#0D1B3E",margin:"0 0 18px 0"}}>Change Password</h3>
-            {ok ? (
-              <p style={{textAlign:"center",color:"#16A34A",fontWeight:600}}>Password updated!</p>
-            ) : (
-              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+      {/* Profile Settings Modal */}
+      {showProfile && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowProfile(false)}>
+          <div style={{background:"#fff",borderRadius:16,padding:28,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+
+            {/* Header */}
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:24}}>
+              <div style={{width:48,height:48,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,flexShrink:0}}>
+                {userInitial}
+              </div>
+              <div>
+                <h3 style={{fontSize:16,fontWeight:700,color:"#0D1B3E",margin:"0 0 2px"}}>{profile?.name || "Your Profile"}</h3>
+                <p style={{fontSize:12,color:"#64748B",margin:0}}>{profile?.org_name || "—"}</p>
+              </div>
+              <button onClick={()=>setShowProfile(false)} style={{marginLeft:"auto",background:"none",border:"none",fontSize:18,color:"#94A3B8",cursor:"pointer"}}>✕</button>
+            </div>
+
+            {/* Read-only fields */}
+            <ReadRow label="Email" value={profile?.email || "—"} />
+            <ReadRow label="Company" value={profile?.org_name || "—"} />
+            <ReadRow label="Role" value={profile?.role || "—"} />
+
+            {/* Editable name */}
+            <div style={{marginBottom:16}}>
+              <p style={{fontSize:10,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.06,margin:"0 0 5px"}}>Display name</p>
+              <div style={{display:"flex",gap:8}}>
+                <input value={userName} onChange={e=>setUserName(e.target.value)}
+                  style={{flex:1,padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",color:"#0F172A"}}/>
+                <button onClick={saveName} disabled={loading}
+                  style={{padding:"9px 16px",background:nameOk?"#16A34A":"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>
+                  {nameOk ? "✓ Saved" : loading ? "…" : "Save"}
+                </button>
+              </div>
+            </div>
+
+            <div style={{height:1,background:"#F1F5F9",margin:"16px 0"}}/>
+
+            {/* Change password toggle */}
+            <button onClick={()=>{setShowPwSection(s=>!s); setErr(""); setOk(false);}}
+              style={{width:"100%",padding:"9px 0",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,color:"#475569",cursor:"pointer",fontFamily:F,marginBottom:showPwSection?12:0}}>
+              {showPwSection ? "▲ Hide" : "🔒 Change password"}
+            </button>
+
+            {showPwSection && (
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 <input type="password" placeholder="New password (min 8 chars)" value={pw.n} onChange={e=>setPw(p=>({...p,n:e.target.value}))}
                   style={{padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
-                <input type="password" placeholder="Confirm password" value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))}
+                <input type="password" placeholder="Confirm new password" value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))}
                   style={{padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
                 {err && <p style={{color:"#DC2626",fontSize:12,margin:0}}>{err}</p>}
-                <div style={{display:"flex",gap:8,marginTop:4}}>
-                  <button onClick={()=>setShowPw(false)} style={{flex:1,padding:"9px 0",background:"#fff",color:"#94A3B8",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Cancel</button>
-                  <button onClick={save} disabled={loading} style={{flex:2,padding:"9px 0",background:loading?"#CBD5E1":"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-                    {loading ? "Saving..." : "Update"}
-                  </button>
-                </div>
+                {ok  && <p style={{color:"#16A34A",fontSize:12,margin:0,fontWeight:600}}>✓ Password updated!</p>}
+                <button onClick={savePw} disabled={loading}
+                  style={{padding:"9px 0",background:loading?"#CBD5E1":"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                  {loading ? "Updating…" : "Update password"}
+                </button>
               </div>
             )}
           </div>
