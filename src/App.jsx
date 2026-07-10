@@ -775,7 +775,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
             <span style={{fontSize:10,padding:"1px 6px",borderRadius:99,background:showTeam?"rgba(255,255,255,0.2)":C.ltnavy,color:showTeam?C.white:C.navy,fontWeight:700}}>{staffList.length}</span>
           </button>
           <div style={{width:1,height:22,background:"#E2E8F0"}}/>
-          <span style={{fontSize:12,color:C.muted}}>{profile?.org_name || ex?.company || "My Organisation"}</span>
+          <span style={{fontSize:12,color:C.muted}}>{profile?.org_name || "My Organisation"}</span>
           <UserMenu profile={profile}/>
         </div>
       </div>
