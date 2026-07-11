@@ -1266,6 +1266,8 @@ function VisitorList({eventId, refreshKey}) {
   const [search, setSearch]     = React.useState("");
   const [sortCol, setSortCol]   = React.useState("iei_score");
   const [sortDir, setSortDir]   = React.useState("desc");
+  const [page, setPage]         = React.useState(1);
+  const [perPage, setPerPage]   = React.useState(25);
 
   const TIER_COLORS = {T1:"#ef4444",T2:"#f97316",T3:"#3b82f6",T4:"#9ca3af"};
   const TIER_BG    = {T1:"#FEE2E2",T2:"#FEF3C7",T3:"#DBEAFE",T4:"#F1F5F9"};
@@ -1309,6 +1311,12 @@ function VisitorList({eventId, refreshKey}) {
     });
     return list;
   }, [contacts, tier, search, sortCol, sortDir]);
+
+  // Reset to page 1 when filter/search/sort changes
+  React.useEffect(() => { setPage(1); }, [tier, search, sortCol, sortDir]);
+
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paginated  = filtered.slice((page-1)*perPage, page*perPage);
 
   const toggleSort = (col) => {
     if(sortCol===col) setSortDir(d=>d==="asc"?"desc":"asc");
@@ -1390,11 +1398,11 @@ function VisitorList({eventId, refreshKey}) {
           <tbody>
             {filtered.length===0 ? (
               <tr><td colSpan={8} style={{padding:24,textAlign:"center",color:C.muted}}>No visitors match your filters.</td></tr>
-            ) : filtered.map((c,i) => (
+            ) : paginated.map((c,i) => (
               <tr key={c.id} style={{background:i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
                 <td style={{padding:"12px 14px"}}>
                   <div style={{fontWeight:700,color:C.navy,fontSize:13}}>{c.name||"—"}</div>
-                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{c.email||""}</div>
+
                 </td>
                 <td style={{padding:"12px 14px"}}>
                   <div style={{fontWeight:600,color:C.navy,fontSize:12}}>{c.company||"—"}</div>
@@ -1441,7 +1449,36 @@ function VisitorList({eventId, refreshKey}) {
           </tbody>
         </table>
         <div style={{padding:"8px 14px",background:"#F8FAFC",borderTop:"1px solid #E2E8F0",fontSize:10,color:C.muted,display:"flex",justifyContent:"space-between"}}>
-          <span>Showing {filtered.length} of {contacts.length} visitors</span>
+          <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+            <span style={{fontSize:11,color:C.muted}}>
+              Showing {Math.min((page-1)*perPage+1, filtered.length)}–{Math.min(page*perPage, filtered.length)} of {filtered.length} visitors
+            </span>
+            <select value={perPage} onChange={e=>{setPerPage(Number(e.target.value));setPage(1);}}
+              style={{fontSize:11,padding:"3px 8px",border:"1px solid #E2E8F0",borderRadius:6,fontFamily:F,color:C.navy,background:"#fff",cursor:"pointer"}}>
+              {[10,25,50,100].map(n=><option key={n} value={n}>{n} per page</option>)}
+            </select>
+            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              <button onClick={()=>setPage(1)} disabled={page===1}
+                style={{padding:"3px 8px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,cursor:page===1?"not-allowed":"pointer",background:page===1?"#F8FAFC":"#fff",color:page===1?C.muted:C.navy,fontFamily:F}}>
+                «
+              </button>
+              <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1}
+                style={{padding:"3px 8px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,cursor:page===1?"not-allowed":"pointer",background:page===1?"#F8FAFC":"#fff",color:page===1?C.muted:C.navy,fontFamily:F}}>
+                ‹ Prev
+              </button>
+              <span style={{fontSize:11,color:C.navy,fontWeight:600,padding:"0 4px"}}>
+                {page} / {totalPages||1}
+              </span>
+              <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page>=totalPages}
+                style={{padding:"3px 8px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,cursor:page>=totalPages?"not-allowed":"pointer",background:page>=totalPages?"#F8FAFC":"#fff",color:page>=totalPages?C.muted:C.navy,fontFamily:F}}>
+                Next ›
+              </button>
+              <button onClick={()=>setPage(totalPages)} disabled={page>=totalPages}
+                style={{padding:"3px 8px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,cursor:page>=totalPages?"not-allowed":"pointer",background:page>=totalPages?"#F8FAFC":"#fff",color:page>=totalPages?C.muted:C.navy,fontFamily:F}}>
+                »
+              </button>
+            </div>
+          </div>
           <span>{counts.T1||0} T1 · {counts.T2||0} T2 · {counts.T3||0} T3 · {counts.T4||0} T4</span>
         </div>
       </div>
