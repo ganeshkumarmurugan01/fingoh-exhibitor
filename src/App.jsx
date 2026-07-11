@@ -1806,8 +1806,38 @@ function AudienceUpload({ex, onNext}) {
           {/* ── LIVE REGISTRATION FEED ── */}
           {source==="registration" && (
             <div style={{padding:28}}>
-              <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>Connect to live registration system</p>
-              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>As visitors register through the organiser's platform or your own form, Fingoh ingests each record in real time — scoring, enriching, and alerting you to high-intent registrants as they appear.</p>
+              <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>Fingoh Registration Form</p>
+              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>Share this link with your target buyers. When they fill it out, Fingoh automatically scores their intent, updates your audience list, and alerts you to high-value registrants.</p>
+              {ex?.id && (
+                <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+                  <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>Your registration link</p>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <code style={{flex:1,fontSize:11,color:C.navy,background:"#fff",border:"1px solid #E2E8F0",borderRadius:6,padding:"8px 10px",wordBreak:"break-all"}}>
+                      {`${window.location.origin}?register=${ex.id}`}
+                    </code>
+                    <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}?register=${ex.id}`)}
+                      style={{padding:"8px 12px",background:C.navy,color:"#fff",border:"none",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>
+                      Copy link
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div style={{display:"flex",gap:10,marginBottom:24}}>
+                <button onClick={()=>ex?.id && window.open(`${window.location.origin}?register=${ex.id}`,"_blank")}
+                  style={{padding:"10px 20px",background:C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                  Preview form ↗
+                </button>
+              </div>
+              <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:"14px 16px",marginBottom:16}}>
+                <p style={{fontSize:12,fontWeight:700,color:"#1D4ED8",margin:"0 0 6px"}}>✦ What happens when someone registers</p>
+                <ul style={{fontSize:11,color:"#1E3A8A",margin:0,paddingLeft:16,lineHeight:2}}>
+                  <li>Matched against your existing audience by email</li>
+                  <li>Intent signals extracted (visit history, buying timeline, meeting request)</li>
+                  <li>IEI score updated with registration answers</li>
+                  <li>Preferred visit day added to your schedule view</li>
+                </ul>
+              </div>
+              <p style={{fontSize:11,color:C.muted,marginBottom:20}}>You can also connect third-party registration platforms below:</p>
               <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
                 {[
                   {name:"Eventbrite",     icon:"🎟️", tag:"Webhook"},
@@ -6774,6 +6804,406 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
   }, [])
 
   const [agentQueueCount, setAgentQueueCount] = useState(0)
+
+  // Registration page — public, no auth needed
+  const regParams = new URLSearchParams(window.location.search);
+  const regEventId = regParams.get("register");
+  if (regEventId) {
+    return <RegistrationPage eventId={regEventId}/>;
+  }
+
+// ═══════════════════════════════════════════════════════════════════
+// PUBLIC REGISTRATION PAGE
+// Accessible at: fingoh-exhibitor.vercel.app?register=EVENT_ID
+// No auth required — shareable link for exhibitors to send to buyers
+// ═══════════════════════════════════════════════════════════════════
+function RegistrationPage({ eventId }) {
+  const F = "'DM Sans', system-ui, sans-serif";
+  const navy = "#0D1B3E";
+
+  const [eventInfo, setEventInfo] = React.useState(null);
+  const [loading,   setLoading]   = React.useState(true);
+  const [step,      setStep]      = React.useState(1); // 1=details, 2=intent, 3=success
+  const [saving,    setSaving]    = React.useState(false);
+  const [error,     setError]     = React.useState("");
+  const [result,    setResult]    = React.useState(null);
+  const [fErrors,   setFErrors]   = React.useState({});
+
+  const [form, setForm] = React.useState({
+    name: "", email: "", company: "", job_title: "",
+    country: "", phone: "", city: "",
+    primary_reason: "", categories_interest: "", specific_product_interest: "",
+    visited_booth_last_year: null,
+    had_meeting_last_year: null,
+    is_existing_customer: null,
+    actively_sourcing: null,
+    purchase_timeline: null,
+    wants_meeting: null,
+    preferred_visit_day: null,
+  });
+
+  // Fetch event info on mount
+  React.useEffect(() => {
+    fetch(`/api/v1/audience/register/${eventId}/info`)
+      .then(r => r.json())
+      .then(data => { setEventInfo(data); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [eventId]);
+
+  const upd = (k, v) => {
+    setForm(f => ({ ...f, [k]: v }));
+    setFErrors(fe => ({ ...fe, [k]: null }));
+  };
+
+  const iS = {
+    width: "100%", padding: "10px 13px",
+    border: "1px solid #E2E8F0", borderRadius: 8,
+    fontSize: 13, fontFamily: F, boxSizing: "border-box",
+    outline: "none", background: "#fff", color: "#0F172A",
+  };
+  const lS = {
+    display: "block", fontSize: 11, fontWeight: 600,
+    color: "#64748B", marginBottom: 5,
+    textTransform: "uppercase", letterSpacing: .06,
+  };
+
+  const validateStep1 = () => {
+    const errs = {};
+    if (!form.name.trim())    errs.name    = "Name is required";
+    if (/\d/.test(form.name)) errs.name    = "Name should not contain numbers";
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRe.test(form.email))    errs.email   = "Enter a valid email address";
+    if (!form.company.trim()) errs.company = "Company is required";
+    if (!form.job_title.trim()) errs.job_title = "Job title is required";
+    setFErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    setSaving(true); setError("");
+    try {
+      const res = await fetch(`/api/v1/audience/register/${eventId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResult(data);
+        setStep(3);
+      } else {
+        setError(data.detail || "Registration failed. Please try again.");
+      }
+    } catch(e) {
+      setError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const YesNo = ({ label, field, extra }) => (
+    <div style={{ marginBottom: 18 }}>
+      <label style={lS}>{label}</label>
+      <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+        {[["yes", "✓  Yes", "#16A34A", "#F0FDF4", "#86EFAC"],
+          ["no",  "✗  No",  "#DC2626", "#FEF2F2", "#FECACA"],
+          ...(extra || [])
+        ].map(([val, lbl, tc, bg, bc]) => (
+          <button key={val} onClick={() => upd(field, val === form[field] ? null : val)}
+            style={{
+              flex: 1, padding: "10px 8px", borderRadius: 8,
+              border: `2px solid ${form[field] === val ? bc : "#E2E8F0"}`,
+              background: form[field] === val ? bg : "#fff",
+              color: form[field] === val ? tc : "#64748B",
+              fontFamily: F, fontSize: 12, fontWeight: 700, cursor: "pointer",
+            }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F, background: "#F8FAFC" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ width: 36, height: 36, border: "3px solid #E2E8F0", borderTopColor: navy, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 12px" }}/>
+        <p style={{ color: "#64748B", fontSize: 14 }}>Loading event details…</p>
+      </div>
+    </div>
+  );
+
+  if (!eventInfo) return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F, background: "#F8FAFC" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: navy }}>Event not found</h2>
+        <p style={{ color: "#64748B" }}>This registration link may be invalid or expired.</p>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F8FAFC", fontFamily: F }}>
+      {/* Header */}
+      <div style={{ background: `linear-gradient(135deg, ${navy} 0%, #1A2A5E 100%)`, padding: "24px 24px 32px" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+            <img src="/Fingoh_White.png" alt="Fingoh" style={{ height: 24 }} onError={e => e.target.style.display = "none"}/>
+          </div>
+          <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
+            {eventInfo.company}
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, margin: "0 0 4px" }}>
+            {eventInfo.name} · {eventInfo.venue}
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, margin: 0 }}>
+            {eventInfo.date_from} – {eventInfo.date_to}
+          </p>
+
+          {/* Progress steps */}
+          {step < 3 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20 }}>
+              {[["1", "Your Details"], ["2", "Visit Intent"]].map(([n, label], i) => {
+                const active = step === i + 1;
+                const done   = step > i + 1;
+                return (
+                  <React.Fragment key={n}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{
+                        width: 24, height: 24, borderRadius: "50%",
+                        background: done ? "#16A34A" : active ? "#fff" : "rgba(255,255,255,0.2)",
+                        color: done ? "#fff" : active ? navy : "rgba(255,255,255,0.5)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 700, flexShrink: 0,
+                      }}>
+                        {done ? "✓" : n}
+                      </div>
+                      <span style={{ fontSize: 11, color: active ? "#fff" : "rgba(255,255,255,0.5)", fontWeight: active ? 600 : 400 }}>
+                        {label}
+                      </span>
+                    </div>
+                    {i < 1 && <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.2)" }}/>}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Form */}
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px 48px" }}>
+
+        {/* ── Step 1: Details ── */}
+        {step === 1 && (
+          <div style={{ background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: navy, margin: "0 0 4px" }}>Your details</h2>
+            <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 20px" }}>Tell us about yourself so we can personalise your visit experience.</p>
+
+            {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#DC2626", marginBottom: 16 }}>{error}</div>}
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={lS}>Full name *</label>
+                <input value={form.name} onChange={e => upd("name", e.target.value)}
+                  placeholder="e.g. Ravi Kumar"
+                  style={{ ...iS, borderColor: fErrors.name ? "#DC2626" : "#E2E8F0" }}/>
+                {fErrors.name && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>{fErrors.name}</p>}
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={lS}>Work email *</label>
+                <input type="email" value={form.email} onChange={e => upd("email", e.target.value)}
+                  placeholder="e.g. ravi@tatamotors.com"
+                  style={{ ...iS, borderColor: fErrors.email ? "#DC2626" : "#E2E8F0" }}/>
+                {fErrors.email && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>{fErrors.email}</p>}
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={lS}>Company *</label>
+                <input value={form.company} onChange={e => upd("company", e.target.value)}
+                  placeholder="e.g. Tata Motors"
+                  style={{ ...iS, borderColor: fErrors.company ? "#DC2626" : "#E2E8F0" }}/>
+                {fErrors.company && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>{fErrors.company}</p>}
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={lS}>Job title *</label>
+                <input value={form.job_title} onChange={e => upd("job_title", e.target.value)}
+                  placeholder="e.g. Head of Electronics Sourcing"
+                  style={{ ...iS, borderColor: fErrors.job_title ? "#DC2626" : "#E2E8F0" }}/>
+                {fErrors.job_title && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>{fErrors.job_title}</p>}
+              </div>
+              <div>
+                <label style={lS}>Country</label>
+                <input value={form.country} onChange={e => upd("country", e.target.value)} placeholder="e.g. India" style={iS}/>
+              </div>
+              <div>
+                <label style={lS}>City</label>
+                <input value={form.city} onChange={e => upd("city", e.target.value)} placeholder="e.g. Mumbai" style={iS}/>
+              </div>
+              <div style={{ gridColumn: "span 2" }}>
+                <label style={lS}>Phone</label>
+                <input value={form.phone} onChange={e => upd("phone", e.target.value)} placeholder="e.g. +91 98765 43210" style={iS}/>
+              </div>
+            </div>
+
+            {/* Primary reason */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={lS}>Primary reason for visiting</label>
+              <select value={form.primary_reason} onChange={e => upd("primary_reason", e.target.value)}
+                style={{ ...iS, appearance: "none" }}>
+                <option value="">Select reason</option>
+                {["Sourcing new suppliers", "Evaluating technology", "Market research",
+                  "Networking", "Meeting existing suppliers", "Product evaluation", "Other"].map(r =>
+                  <option key={r} value={r}>{r}</option>
+                )}
+              </select>
+            </div>
+
+            {/* Categories */}
+            {eventInfo.categories?.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <label style={lS}>Product categories of interest</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                  {eventInfo.categories.map(cat => {
+                    const sel = (form.categories_interest || "").includes(cat);
+                    return (
+                      <button key={cat} onClick={() => {
+                        const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
+                        const next = sel ? cats.filter(c => c !== cat) : [...cats, cat];
+                        upd("categories_interest", next.join(", "));
+                      }} style={{
+                        padding: "6px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
+                        border: `1.5px solid ${sel ? navy : "#E2E8F0"}`,
+                        background: sel ? navy : "#fff", color: sel ? "#fff" : "#64748B",
+                        cursor: "pointer", fontFamily: F,
+                      }}>
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <button onClick={() => { if (validateStep1()) { setStep(2); window.scrollTo(0, 0); } }}
+              style={{ width: "100%", padding: "12px 0", background: navy, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F, marginTop: 8 }}>
+              Next — Tell us about your visit →
+            </button>
+          </div>
+        )}
+
+        {/* ── Step 2: Intent questions ── */}
+        {step === 2 && (
+          <div style={{ background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: navy, margin: "0 0 4px" }}>Your visit intent</h2>
+            <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 20px" }}>Help {eventInfo.company} prepare for your visit. This takes 60 seconds.</p>
+
+            {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#DC2626", marginBottom: 16 }}>{error}</div>}
+
+            <YesNo label={`Did you visit ${eventInfo.company}'s booth at a previous edition?`} field="visited_booth_last_year"/>
+            <YesNo label={`Did you have a meeting with ${eventInfo.company}'s team last year?`} field="had_meeting_last_year"/>
+            <YesNo label="Are you an existing customer?" field="is_existing_customer"
+              extra={[["evaluating", "🔄  Evaluating", "#D97706", "#FFFBEB", "#FCD34D"]]}/>
+            <YesNo label="Are you actively looking to source or procure?" field="actively_sourcing"/>
+
+            {/* Purchase timeline */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={lS}>Purchase / decision timeline</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 6 }}>
+                {[["<3months", "< 3 months"], ["3-6months", "3–6 months"], ["6-12months", "6–12 months"], ["no_plan", "No immediate plan"]].map(([val, lbl]) => (
+                  <button key={val} onClick={() => upd("purchase_timeline", val === form.purchase_timeline ? null : val)}
+                    style={{
+                      padding: "10px 8px", borderRadius: 8, fontSize: 12, fontWeight: form.purchase_timeline === val ? 700 : 400,
+                      border: `2px solid ${form.purchase_timeline === val ? navy : "#E2E8F0"}`,
+                      background: form.purchase_timeline === val ? navy : "#fff",
+                      color: form.purchase_timeline === val ? "#fff" : "#64748B",
+                      cursor: "pointer", fontFamily: F,
+                    }}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preferred visit day */}
+            {eventInfo.date_from && eventInfo.date_to && (
+              <div style={{ marginBottom: 18 }}>
+                <label style={lS}>Preferred visit day</label>
+                <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                  {(() => {
+                    const days = [];
+                    const start = new Date(eventInfo.date_from);
+                    const end   = new Date(eventInfo.date_to);
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                      days.push(new Date(d).toISOString().split("T")[0]);
+                    }
+                    return days.map(day => (
+                      <button key={day} onClick={() => upd("preferred_visit_day", day === form.preferred_visit_day ? null : day)}
+                        style={{
+                          padding: "8px 14px", borderRadius: 8, fontSize: 12, fontWeight: form.preferred_visit_day === day ? 700 : 400,
+                          border: `2px solid ${form.preferred_visit_day === day ? navy : "#E2E8F0"}`,
+                          background: form.preferred_visit_day === day ? navy : "#fff",
+                          color: form.preferred_visit_day === day ? "#fff" : "#64748B",
+                          cursor: "pointer", fontFamily: F,
+                        }}>
+                        {new Date(day).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" })}
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {/* Specific product interest */}
+            <div style={{ marginBottom: 18 }}>
+              <label style={lS}>Specific product or solution you're interested in</label>
+              <input value={form.specific_product_interest || ""} onChange={e => upd("specific_product_interest", e.target.value)}
+                placeholder={`e.g. ${eventInfo.product || "specific product area"}`}
+                style={iS}/>
+            </div>
+
+            <YesNo label={`Would you like to schedule a dedicated meeting with ${eventInfo.company}?`} field="wants_meeting"/>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button onClick={() => setStep(1)}
+                style={{ flex: 1, padding: "11px 0", background: "#fff", color: "#64748B", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
+                ← Back
+              </button>
+              <button onClick={handleSubmit} disabled={saving}
+                style={{ flex: 2, padding: "11px 0", background: saving ? "#CBD5E1" : "#16A34A", color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer", fontFamily: F, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                {saving ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.3)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>Registering…</> : "✓ Complete registration"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Success ── */}
+        {step === 3 && result && (
+          <div style={{ background: "#fff", borderRadius: 14, padding: 32, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", textAlign: "center" }}>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>✓</div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: navy, margin: "0 0 8px" }}>You're registered!</h2>
+            <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 20px", lineHeight: 1.6 }}>
+              {result.message}
+            </p>
+            {result.wants_meeting === "yes" && (
+              <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+                <p style={{ fontSize: 12, color: "#1D4ED8", margin: 0, fontWeight: 600 }}>
+                  📅 Meeting request noted — {result.exhibitor} will reach out to confirm a time
+                </p>
+              </div>
+            )}
+            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: "12px 16px" }}>
+              <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>
+                Powered by <strong style={{ color: navy }}>Fingoh</strong> · Event Intelligence Platform
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 
   // Meeting response page — public, no auth needed
   if (window.location.pathname === "/meeting") {
