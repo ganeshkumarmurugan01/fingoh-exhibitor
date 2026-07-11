@@ -1384,6 +1384,7 @@ function VisitorList({eventId, refreshKey}) {
               <SortTh label="Onsite IEI" col="onsite_iei_score"/>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Tier</th>
               <SortTh label="Attend Prob" col="reg_prob"/>
+              <th style={{padding:"10px 14px",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,textAlign:"left"}}>Registered</th>
             </tr>
           </thead>
           <tbody>
@@ -1428,6 +1429,12 @@ function VisitorList({eventId, refreshKey}) {
                       {(c.reg_prob*100).toFixed(0)}%
                     </span>
                   ):"—"}
+                  </td>
+                  <td style={{padding:"12px 14px"}}>
+                    {c.raw_data?.registration_form_completed
+                      ? <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#DCFCE7",color:"#14532D",fontWeight:700}}>✓ Yes</span>
+                      : <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#FEE2E2",color:"#991B1B",fontWeight:700}}>✗ No</span>
+                    }
                 </td>
               </tr>
             ))}
@@ -2326,6 +2333,7 @@ function IEIAnalysis({ex}) {
               return "JUNIOR";
             })(),
             icp:      c.iei_score>=75?"Perfect":c.iei_score>=50?"Good":c.iei_score>=25?"Partial":"Poor",
+            raw_data: c.raw_data || null,
             reason:   c.raw_data?.primary_reason || "",
             timeline: c.raw_data?.timeline || "",
             cats:     c.raw_data?.categories_interest ? c.raw_data.categories_interest.split(",").map(s=>s.trim()) : [],
@@ -6943,8 +6951,14 @@ function RegistrationPage({ eventId }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setResult(data);
-        setStep(3);
+        if (data.already_registered) {
+          // Already registered — show friendly message on step 3
+          setResult({...data, already_registered: true});
+          setStep(3);
+        } else {
+          setResult(data);
+          setStep(3);
+        }
         // Clear saved form data after successful submission
         try {
           sessionStorage.removeItem(`reg_form_${eventId}`);
@@ -7240,8 +7254,12 @@ function RegistrationPage({ eventId }) {
         {/* ── Step 3: Success ── */}
         {step === 3 && result && (
           <div style={{ background: "#fff", borderRadius: 14, padding: 32, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", textAlign: "center" }}>
-            <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>✓</div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: navy, margin: "0 0 8px" }}>You're registered!</h2>
+            <div style={{ width: 64, height: 64, borderRadius: "50%", background: result.already_registered ? "#FEF9C3" : "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>
+              {result.already_registered ? "ℹ️" : "✓"}
+            </div>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: navy, margin: "0 0 8px" }}>
+              {result.already_registered ? "Already registered!" : "You're registered!"}
+            </h2>
             <p style={{ fontSize: 13, color: "#64748B", margin: "0 0 20px", lineHeight: 1.6 }}>
               {result.message}
             </p>
