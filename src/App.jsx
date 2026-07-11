@@ -6884,10 +6884,32 @@ function RegistrationPage({ eventId }) {
   const [eventInfo, setEventInfo] = React.useState(null);
   const [loading,   setLoading]   = React.useState(true);
   const [step,      setStep]      = React.useState(1); // 1=details, 2=intent, 3=success
-  const [saving,    setSaving]    = React.useState(false);
-  const [error,     setError]     = React.useState("");
-  const [result,    setResult]    = React.useState(null);
-  const [fErrors,   setFErrors]   = React.useState({});
+  const [saving,      setSaving]      = React.useState(false);
+  const [error,       setError]       = React.useState("");
+  const [result,      setResult]      = React.useState(null);
+  const [fErrors,     setFErrors]     = React.useState({});
+  const [emailChecking, setEmailChecking] = React.useState(false);
+  const [emailStatus,   setEmailStatus]   = React.useState(null); // null | "new" | "registered" | "exists"
+  
+  const checkEmail = async (email) => {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return;
+    setEmailChecking(true);
+    try {
+      const res = await fetch(`/api/v1/audience/register/${eventId}/check-email?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.already_registered) {
+        setEmailStatus("registered");
+        setFErrors(fe => ({...fe, email: `${data.name || "This person"} is already registered for this event.`}));
+      } else if (data.exists) {
+        setEmailStatus("exists");
+        setFErrors(fe => ({...fe, email: null})); // In our system but not registered — fine
+      } else {
+        setEmailStatus("new");
+        setFErrors(fe => ({...fe, email: null}));
+      }
+    } catch(e) { /* silent fail */ }
+    setEmailChecking(false);
+  };
 
   const FORM_KEY = `reg_form_${eventId}`;
   const STEP_KEY = `reg_step_${eventId}`;
@@ -6972,6 +6994,7 @@ function RegistrationPage({ eventId }) {
     if (/\d/.test(form.name)) errs.name    = "Name should not contain numbers";
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!emailRe.test(form.email))    errs.email   = "Enter a valid email address";
+    if (emailStatus === "registered") errs.email   = "This email is already registered for this event";
     if (!form.company.trim()) errs.company = "Company is required";
     if (!form.job_title.trim()) errs.job_title = "Job title is required";
     setFErrors(errs);
@@ -7124,10 +7147,18 @@ function RegistrationPage({ eventId }) {
               </div>
               <div style={{ gridColumn: "span 2" }}>
                 <label style={lS}>Work email *</label>
-                <input type="email" value={form.email} onChange={e => upd("email", e.target.value)}
-                  placeholder="e.g. ravi@tatamotors.com"
-                  style={{ ...iS, borderColor: fErrors.email ? "#DC2626" : "#E2E8F0" }}/>
-                {fErrors.email && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>{fErrors.email}</p>}
+                <div style={{ position: "relative" }}>
+                  <input type="email" value={form.email}
+                    onChange={e => { upd("email", e.target.value); setEmailStatus(null); setFErrors(fe=>({...fe,email:null})); }}
+                    onBlur={e => checkEmail(e.target.value)}
+                    placeholder="e.g. ravi@tatamotors.com"
+                    style={{ ...iS, borderColor: fErrors.email ? "#DC2626" : emailStatus === "new" ? "#16A34A" : "#E2E8F0", paddingRight: emailChecking ? 36 : 13 }}/>
+                  {emailChecking && (
+                    <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, border: "2px solid #E2E8F0", borderTopColor: "#3B82F6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>
+                  )}
+                </div>
+                {fErrors.email && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>⚠ {fErrors.email}</p>}
+                {emailStatus === "new" && !fErrors.email && <p style={{ color: "#16A34A", fontSize: 11, margin: "3px 0 0" }}>✓ Email verified — not yet registered</p>}
               </div>
               <div style={{ gridColumn: "span 2" }}>
                 <label style={lS}>Company *</label>
