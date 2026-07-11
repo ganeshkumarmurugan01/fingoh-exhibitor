@@ -6857,6 +6857,7 @@ function RegistrationPage({ eventId }) {
   React.useEffect(() => {
     try {
       const savedStep = sessionStorage.getItem(STEP_KEY);
+      console.log("[Registration] Restored step:", savedStep, "form:", sessionStorage.getItem(FORM_KEY)?.slice(0,50));
       if (savedStep && step === 1) setStep(parseInt(savedStep));
     } catch {}
   }, []);
