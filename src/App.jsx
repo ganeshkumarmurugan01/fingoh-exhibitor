@@ -1401,7 +1401,15 @@ function VisitorList({eventId, refreshKey}) {
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.designation||"—"}</td>
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{[c.city,c.country].filter(Boolean).join(", ")||"—"}</td>
                 <td style={{padding:"12px 14px"}}>
-                  <span style={{fontSize:16,fontWeight:800,color:TIER_COLORS[c.iei_tier]||C.muted}}>{c.iei_score?.toFixed(1)||"—"}</span>
+                  <span style={{fontSize:16,fontWeight:800,color:
+                    c.prev_iei_score == null ? (TIER_COLORS[c.iei_tier]||C.muted) :
+                    c.iei_score > c.prev_iei_score ? "#16A34A" :
+                    c.iei_score < c.prev_iei_score ? "#DC2626" : "#94A3B8"
+                  }}>
+                    {c.iei_score?.toFixed(1)||"—"}
+                    {c.prev_iei_score != null && c.iei_score > c.prev_iei_score && <span style={{fontSize:10}}> ↑</span>}
+                    {c.prev_iei_score != null && c.iei_score < c.prev_iei_score && <span style={{fontSize:10}}> ↓</span>}
+                  </span>
                 </td>
                 <td style={{padding:"12px 14px"}}>
                   {c.onsite_iei_score
@@ -2282,6 +2290,8 @@ function IEIAnalysis({ex}) {
   const [lastRefresh, setLastRefresh] = useState(null);
   const [refreshing, setRefreshing]   = useState(false);
 
+  const prevScoresRef = React.useRef({});
+
   const loadContacts = React.useCallback((showRefreshing=false)=>{
     if (!ex?.id) return;
     if (showRefreshing) setRefreshing(true);
@@ -3138,10 +3148,15 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         table: "audience_contacts",
         filter: `event_id=eq.${ex.id}`,
       }, (payload) => {
-        // Update the contact's onsite score instantly when Staff App logs signal
-        setContacts(prev => prev.map(c =>
-          c.id === payload.new.id ? {...c, ...payload.new} : c
-        ));
+        // Update contact scores in-place — track prev score for delta display
+        setContacts(prev => prev.map(c => {
+          if (c.id !== payload.new.id) return c;
+          return {
+            ...c,
+            ...payload.new,
+            prev_iei_score: c.iei_score ?? null,
+          };
+        }));
         setLastRefresh(new Date());
       })
       .on("postgres_changes", {
@@ -3150,9 +3165,9 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         table: "meeting_requests",
         filter: `event_id=eq.${ex.id}`,
       }, () => {
-        // Meeting status changed (visitor accept/decline, or staff marked
-        // complete) — refetch contacts so meeting_status/meeting stay fresh.
-        loadData();
+        // Debounce — avoid flicker on rapid updates
+        clearTimeout(window._meetingReloadTimer);
+        window._meetingReloadTimer = setTimeout(() => loadData(), 1500);
       })
       .subscribe();
 
@@ -6857,7 +6872,7 @@ function RegistrationPage({ eventId }) {
   React.useEffect(() => {
     try {
       const savedStep = sessionStorage.getItem(STEP_KEY);
-      console.log("[Registration] Restored step:", savedStep, "form:", sessionStorage.getItem(FORM_KEY)?.slice(0,50));
+
       if (savedStep && step === 1) setStep(parseInt(savedStep));
     } catch {}
   }, []);
@@ -6934,6 +6949,7 @@ function RegistrationPage({ eventId }) {
         try {
           sessionStorage.removeItem(`reg_form_${eventId}`);
           sessionStorage.removeItem(`reg_step_${eventId}`);
+          sessionStorage.removeItem(`reg_info_${eventId}`);
         } catch {}
       } else {
         setError(data.detail || "Registration failed. Please try again.");
@@ -7236,11 +7252,29 @@ function RegistrationPage({ eventId }) {
                 </p>
               </div>
             )}
-            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: "12px 16px" }}>
+            <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
               <p style={{ fontSize: 11, color: "#94A3B8", margin: 0 }}>
                 Powered by <strong style={{ color: navy }}>Fingoh</strong> · Event Intelligence Platform
               </p>
             </div>
+            <button onClick={() => {
+              try {
+                sessionStorage.removeItem(`reg_form_${eventId}`);
+                sessionStorage.removeItem(`reg_step_${eventId}`);
+              } catch {}
+              setStep(1);
+              setResult(null);
+              setForm({
+                name: "", email: "", company: "", job_title: "",
+                country: "", phone: "", city: "",
+                primary_reason: "", categories_interest: "", specific_product_interest: "",
+                visited_booth_last_year: null, had_meeting_last_year: null,
+                is_existing_customer: null, actively_sourcing: null,
+                purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
+              });
+            }} style={{ width: "100%", padding: "10px 0", background: "#fff", color: navy, border: `1px solid ${navy}`, borderRadius: 9, fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
+              Register another person
+            </button>
           </div>
         )}
       </div>
