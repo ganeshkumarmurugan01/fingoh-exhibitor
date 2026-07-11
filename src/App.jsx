@@ -6829,18 +6829,47 @@ function RegistrationPage({ eventId }) {
   const [result,    setResult]    = React.useState(null);
   const [fErrors,   setFErrors]   = React.useState({});
 
-  const [form, setForm] = React.useState({
-    name: "", email: "", company: "", job_title: "",
-    country: "", phone: "", city: "",
-    primary_reason: "", categories_interest: "", specific_product_interest: "",
-    visited_booth_last_year: null,
-    had_meeting_last_year: null,
-    is_existing_customer: null,
-    actively_sourcing: null,
-    purchase_timeline: null,
-    wants_meeting: null,
-    preferred_visit_day: null,
+  const FORM_KEY = `reg_form_${eventId}`;
+  const STEP_KEY = `reg_step_${eventId}`;
+
+  const [form, setForm] = React.useState(() => {
+    try {
+      const saved = sessionStorage.getItem(FORM_KEY);
+      return saved ? JSON.parse(saved) : {
+        name: "", email: "", company: "", job_title: "",
+        country: "", phone: "", city: "",
+        primary_reason: "", categories_interest: "", specific_product_interest: "",
+        visited_booth_last_year: null, had_meeting_last_year: null,
+        is_existing_customer: null, actively_sourcing: null,
+        purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
+      };
+    } catch { return {
+      name: "", email: "", company: "", job_title: "",
+      country: "", phone: "", city: "",
+      primary_reason: "", categories_interest: "", specific_product_interest: "",
+      visited_booth_last_year: null, had_meeting_last_year: null,
+      is_existing_customer: null, actively_sourcing: null,
+      purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
+    }; }
   });
+
+  // Restore step from sessionStorage
+  React.useEffect(() => {
+    try {
+      const savedStep = sessionStorage.getItem(STEP_KEY);
+      if (savedStep && step === 1) setStep(parseInt(savedStep));
+    } catch {}
+  }, []);
+
+  // Persist form to sessionStorage on every change
+  React.useEffect(() => {
+    try { sessionStorage.setItem(FORM_KEY, JSON.stringify(form)); } catch {}
+  }, [form]);
+
+  // Persist step
+  React.useEffect(() => {
+    try { sessionStorage.setItem(STEP_KEY, String(step)); } catch {}
+  }, [step]);
 
   // Fetch event info on mount — cache in sessionStorage to avoid re-fetching
   React.useEffect(() => {
@@ -6900,6 +6929,11 @@ function RegistrationPage({ eventId }) {
       if (res.ok) {
         setResult(data);
         setStep(3);
+        // Clear saved form data after successful submission
+        try {
+          sessionStorage.removeItem(`reg_form_${eventId}`);
+          sessionStorage.removeItem(`reg_step_${eventId}`);
+        } catch {}
       } else {
         setError(data.detail || "Registration failed. Please try again.");
       }
