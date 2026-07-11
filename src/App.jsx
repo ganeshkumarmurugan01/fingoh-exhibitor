@@ -6842,11 +6842,20 @@ function RegistrationPage({ eventId }) {
     preferred_visit_day: null,
   });
 
-  // Fetch event info on mount
+  // Fetch event info on mount — cache in sessionStorage to avoid re-fetching
   React.useEffect(() => {
+    const cacheKey = `reg_info_${eventId}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      try { setEventInfo(JSON.parse(cached)); setLoading(false); return; } catch {}
+    }
     fetch(`/api/v1/audience/register/${eventId}/info`)
       .then(r => r.json())
-      .then(data => { setEventInfo(data); setLoading(false); })
+      .then(data => {
+        setEventInfo(data);
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
   }, [eventId]);
 
