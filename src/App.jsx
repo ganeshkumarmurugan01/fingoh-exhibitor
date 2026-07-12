@@ -2170,7 +2170,7 @@ function MeetingsScreen({ex}) {
                   <p style={{fontSize:10,color:C.muted2,margin:0}}>{p.country}</p>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:5}}>
-                  <span style={{fontSize:14,fontWeight:800,color:p.iei_tier==="T1"?C.red:p.iei_tier==="T2"?C.yellow:C.blue}}>{Math.round(p.iei_score)}</span>
+                  <span style={{fontSize:14,fontWeight:800,color:p.iei_tier==="T1"?C.red:p.iei_tier==="T2"?C.yellow:C.blue}}>{p.iei_score!=null?p.iei_score.toFixed(1):"—"}</span>
                   <span style={{fontSize:9,padding:"1px 5px",borderRadius:99,background:p.iei_tier==="T1"?"#FEE2E2":p.iei_tier==="T2"?"#FEF3C7":"#DBEAFE",color:p.iei_tier==="T1"?"#ef4444":p.iei_tier==="T2"?"#f97316":C.blue,fontWeight:700}}>{p.iei_tier}</span>
                 </div>
                 <div>
@@ -2388,9 +2388,9 @@ function IEIAnalysis({ex}) {
             title:    c.designation || "—",
             country:  c.country || "—",
             ieiTier:  c.iei_tier || "T3",
-            ieiScore: Math.round(c.iei_score || 0),
+            ieiScore: c.iei_score ? parseFloat(c.iei_score.toFixed(1)) : 0,
             tier:     c.iei_tier || "T3",
-            score:    Math.round(c.iei_score || 0),
+            score:    c.iei_score ? parseFloat(c.iei_score.toFixed(1)) : 0,
             role:     (() => {
               const t = (c.designation||"").toLowerCase();
               if (t.includes("ceo")||t.includes("cto")||t.includes("chief")||t.includes("president")) return "EXECUTIVE";
@@ -2472,8 +2472,8 @@ function IEIAnalysis({ex}) {
             ...c,
             onsite_iei_score: updated.onsite_iei_score || null,
             onsite_iei_tier:  updated.onsite_iei_tier  || null,
-            ieiScore: Math.round(updated.iei_score || c.ieiScore),
-            score:    Math.round(updated.onsite_iei_score || updated.iei_score || c.score),
+            ieiScore: updated.iei_score ? parseFloat(updated.iei_score.toFixed(1)) : c.ieiScore,
+            score:    updated.onsite_iei_score ? parseFloat(updated.onsite_iei_score.toFixed(1)) : updated.iei_score ? parseFloat(updated.iei_score.toFixed(1)) : c.score,
           };
         }));
         setLastRefresh(new Date());
@@ -3285,12 +3285,12 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       name:      c.name || c.email,
       title:     c.designation || "—",
       company:   c.company || "—",
-      ieiScore:  Math.round(c.iei_score || 0),
+      ieiScore:  c.iei_score ? parseFloat(c.iei_score.toFixed(1)) : 0,
       ieiTier:   c.iei_tier || "T3",
       liveScore: liveScore ? Math.round(liveScore) : null,
       liveTier:  liveTier,
       tier:      liveTierT,
-      score:     liveScore ? Math.round(liveScore) : Math.round(c.iei_score||0),
+      score:     liveScore ? parseFloat(liveScore.toFixed(1)) : c.iei_score ? parseFloat(c.iei_score.toFixed(1)) : 0,
       staffName: latestSig?.staff_name || c.meeting?.requested_by_name || null,
       lastSig:   lastSignal,
       time:      lastTime,
