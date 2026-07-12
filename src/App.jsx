@@ -1285,14 +1285,28 @@ function VisitorList({eventId, refreshKey}) {
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          const isFirstLoad = Object.keys(baselineScores.current).length === 0;
-          if (isFirstLoad) {
-            data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+          const sessionKey = `baseline_${eventId}`;
+          const hasBaseline = Object.keys(baselineScores.current).length > 0;
+          if (!hasBaseline) {
+            try {
+              const saved = sessionStorage.getItem(sessionKey);
+              if (saved) {
+                baselineScores.current = JSON.parse(saved);
+              } else {
+                data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+                sessionStorage.setItem(sessionKey, JSON.stringify(baselineScores.current));
+              }
+            } catch(e) {
+              data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+            }
           }
-          setContacts(data.map(c => ({
-            ...c,
-            prev_iei_score: isFirstLoad ? null : (baselineScores.current[c.id] ?? null),
-          })));
+          setContacts(data.map(c => {
+            const baseline = baselineScores.current[c.id];
+            return {
+              ...c,
+              prev_iei_score: (baseline !== undefined && baseline !== c.iei_score) ? baseline : null,
+            };
+          }));
         } else {
           setContacts([]);
         }
@@ -4349,14 +4363,28 @@ function LeadExport({ex}) {
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          const isFirstLoad = Object.keys(baselineScores.current).length === 0;
-          if (isFirstLoad) {
-            data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+          const sessionKey = `baseline_${eventId}`;
+          const hasBaseline = Object.keys(baselineScores.current).length > 0;
+          if (!hasBaseline) {
+            try {
+              const saved = sessionStorage.getItem(sessionKey);
+              if (saved) {
+                baselineScores.current = JSON.parse(saved);
+              } else {
+                data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+                sessionStorage.setItem(sessionKey, JSON.stringify(baselineScores.current));
+              }
+            } catch(e) {
+              data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+            }
           }
-          setContacts(data.map(c => ({
-            ...c,
-            prev_iei_score: isFirstLoad ? null : (baselineScores.current[c.id] ?? null),
-          })));
+          setContacts(data.map(c => {
+            const baseline = baselineScores.current[c.id];
+            return {
+              ...c,
+              prev_iei_score: (baseline !== undefined && baseline !== c.iei_score) ? baseline : null,
+            };
+          }));
         } else {
           setContacts([]);
         }
@@ -4577,14 +4605,28 @@ function PredictedFunnel({ex}) {
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          const isFirstLoad = Object.keys(baselineScores.current).length === 0;
-          if (isFirstLoad) {
-            data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+          const sessionKey = `baseline_${eventId}`;
+          const hasBaseline = Object.keys(baselineScores.current).length > 0;
+          if (!hasBaseline) {
+            try {
+              const saved = sessionStorage.getItem(sessionKey);
+              if (saved) {
+                baselineScores.current = JSON.parse(saved);
+              } else {
+                data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+                sessionStorage.setItem(sessionKey, JSON.stringify(baselineScores.current));
+              }
+            } catch(e) {
+              data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+            }
           }
-          setContacts(data.map(c => ({
-            ...c,
-            prev_iei_score: isFirstLoad ? null : (baselineScores.current[c.id] ?? null),
-          })));
+          setContacts(data.map(c => {
+            const baseline = baselineScores.current[c.id];
+            return {
+              ...c,
+              prev_iei_score: (baseline !== undefined && baseline !== c.iei_score) ? baseline : null,
+            };
+          }));
         } else {
           setContacts([]);
         }
