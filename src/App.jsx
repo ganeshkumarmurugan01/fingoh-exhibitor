@@ -1439,14 +1439,14 @@ function VisitorList({eventId, refreshKey}) {
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.designation||"—"}</td>
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{[c.city,c.country].filter(Boolean).join(", ")||"—"}</td>
                 <td style={{padding:"12px 14px"}}>
-                  <span style={{fontSize:16,fontWeight:800,color:
+                  <span style={{fontSize:16,fontWeight:800,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:2,color:
                     c.prev_iei_score == null ? (TIER_COLORS[c.iei_tier]||C.muted) :
                     c.iei_score > c.prev_iei_score ? "#16A34A" :
                     c.iei_score < c.prev_iei_score ? "#DC2626" : "#94A3B8"
                   }}>
                     {c.iei_score?.toFixed(1)||"—"}
-                    {c.prev_iei_score != null && c.iei_score > c.prev_iei_score && <span style={{fontSize:10}}> ↑</span>}
-                    {c.prev_iei_score != null && c.iei_score < c.prev_iei_score && <span style={{fontSize:10}}> ↓</span>}
+                    {c.prev_iei_score != null && c.iei_score > c.prev_iei_score && <span style={{fontSize:10}}>↑</span>}
+                    {c.prev_iei_score != null && c.iei_score < c.prev_iei_score && <span style={{fontSize:10}}>↓</span>}
                   </span>
                 </td>
                 <td style={{padding:"12px 14px"}}>
