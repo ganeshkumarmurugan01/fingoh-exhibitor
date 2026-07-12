@@ -2013,50 +2013,38 @@ function AudienceUpload({ex, onNext}) {
 // Claude-powered Meeting Match Detail Panel
 // ═══════════════════════════════════════════════════════════════════
 function MatchDetailPanel({p, ex, onClose, openModal}) {
-  const [analysis, setAnalysis] = React.useState(null);
-  const [loading,  setLoading]  = React.useState(true);
+  const [analysis, setAnalysis] = React.useState(
+    // Pre-load from cache immediately — no button needed if already analysed
+    p.cached_analysis ? {...p.cached_analysis, cached_at: p.cached_analysed_at, from_cache: true} : null
+  );
+  const [loading, setLoading] = React.useState(false);
 
-  const [forceRefresh, setForceRefresh] = React.useState(false);
-
-  // Pre-load from cached analysis if available
-  React.useEffect(()=>{
-    if (p.cached_analysis && !forceRefresh) {
-      setAnalysis({...p.cached_analysis, cached_at: p.cached_analysed_at, from_cache: true});
-      setLoading(false);
-      return;
+  const runAnalysis = async (forceRefresh=false) => {
+    setLoading(true);
+    setAnalysis(null);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      const token   = session?.access_token || "";
+      const res = await fetch("/api/proxy?slug=v1/meetings/match-analysis", {
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body: JSON.stringify({ prospect: p, exhibitor: ex, force_refresh: forceRefresh })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setAnalysis(await res.json());
+    } catch(e) {
+      setAnalysis({
+        intentAlignment:"MED",
+        alignmentSummary:"Unable to generate analysis. Check API connection.",
+        matchFactors:[],
+        redFlags:[],
+        talkingPoints:[],
+        recommendation:"Worth exploring",
+        recommendationReason:"Manual review recommended."
+      });
     }
-    const run = async () => {
-      setLoading(true);
-      try {
-        const icpRoles    = (ex.icpRole   ||[]).join(", ") || "Not specified";
-        const icpSizes    = (ex.icpSize   ||[]).join(", ") || "Not specified";
-        const icpReasons  = (ex.icpReason ||[]).join(", ") || "Not specified";
-
-        // Call backend — it holds the Anthropic API key
-        const session = (await supabase.auth.getSession()).data.session;
-        const token   = session?.access_token || "";
-        const res = await fetch("/api/proxy?slug=v1/meetings/match-analysis", {
-          method:"POST",
-          headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
-          body: JSON.stringify({ prospect: p, exhibitor: ex, force_refresh: forceRefresh })
-        });
-        if (!res.ok) throw new Error(await res.text());
-        setAnalysis(await res.json());
-      } catch(e) {
-        setAnalysis({
-          intentAlignment:"MED",
-          alignmentSummary:"Unable to generate analysis. Check API connection.",
-          matchFactors:[],
-          redFlags:[],
-          talkingPoints:[],
-          recommendation:"Worth exploring",
-          recommendationReason:"Manual review recommended."
-        });
-      }
-      setLoading(false);
-    };
-    run();
-  },[p.contact_id, forceRefresh]);
+    setLoading(false);
+  };
 
   const prob       = Math.round((p.meeting_prob||0)*100);
   const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
@@ -2101,7 +2089,7 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
           </span>
           <button
             disabled={loading}
-            onClick={()=>{setAnalysis(null);setLoading(true);setForceRefresh(r=>!r);}}
+            onClick={()=>runAnalysis(true)}
             style={{fontSize:9,padding:"3px 10px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",color:C.white,borderRadius:5,cursor:loading?"not-allowed":"pointer",fontFamily:F,opacity:loading?0.5:1}}>
             ↺ Re-analyse
           </button>
@@ -2110,13 +2098,31 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
 
       {/* Scrollable body */}
       <div style={{overflowY:"auto",flex:1}}>
-        {loading ? (
+        {/* ── Not yet analysed ── */}
+        {!loading && !analysis && (
           <div style={{padding:32,textAlign:"center"}}>
-            <div style={{fontSize:24,marginBottom:8}}>🔍</div>
+            <div style={{fontSize:28,marginBottom:10}}>🔍</div>
+            <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:"0 0 6px"}}>Intent match not analysed</p>
+            <p style={{fontSize:11,color:C.muted,margin:"0 0 20px",lineHeight:1.5}}>
+              Click Analyse to compare this visitor's profile and intent against your ICP using the IEI framework.
+            </p>
+            <button onClick={()=>runAnalysis(false)}
+              style={{padding:"10px 28px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+              🔍 Analyse
+            </button>
+          </div>
+        )}
+
+        {/* ── Loading ── */}
+        {loading && (
+          <div style={{padding:32,textAlign:"center"}}>
+            <div style={{fontSize:24,marginBottom:8,animation:"spin 1s linear infinite",display:"inline-block"}}>⟳</div>
             <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:"0 0 4px"}}>Analysing intent match…</p>
             <p style={{fontSize:11,color:C.muted,margin:0}}>IEI searching visitor profile against your ICP</p>
           </div>
-        ) : analysis ? (<>
+        )}
+
+        {!loading && analysis && (<>
 
           {/* Recommendation banner */}
           <div style={{padding:"10px 16px",background:recBg(analysis.recommendation),borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:8}}>
@@ -2178,7 +2184,7 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
             </div>
           )}
 
-        </>) : null}
+        </>)}
 
         {/* Action */}
         <div style={{padding:"12px 16px"}}>
