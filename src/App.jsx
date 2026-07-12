@@ -1260,14 +1260,15 @@ function ManualEntryForm({eventId, onSaved}) {
 }
 
 function VisitorList({eventId, refreshKey}) {
-  const [contacts, setContacts] = React.useState([]);
-  const [loading, setLoading]   = React.useState(true);
-  const [tier, setTier]         = React.useState("All");
-  const [search, setSearch]     = React.useState("");
-  const [sortCol, setSortCol]   = React.useState("iei_score");
-  const [sortDir, setSortDir]   = React.useState("desc");
-  const [page, setPage]         = React.useState(1);
-  const [perPage, setPerPage]   = React.useState(25);
+  const [contacts, setContacts]     = React.useState([]);
+  const [loading, setLoading]       = React.useState(true);
+  const [tier, setTier]             = React.useState("All");
+  const [search, setSearch]         = React.useState("");
+  const [sortCol, setSortCol]       = React.useState("iei_score");
+  const [sortDir, setSortDir]       = React.useState("desc");
+  const [page, setPage]             = React.useState(1);
+  const [perPage, setPerPage]       = React.useState(25);
+  const baselineScores              = React.useRef({});  // stores scores at load time
 
   const TIER_COLORS = {T1:"#ef4444",T2:"#f97316",T3:"#3b82f6",T4:"#9ca3af"};
   const TIER_BG    = {T1:"#FEE2E2",T2:"#FEF3C7",T3:"#DBEAFE",T4:"#F1F5F9"};
@@ -1282,7 +1283,21 @@ function VisitorList({eventId, refreshKey}) {
         headers: { "x-fingoh-auth": `Bearer ${token}` }
       })
       .then(r => r.json())
-      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoading(false); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          const isFirstLoad = Object.keys(baselineScores.current).length === 0;
+          if (isFirstLoad) {
+            data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+          }
+          setContacts(data.map(c => ({
+            ...c,
+            prev_iei_score: isFirstLoad ? null : (baselineScores.current[c.id] ?? null),
+          })));
+        } else {
+          setContacts([]);
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
     });
   }, [eventId, refreshKey]);
@@ -4332,7 +4347,21 @@ function LeadExport({ex}) {
         headers: { "x-fingoh-auth": `Bearer ${token}` }
       })
       .then(r => r.json())
-      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoading(false); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          const isFirstLoad = Object.keys(baselineScores.current).length === 0;
+          if (isFirstLoad) {
+            data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+          }
+          setContacts(data.map(c => ({
+            ...c,
+            prev_iei_score: isFirstLoad ? null : (baselineScores.current[c.id] ?? null),
+          })));
+        } else {
+          setContacts([]);
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
     });
   }, [ex?.id]);
@@ -4546,7 +4575,21 @@ function PredictedFunnel({ex}) {
         headers: { "x-fingoh-auth": `Bearer ${token}` }
       })
       .then(r => r.json())
-      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoading(false); })
+      .then(data => {
+        if (Array.isArray(data)) {
+          const isFirstLoad = Object.keys(baselineScores.current).length === 0;
+          if (isFirstLoad) {
+            data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+          }
+          setContacts(data.map(c => ({
+            ...c,
+            prev_iei_score: isFirstLoad ? null : (baselineScores.current[c.id] ?? null),
+          })));
+        } else {
+          setContacts([]);
+        }
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
     });
   }, [ex?.id]);
