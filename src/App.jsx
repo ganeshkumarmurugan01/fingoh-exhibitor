@@ -2092,7 +2092,7 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
           <div style={{padding:32,textAlign:"center"}}>
             <div style={{fontSize:24,marginBottom:8}}>🔍</div>
             <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:"0 0 4px"}}>Analysing intent match…</p>
-            <p style={{fontSize:11,color:C.muted,margin:0}}>Claude is comparing visitor profile against your ICP</p>
+            <p style={{fontSize:11,color:C.muted,margin:0}}>IEI searching visitor profile against your ICP</p>
           </div>
         ) : analysis ? (<>
 
