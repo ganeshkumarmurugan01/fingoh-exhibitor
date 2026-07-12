@@ -2960,7 +2960,7 @@ function IEIAnalysis({ex}) {
             <span style={{fontSize:11,color:C.muted2}}>{all.length} total</span>
           </div>
           <div style={{padding:"7px 10px",borderBottom:"1px solid #F1F5F9",display:"flex",gap:4}}>
-            {["All","Hot","Warm","Cool","Cold"].map(f=>(
+            {["All","T1","T2","T3","T4"].map(f=>(
               <button key={f} onClick={()=>setFilter(f)} style={{padding:"3px 8px",fontSize:10,fontWeight:600,background:filter===f?C.navy:C.white,color:filter===f?C.white:C.muted,border:"1px solid #E2E8F0",borderRadius:99,cursor:"pointer"}}>{f}</button>
             ))}
           </div>
@@ -3440,7 +3440,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                 <span style={{fontSize:10,fontWeight:700,color:C.muted2,textTransform:"uppercase",letterSpacing:.08,minWidth:60}}>IEI pre</span>
                 {["All","T1","T2","T3","T4"].map(t=>(
                   <FChip key={t} label={t} active={fIEI===t}
-                    color={t==="Hot"?C.red:t==="Warm"?C.amber:t==="Cool"?C.blue:"#94A3B8"}
+                    color={t==="T1"?C.red:t==="T2"?C.amber:t==="T3"?C.blue:"#94A3B8"}
                     onClick={()=>setFIEI(t)}/>
                 ))}
               </div>
@@ -3503,8 +3503,8 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
                     <td style={{padding:"9px 12px",minWidth:130}}>
                       {v.liveScore!==null ? (
                         <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <span style={{fontSize:20,fontWeight:800,color:v.liveTier==="Hot"?"#DC2626":v.liveTier==="Warm"?"#D97706":v.liveTier==="Cool"?"#2563EB":"#94A3B8",letterSpacing:"-0.02em"}}>{v.liveScore}</span>
-                          {v.liveTier && <span style={{fontSize:9,padding:"2px 6px",borderRadius:99,background:v.liveTier==="Hot"?"#FEE2E2":v.liveTier==="Warm"?"#FEF3C7":v.liveTier==="Cool"?"#DBEAFE":"#F1F5F9",color:v.liveTier==="Hot"?"#991B1B":v.liveTier==="Warm"?"#92400E":v.liveTier==="Cool"?"#1E3A8A":"#475569",fontWeight:700}}>{v.liveTier}</span>}
+                          <span style={{fontSize:20,fontWeight:800,color:v.liveTier==="T1"?"#DC2626":v.liveTier==="T2"?"#D97706":v.liveTier==="T3"?"#2563EB":"#94A3B8",letterSpacing:"-0.02em"}}>{v.liveScore}</span>
+                          {v.liveTier && <span style={{fontSize:9,padding:"2px 6px",borderRadius:99,background:v.liveTier==="T1"?"#FEE2E2":v.liveTier==="T2"?"#FEF3C7":v.liveTier==="T3"?"#DBEAFE":"#F1F5F9",color:v.liveTier==="T1"?"#991B1B":v.liveTier==="T2"?"#92400E":v.liveTier==="T3"?"#1E3A8A":"#475569",fontWeight:700}}>{v.liveTier}</span>}
                         </div>
                       ) : (
                         <span style={{fontSize:11,color:C.muted2,fontStyle:"italic"}}>Not logged</span>
@@ -3777,8 +3777,8 @@ Give a specific, personalised next step for the exhibitor's sales team. Referenc
                   <p style={{fontSize:12,lineHeight:1.7,color:"#1E3A8A",margin:0}}>{aiRec}</p>
                 ) : (
                   <p style={{fontSize:12,lineHeight:1.6,color:"#1E3A8A",margin:0}}>
-                    {p.ieiTier==="Hot"?"High-priority lead — assign to AE immediately. Follow up within 24 hrs.":
-                     p.ieiTier==="Warm"?"Active evaluator — SDR follow-up within 48 hrs. Book a discovery call.":
+                    {p.ieiTier==="T1"?"High-priority lead — assign to AE immediately. Follow up within 24 hrs.":
+                     p.ieiTier==="T2"?"Active evaluator — SDR follow-up within 48 hrs. Book a discovery call.":
                      "Nurture track — add to 6-week email sequence."}
                   </p>
                 )}
@@ -4674,8 +4674,8 @@ function PredictedFunnel({ex}) {
   const pipelineRaw = contacts.reduce((sum, c) => {
     const score = (c.onsite_iei_score || c.iei_score || 0) / 100;
     const tier  = c.onsite_iei_tier || c.iei_tier || "";
-    if (tier === "Hot")  return sum + (score * HOT_CONV  * acvHot  * 1000);
-    if (tier === "Warm") return sum + (score * WARM_CONV * acvWarm * 1000);
+    if (tier === "T1")  return sum + (score * HOT_CONV  * acvHot  * 1000);
+    if (tier === "T2") return sum + (score * WARM_CONV * acvWarm * 1000);
     return sum;
   }, 0);
   const pipelineM = pipelineRaw / 1000000;
@@ -4683,7 +4683,7 @@ function PredictedFunnel({ex}) {
   const pipeHi    = (pipelineM * 1.45).toFixed(1);
 
   // At-risk: low reg_prob Hot/Warm visitors
-  const atRiskVisitors = contacts.filter(c => (c.iei_tier==="Hot"||c.iei_tier==="Warm") && (c.reg_prob||0.5) < 0.5);
+  const atRiskVisitors = contacts.filter(c => (c.iei_tier==="T1"||c.iei_tier==="T2") && (c.reg_prob||0.5) < 0.5);
 
   const PRED_STAGES = [
     { id:"uploaded", label:"Uploaded", icon:"📤",
@@ -4744,7 +4744,7 @@ function PredictedFunnel({ex}) {
         `${hot} Hot leads (IEI-weighted × ${HOT_CONV*100}% conv × $${acvHot}K ACV)`,
         `${warm} Warm leads (IEI-weighted × ${WARM_CONV*100}% conv × $${acvWarm}K ACV)`,
         `${contacts.filter(c=>c.onsite_iei_score).length} visitors have onsite IEI scores applied`,
-        `Avg IEI score across Hot+Warm: ${hot+warm>0?(contacts.filter(c=>c.iei_tier==="Hot"||c.iei_tier==="Warm").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0),0)/(hot+warm)).toFixed(1):0}`,
+        `Avg IEI score across Hot+Warm: ${hot+warm>0?(contacts.filter(c=>c.iei_tier==="T1"||c.iei_tier==="T2").reduce((s,c)=>s+(c.onsite_iei_score||c.iei_score||0),0)/(hot+warm)).toFixed(1):0}`,
       ],
       atRisk: null,
       isCurrency: true,
@@ -4865,7 +4865,7 @@ function PredictedFunnel({ex}) {
       {/* At-risk visitor list — Hot/Warm with low attendance probability */}
       {(()=>{
         const atRisk = contacts
-          .filter(c => (c.iei_tier==="Hot"||c.iei_tier==="Warm") && (c.reg_prob||0.5)<0.6 && !c.onsite_iei_score)
+          .filter(c => (c.iei_tier==="T1"||c.iei_tier==="T2") && (c.reg_prob||0.5)<0.6 && !c.onsite_iei_score)
           .sort((a,b)=>(b.iei_score||0)-(a.iei_score||0));
         if(atRisk.length===0) return (
           <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:"16px 18px",textAlign:"center"}}>
@@ -4880,7 +4880,7 @@ function PredictedFunnel({ex}) {
             </div>
             {atRisk.map((v,i)=>{
               const attendPct = Math.round((v.reg_prob||0.5)*100);
-              const ieiColor = v.iei_tier==="Hot"?"#ef4444":"#f97316";
+              const ieiColor = v.iei_tier==="T1"?"#ef4444":"#f97316";
               const rec = attendPct<40
                 ? "High-value lead at serious no-show risk — send personalised message with specific session recommendation immediately"
                 : "Moderate attendance risk — send event prep content and confirm meeting slot";
@@ -4893,7 +4893,7 @@ function PredictedFunnel({ex}) {
                   <div style={{textAlign:"center"}}>
                     <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Pre-event IEI</div>
                     <div style={{fontSize:15,fontWeight:800,color:ieiColor}}>{(v.iei_score||0).toFixed(0)}</div>
-                    <div style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:v.iei_tier==="Hot"?"#FEE2E2":"#FEF3C7",color:ieiColor,fontWeight:700,display:"inline-block"}}>{v.iei_tier}</div>
+                    <div style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:v.iei_tier==="T1"?"#FEE2E2":"#FEF3C7",color:ieiColor,fontWeight:700,display:"inline-block"}}>{v.iei_tier}</div>
                   </div>
                   <div style={{textAlign:"center"}}>
                     <div style={{fontSize:10,color:C.muted,marginBottom:2}}>Attend prob</div>
@@ -4952,14 +4952,14 @@ function OutcomesDashboard({ex}) {
   const totalUploaded   = contacts.length;
   const visitedBooth    = contacts.filter(c => c.onsite_iei_score).length;
   const meetingsBooked  = contacts.filter(c => c.onsite_signals?.meeting_booked).length;
-  const hotTier         = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Hot").length;
-  const warmTier        = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Warm").length;
+  const hotTier         = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T1").length;
+  const warmTier        = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T2").length;
   const avgIEI          = totalUploaded > 0 ? (contacts.reduce((s,c)=>s+(c.iei_score||0),0)/totalUploaded).toFixed(1) : 0;
   const pipelineActual  = contacts.reduce((sum,c) => {
     const score = (c.onsite_iei_score||c.iei_score||0)/100;
     const tier  = c.onsite_iei_tier||c.iei_tier||"";
-    if(tier==="Hot")  return sum + score*0.65*280000;
-    if(tier==="Warm") return sum + score*0.25*90000;
+    if(tier==="T1")  return sum + score*0.65*280000;
+    if(tier==="T2") return sum + score*0.25*90000;
     return sum;
   }, 0);
   const [activeStage,setActiveStage] = useState(null);
