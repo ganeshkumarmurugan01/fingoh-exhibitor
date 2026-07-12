@@ -990,6 +990,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                     icpRole: full.icp?.roles || [], icpSize: full.icp?.company_sizes || [], icpReason: full.icp?.visit_reasons || [],
                     intentWhy: full.intent?.intent_why || "", intentBuyers: full.intent?.intent_buyers || "",
                     intentSignals: full.intent?.intent_signals || [], buyerSignals: full.intent?.buyer_signals || [],
+                    finetuneNotes: full.intent?.finetune_notes || [],
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
@@ -1027,6 +1028,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                     icpRole: full.icp?.roles || [], icpSize: full.icp?.company_sizes || [], icpReason: full.icp?.visit_reasons || [],
                     intentWhy: full.intent?.intent_why || "", intentBuyers: full.intent?.intent_buyers || "",
                     intentSignals: full.intent?.intent_signals || [], buyerSignals: full.intent?.buyer_signals || [],
+                    finetuneNotes: full.intent?.finetune_notes || [],
                     isPast: true,
                   });
                 } catch (e) {
