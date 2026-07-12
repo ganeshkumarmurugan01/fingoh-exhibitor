@@ -2092,6 +2092,20 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
             </div>
           ))}
         </div>
+        {/* Cache status + Re-analyse */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:10,paddingTop:8,borderTop:"1px solid rgba(255,255,255,.12)"}}>
+          <span style={{fontSize:9,color:"rgba(255,255,255,.45)"}}>
+            {analysis?.cached_at
+              ? `Analysed: ${new Date(analysis.cached_at).toLocaleDateString()} ${new Date(analysis.cached_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})}`
+              : loading ? "Analysing…" : "Fresh analysis"}
+          </span>
+          <button
+            disabled={loading}
+            onClick={()=>{setAnalysis(null);setLoading(true);setForceRefresh(r=>!r);}}
+            style={{fontSize:9,padding:"3px 10px",background:"rgba(255,255,255,.15)",border:"1px solid rgba(255,255,255,.25)",color:C.white,borderRadius:5,cursor:loading?"not-allowed":"pointer",fontFamily:F,opacity:loading?0.5:1}}>
+            ↺ Re-analyse
+          </button>
+        </div>
       </div>
 
       {/* Scrollable body */}
