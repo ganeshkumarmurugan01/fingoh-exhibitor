@@ -2018,6 +2018,7 @@ function MeetingsScreen({ex}) {
   const [tab,       setTab]         = useState("prospects"); // prospects | scheduled
   const [showModal, setShowModal]   = useState(false);
   const [selContact, setSelContact] = useState(null);
+  const [selProspect, setSelProspect] = useState(null);   // prospect detail panel
   const [rescheduleId, setRescheduleId] = useState(null); // meeting id being rescheduled
   const [sending,   setSending]     = useState(false);
   const [sent,      setSent]        = useState({});
@@ -2142,7 +2143,8 @@ function MeetingsScreen({ex}) {
 
       {/* Prospects tab */}
       {tab==="prospects" && (
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+        <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+        <div style={{flex:1,minWidth:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"10px 18px",background:"#FAFAFA",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Ranked by LambdaMART match score</span>
             <span style={{fontSize:11,color:C.muted}}>{prospects.length} contacts scored</span>
@@ -2160,7 +2162,7 @@ function MeetingsScreen({ex}) {
             const isSent     = sent[p.contact_id] || hasMeeting;
             const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
             return (
-              <div key={p.contact_id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 100px 120px",gap:8,padding:"10px 18px",borderBottom:"1px solid #F8FAFC",alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+              <div key={p.contact_id} onClick={()=>setSelProspect(p)} style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 100px 120px",gap:8,padding:"10px 18px",borderBottom:"1px solid #F8FAFC",alignItems:"center",cursor:"pointer",background:selProspect?.contact_id===p.contact_id?"#EFF6FF":i%2===0?C.white:"#FAFAFA",transition:"background .15s"}}>
                 <div>
                   <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{p.name}</p>
                   <p style={{fontSize:11,color:C.muted,margin:0}}>{p.designation}</p>
@@ -2197,6 +2199,133 @@ function MeetingsScreen({ex}) {
               </div>
             );
           })}
+        </div>
+
+        {/* ── Match Detail Panel ── */}
+        {selProspect && (()=>{
+          const p = selProspect;
+          const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
+          const ieiColor   = p.iei_tier==="T1"?C.red:p.iei_tier==="T2"?C.yellow:C.blue;
+          const prob       = Math.round((p.meeting_prob||0)*100);
+
+          // Derive signal explanations from prospect data
+          const signals = [];
+          const title = (p.designation||"").toLowerCase();
+          if (["ceo","cto","cfo","chief","president","md","managing director"].some(x=>title.includes(x)))
+            signals.push({icon:"👑", label:"Executive seniority", detail:"C-suite/MD title detected — highest priority for meetings", boost:"HIGH"});
+          else if (["vp","vice","svp","director","head"].some(x=>title.includes(x)))
+            signals.push({icon:"🏆", label:"Senior leadership", detail:"Director/VP level — strong decision-making authority", boost:"HIGH"});
+          else if (["manager","senior","lead","principal"].some(x=>title.includes(x)))
+            signals.push({icon:"⭐", label:"Mid-senior role", detail:"Manager/Lead level — likely involved in purchase decisions", boost:"MED"});
+          else
+            signals.push({icon:"👤", label:"Individual contributor", detail:"Role suggests limited purchasing authority", boost:"LOW"});
+
+          if (p.iei_score>=75)      signals.push({icon:"🎯", label:"IEI: Perfect match", detail:`Score ${p.iei_score?.toFixed(1)} — top tier fit with your ICP`, boost:"HIGH"});
+          else if (p.iei_score>=50) signals.push({icon:"📊", label:"IEI: Good match", detail:`Score ${p.iei_score?.toFixed(1)} — solid ICP alignment`, boost:"MED"});
+          else                      signals.push({icon:"📉", label:"IEI: Partial match", detail:`Score ${p.iei_score?.toFixed(1)} — limited ICP overlap`, boost:"LOW"});
+
+          if (prob>=70)      signals.push({icon:"🤝", label:"High meeting propensity", detail:"LambdaMART predicts strong likelihood of accepting a meeting", boost:"HIGH"});
+          else if (prob>=45) signals.push({icon:"📅", label:"Moderate propensity", detail:"Model predicts reasonable chance of meeting acceptance", boost:"MED"});
+          else               signals.push({icon:"⚠", label:"Low propensity", detail:"May not be actively seeking meetings — personalise outreach", boost:"LOW"});
+
+          const boostColor = b => b==="HIGH"?"#16A34A":b==="MED"?"#2563EB":"#94A3B8";
+          const boostBg    = b => b==="HIGH"?"#DCFCE7":b==="MED"?"#DBEAFE":"#F1F5F9";
+
+          return (
+            <div style={{width:320,flexShrink:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:0}}>
+              {/* Header */}
+              <div style={{padding:"14px 16px",background:C.navy,color:C.white}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div>
+                    <p style={{fontSize:13,fontWeight:700,margin:"0 0 2px"}}>{p.name}</p>
+                    <p style={{fontSize:11,color:"rgba(255,255,255,.7)",margin:0}}>{p.designation}</p>
+                    <p style={{fontSize:11,color:"rgba(255,255,255,.5)",margin:"2px 0 0"}}>{p.company} · {p.country}</p>
+                  </div>
+                  <button onClick={()=>setSelProspect(null)}
+                    style={{background:"rgba(255,255,255,.15)",border:"none",color:C.white,borderRadius:6,width:24,height:24,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+                </div>
+                {/* Score pills */}
+                <div style={{display:"flex",gap:8,marginTop:10}}>
+                  <div style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center"}}>
+                    <div style={{fontSize:18,fontWeight:800,color:matchColor}}>{Math.round(p.match_score)}</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>Match</div>
+                  </div>
+                  <div style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center"}}>
+                    <div style={{fontSize:18,fontWeight:800,color:matchColor}}>{prob}%</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>Probability</div>
+                  </div>
+                  <div style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center"}}>
+                    <div style={{fontSize:18,fontWeight:800,color:ieiColor}}>{p.iei_score?.toFixed(1)}</div>
+                    <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>IEI</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Probability bar */}
+              <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                  <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.04}}>Meeting Probability</span>
+                  <span style={{fontSize:12,fontWeight:700,color:matchColor}}>{prob}%</span>
+                </div>
+                <div style={{height:8,background:"#F1F5F9",borderRadius:4,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${prob}%`,background:prob>=70?"#16A34A":prob>=45?"#2563EB":"#F59E0B",borderRadius:4,transition:"width .4s"}}/>
+                </div>
+                <p style={{fontSize:10,color:C.muted,margin:"6px 0 0",lineHeight:1.4}}>
+                  {prob>=70?"LambdaMART model predicts high likelihood of meeting acceptance based on role seniority, ICP fit, buying intent, and IEI score."
+                   :prob>=45?"Model predicts moderate acceptance probability. Personalised outreach recommended to increase conversion."
+                   :"Low predicted probability. Consider alternative engagement — content, demo invite, or booth visit first."}
+                </p>
+              </div>
+
+              {/* Signal breakdown */}
+              <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+                <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>Why this score</p>
+                {signals.map((s,i)=>(
+                  <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
+                    <span style={{fontSize:14,flexShrink:0}}>{s.icon}</span>
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span style={{fontSize:11,fontWeight:600,color:C.navy}}>{s.label}</span>
+                        <span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:boostBg(s.boost),color:boostColor(s.boost),fontWeight:700}}>{s.boost}</span>
+                      </div>
+                      <p style={{fontSize:10,color:C.muted,margin:"2px 0 0",lineHeight:1.4}}>{s.detail}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* How scored */}
+              <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+                <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>How scoring works</p>
+                <p style={{fontSize:10,color:C.muted,margin:0,lineHeight:1.6}}>
+                  Match score is computed by a <strong>LambdaMART</strong> ranking model trained on meeting conversion patterns. It combines:
+                </p>
+                <div style={{marginTop:8}}>
+                  {[
+                    ["Role seniority","~30% weight — decision-maker authority"],
+                    ["IEI score","~25% weight — overall buyer fit"],
+                    ["Buying intent","~20% weight — visit reason + sourcing signals"],
+                    ["Meeting interest","~15% weight — explicit opt-in from registration"],
+                    ["Profile completeness","~10% weight — data quality signal"],
+                  ].map(([k,v])=>(
+                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid #F8FAFC"}}>
+                      <span style={{fontSize:10,fontWeight:600,color:C.navy}}>{k}</span>
+                      <span style={{fontSize:10,color:C.muted}}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action */}
+              <div style={{padding:"12px 16px"}}>
+                <button onClick={()=>{ openModal(p); }}
+                  style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                  + Request Meeting
+                </button>
+              </div>
+            </div>
+          );
+        })()}
         </div>
       )}
 
