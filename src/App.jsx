@@ -2156,8 +2156,8 @@ function MeetingsScreen({ex}) {
                   <p style={{fontSize:10,color:C.muted2,margin:0}}>{p.country}</p>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:5}}>
-                  <span style={{fontSize:14,fontWeight:800,color:p.iei_tier==="Hot"?C.red:p.iei_tier==="Warm"?C.yellow:C.blue}}>{Math.round(p.iei_score)}</span>
-                  <span style={{fontSize:9,padding:"1px 5px",borderRadius:99,background:p.iei_tier==="Hot"?"#FEE2E2":p.iei_tier==="Warm"?"#FEF3C7":"#DBEAFE",color:p.iei_tier==="Hot"?"#ef4444":p.iei_tier==="Warm"?"#f97316":C.blue,fontWeight:700}}>{p.iei_tier}</span>
+                  <span style={{fontSize:14,fontWeight:800,color:p.iei_tier==="T1"?C.red:p.iei_tier==="T2"?C.yellow:C.blue}}>{Math.round(p.iei_score)}</span>
+                  <span style={{fontSize:9,padding:"1px 5px",borderRadius:99,background:p.iei_tier==="T1"?"#FEE2E2":p.iei_tier==="T2"?"#FEF3C7":"#DBEAFE",color:p.iei_tier==="T1"?"#ef4444":p.iei_tier==="T2"?"#f97316":C.blue,fontWeight:700}}>{p.iei_tier}</span>
                 </div>
                 <div>
                   <span style={{fontSize:15,fontWeight:800,color:matchColor}}>{Math.round(p.match_score)}</span>
@@ -2373,9 +2373,9 @@ function IEIAnalysis({ex}) {
             company:  c.company || "—",
             title:    c.designation || "—",
             country:  c.country || "—",
-            ieiTier:  c.iei_tier || "Cool",
+            ieiTier:  c.iei_tier || "T3",
             ieiScore: Math.round(c.iei_score || 0),
-            tier:     c.iei_tier==="Hot"?"T1":c.iei_tier==="Warm"?"T2":c.iei_tier==="Cool"?"T3":"T4",
+            tier:     c.iei_tier || "T3",
             score:    Math.round(c.iei_score || 0),
             role:     (() => {
               const t = (c.designation||"").toLowerCase();
@@ -2495,7 +2495,7 @@ function IEIAnalysis({ex}) {
           setAnalysing(false);
           const newV={
             id:100+extras.length, name:nv.name, company:nv.company, title:nv.title,
-            ieiTier:nv.primaryReason==="sourcing"&&nv.timeline==="Within 3 months"?"Hot":nv.primaryReason==="sourcing"?"Warm":"Cool",
+            ieiTier:nv.primaryReason==="sourcing"&&nv.timeline==="Within 3 months"?"T1":nv.primaryReason==="sourcing"?"T2":"T3",
             ieiScore:nv.primaryReason==="sourcing"&&nv.timeline==="Within 3 months"?79:nv.primaryReason==="sourcing"?63:42,
             tier:"T2", score:55, role:"SENIOR", icp:"Good",
             cats:nv.cats, reason:nv.primaryReason, timeline:nv.timeline,
@@ -3248,8 +3248,8 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     const hasCurrentEventSig = sig.length > 0 || c.onsite_iei_score != null;
     const liveScore  = hasCurrentEventSig ? (c.onsite_iei_score || null) : null;
     const liveTier   = hasCurrentEventSig ? (c.onsite_iei_tier  || null) : null;
-    const displayTier = (hasCurrentEventSig && c.onsite_iei_tier) ? c.onsite_iei_tier : (c.iei_tier || "Cool");
-    const liveTierT   = displayTier==="Hot"?"T1":displayTier==="Warm"?"T2":displayTier==="Cool"?"T3":"T4";
+    const displayTier = (hasCurrentEventSig && c.onsite_iei_tier) ? c.onsite_iei_tier : (c.iei_tier || "T3");
+    const liveTierT   = displayTier;
     const lastSignal = latestSig ? (
       latestSig.meeting_completed?"Meeting completed":
       latestSig.meeting_booked?"Meeting booked":
@@ -3272,7 +3272,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       title:     c.designation || "—",
       company:   c.company || "—",
       ieiScore:  Math.round(c.iei_score || 0),
-      ieiTier:   c.iei_tier || "Cool",
+      ieiTier:   c.iei_tier || "T3",
       liveScore: liveScore ? Math.round(liveScore) : null,
       liveTier:  liveTier,
       tier:      liveTierT,
@@ -3353,7 +3353,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     );
   };
 
-  const ieiTierColor = t => t==="Hot"?C.red:t==="Warm"?C.yellow:t==="Cool"?C.blue:"#94A3B8";
+  const ieiTierColor = t => t==="T1"?C.red:t==="T2"?C.yellow:t==="T3"?C.blue:"#94A3B8";
 
   return (
     <div style={{padding:24,maxWidth:1240,margin:"0 auto",fontFamily:F}}>
@@ -4078,10 +4078,10 @@ function StaffApp({ex}) {
                   <div style={{fontSize:11,color:C.muted}}>{v.company}</div>
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:13,fontWeight:800,color:v.iei_tier==="Hot"?"#ef4444":v.iei_tier==="Warm"?"#f97316":v.iei_tier==="Cool"?"#3b82f6":"#9ca3af"}}>{Math.round(v.iei_score||0)}</span>
+                  <span style={{fontSize:13,fontWeight:800,color:v.iei_tier==="T1"?"#ef4444":v.iei_tier==="T2"?"#f97316":v.iei_tier==="T3"?"#3b82f6":"#9ca3af"}}>{Math.round(v.iei_score||0)}</span>
                   <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,fontWeight:700,
-                    background:v.iei_tier==="Hot"?"#FEE2E2":v.iei_tier==="Warm"?"#FEF3C7":v.iei_tier==="Cool"?"#DBEAFE":"#F1F5F9",
-                    color:v.iei_tier==="Hot"?"#991B1B":v.iei_tier==="Warm"?"#92400E":v.iei_tier==="Cool"?"#1E40AF":"#475569"}}>{v.iei_tier}</span>
+                    background:v.iei_tier==="T1"?"#FEE2E2":v.iei_tier==="T2"?"#FEF3C7":v.iei_tier==="T3"?"#DBEAFE":"#F1F5F9",
+                    color:v.iei_tier==="T1"?"#991B1B":v.iei_tier==="T2"?"#92400E":v.iei_tier==="T3"?"#1E40AF":"#475569"}}>{v.iei_tier}</span>
                 </div>
               </div>
             ))}
@@ -4106,8 +4106,8 @@ function StaffApp({ex}) {
               <span>Pre-event IEI: <b style={{color:C.navy}}>{Math.round(sel.iei_score||0)}</b></span>
               {sel.onsite_iei_score && <span>On-site IEI: <b style={{color:"#0D9488"}}>{Math.round(sel.onsite_iei_score)}</b></span>}
               <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,fontWeight:700,
-                background:sel.iei_tier==="Hot"?"#FEE2E2":sel.iei_tier==="Warm"?"#FEF3C7":sel.iei_tier==="Cool"?"#DBEAFE":"#F1F5F9",
-                color:sel.iei_tier==="Hot"?"#991B1B":sel.iei_tier==="Warm"?"#92400E":sel.iei_tier==="Cool"?"#1E40AF":"#475569"}}>{sel.iei_tier}</span>
+                background:sel.iei_tier==="T1"?"#FEE2E2":sel.iei_tier==="T2"?"#FEF3C7":sel.iei_tier==="T3"?"#DBEAFE":"#F1F5F9",
+                color:sel.iei_tier==="T1"?"#991B1B":sel.iei_tier==="T2"?"#92400E":sel.iei_tier==="T3"?"#1E40AF":"#475569"}}>{sel.iei_tier}</span>
             </div>
           </div>
         )}
@@ -4380,9 +4380,9 @@ function LeadExport({ex}) {
   },[ex?.id]);
 
   // Use onsite tier/score if available, fall back to pre-event
-  const hot  = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Hot")
+  const hot  = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T1")
                         .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
-  const warm = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "Warm")
+  const warm = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T2")
                         .sort((a,b) => (b.onsite_iei_score||b.iei_score||0)-(a.onsite_iei_score||a.iei_score||0));
   const scored = contacts.filter(c => c.onsite_iei_score).length;
   const exportCSV = (leads, filename) => {
@@ -4599,9 +4599,9 @@ function PredictedFunnel({ex}) {
 
   // Derive real predictions from contact data
   const total    = contacts.length;
-  const hot      = contacts.filter(c => c.iei_tier === "Hot").length;
-  const warm     = contacts.filter(c => c.iei_tier === "Warm").length;
-  const cool     = contacts.filter(c => c.iei_tier === "Cool").length;
+  const hot      = contacts.filter(c => c.iei_tier === "T1").length;
+  const warm     = contacts.filter(c => c.iei_tier === "T2").length;
+  const cool     = contacts.filter(c => c.iei_tier === "T3").length;
   const avgIEI   = total ? (contacts.reduce((s,c) => s+(c.iei_score||0),0)/total).toFixed(1) : 0;
   const avgProb  = total ? contacts.reduce((s,c) => s+(c.reg_prob||0),0)/total : 0;
 
