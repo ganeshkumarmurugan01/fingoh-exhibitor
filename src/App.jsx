@@ -2024,10 +2024,6 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
         const icpSizes    = (ex.icpSize   ||[]).join(", ") || "Not specified";
         const icpReasons  = (ex.icpReason ||[]).join(", ") || "Not specified";
 
-        const icpRoles    = (ex.icpRole   ||[]).join(", ") || "Not specified";
-        const icpSizes    = (ex.icpSize   ||[]).join(", ") || "Not specified";
-        const icpReasons  = (ex.icpReason ||[]).join(", ") || "Not specified";
-
         // Call backend — it holds the Anthropic API key
         const session = (await supabase.auth.getSession()).data.session;
         const token   = session?.access_token || "";
