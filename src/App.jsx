@@ -2024,61 +2024,20 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
         const icpSizes    = (ex.icpSize   ||[]).join(", ") || "Not specified";
         const icpReasons  = (ex.icpReason ||[]).join(", ") || "Not specified";
 
-        const prompt = `You are an expert B2B event intelligence system analysing meeting match quality at a trade fair.
+        const icpRoles    = (ex.icpRole   ||[]).join(", ") || "Not specified";
+        const icpSizes    = (ex.icpSize   ||[]).join(", ") || "Not specified";
+        const icpReasons  = (ex.icpReason ||[]).join(", ") || "Not specified";
 
-EXHIBITOR PROFILE:
-- Company: ${ex.company || "Unknown"}
-- Event: ${ex.name || "Unknown"}
-- Target buyer roles: ${icpRoles}
-- Target company sizes: ${icpSizes}
-- Visitor intent they want to attract: ${icpReasons}
-
-VISITOR PROFILE:
-- Name: ${p.name}
-- Role: ${p.designation}
-- Company: ${p.company} (${p.country})
-- IEI Score: ${(p.iei_score||0).toFixed(1)} (${p.iei_tier} tier)
-- Visit reason: ${p.primary_reason || "Not stated"}
-- Product categories of interest: ${p.categories_interest || "Not specified"}
-- Wants meeting: ${p.meeting_interest === true || p.meeting_interest === "yes" ? "YES — explicitly opted in" : p.meeting_interest === false || p.meeting_interest === "no" ? "NO — opted out" : "Not specified"}
-- Purchase timeline: ${p.purchase_timeline || "Not stated"}
-- Actively sourcing: ${p.actively_sourcing ? "Yes" : "No"}
-- Specific product interest: ${p.specific_product || "Not stated"}
-- LambdaMART match score: ${Math.round(p.match_score||0)}/100
-- Meeting probability: ${Math.round((p.meeting_prob||0)*100)}%
-
-Analyse whether this visitor is genuinely a good meeting candidate for this exhibitor. Consider:
-1. Does their ROLE match the exhibitor's target buyer roles?
-2. Does their INTENT (visit reason, categories, sourcing status) align with what the exhibitor offers?
-3. Are there RED FLAGS (e.g. wrong department, policy vs procurement, research only)?
-4. What is the REAL probability of a productive meeting?
-
-Return ONLY valid JSON (no markdown, no explanation outside JSON):
-{
-  "intentAlignment": "HIGH" | "MED" | "LOW",
-  "alignmentSummary": "2-sentence honest assessment of fit between this visitor and exhibitor",
-  "matchFactors": [
-    {"factor": "string", "assessment": "string", "impact": "POSITIVE" | "NEUTRAL" | "NEGATIVE"}
-  ],
-  "redFlags": ["string"],
-  "talkingPoints": ["string"],
-  "recommendation": "Priority meeting" | "Worth exploring" | "Low priority",
-  "recommendationReason": "1-sentence honest recommendation with specific reasoning"
-}`;
-
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
+        // Call backend — it holds the Anthropic API key
+        const session = (await supabase.auth.getSession()).data.session;
+        const token   = session?.access_token || "";
+        const res = await fetch("/api/proxy?slug=v1/meetings/match-analysis", {
           method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({
-            model:"claude-sonnet-4-6",
-            max_tokens:1000,
-            messages:[{role:"user", content:prompt}]
-          })
+          headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+          body: JSON.stringify({ prospect: p, exhibitor: ex })
         });
-        const data = await res.json();
-        const raw = data.content?.[0]?.text || "{}";
-        const clean = raw.replace(/```json|```/g,"").trim();
-        setAnalysis(JSON.parse(clean));
+        if (!res.ok) throw new Error(await res.text());
+        setAnalysis(await res.json());
       } catch(e) {
         setAnalysis({
           intentAlignment:"MED",
