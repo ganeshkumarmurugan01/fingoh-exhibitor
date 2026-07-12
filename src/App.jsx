@@ -3390,7 +3390,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
 
       {/* Summary stats */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:20}}>
-        {[[visitors.length,"Visitors",C.navy,null],[t1n,"Hot leads",C.green,"IEI ≥ 75"],[t2n,"Warm leads",C.blue,"IEI 50–74"],[t3n,"Exploring",C.yellow,null],[avgIEI,"Avg IEI score",C.purple,null]].map(([v,l,c,s])=><Stat key={l} val={v} lbl={l} color={c} sub={s}/>)}
+        {[[visitors.length,"Visitors",C.navy,null],[t1n,"T1 (Hot)",C.green,"IEI ≥ 75"],[t2n,"T2 (Warm)",C.blue,"IEI 50–74"],[t3n,"T3 (Cool)",C.yellow,null],[avgIEI,"Avg IEI score",C.purple,null]].map(([v,l,c,s])=><Stat key={l} val={v} lbl={l} color={c} sub={s}/>)}
       </div>
 
       {/* Tier bar */}
