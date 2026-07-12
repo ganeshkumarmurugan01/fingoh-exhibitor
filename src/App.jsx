@@ -6366,328 +6366,424 @@ function AgentTriggerButton({onClick, queueCount}) {
 function EventSetup({ex, onUpdate, onDelete}) {
   if (!ex) return null;
 
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState(null);
-  const [saved, setSaved]     = useState(false);
+  // ── Left nav sections ─────────────────────────────────────────────
+  const SECTIONS = [
+    {id:"overview",  icon:"🎪", label:"Event overview"},
+    {id:"company",   icon:"🏢", label:"Company & booth"},
+    {id:"categories",icon:"🗂", label:"Visitor categories"},
+    {id:"icp",       icon:"🎯", label:"Ideal customer profile"},
+    {id:"intent",    icon:"✦",  label:"Exhibitor intent"},
+    {id:"finetune",  icon:"⚡", label:"Fine-tune intent"},
+    {id:"danger",    icon:"⚠",  label:"Danger zone"},
+  ];
+  const [activeSection, setActiveSection] = useState("overview");
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState(null);
+  const [saved,    setSaved]    = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // Editable form state
   const [form, setForm] = useState({
-    name: ex.name || "", venue: ex.venue || "", country: ex.country || "",
-    dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
     company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
-    cats: ex.cats || [],
-    icpRole: ex.icpRole || [], icpSize: ex.icpSize || [], icpReason: ex.icpReason || [],
+    cats:      ex.cats      || [],
+    icpRole:   ex.icpRole   || [], icpSize: ex.icpSize || [], icpReason: ex.icpReason || [],
     intentWhy: ex.intentWhy || "", intentBuyers: ex.intentBuyers || "",
+    finetuneNotes: ex.finetuneNotes || [],
   });
   const upd = (k,v) => setForm(p=>({...p,[k]:v}));
 
-  const startEdit = () => {
-    setForm({
-      name: ex.name || "", venue: ex.venue || "", country: ex.country || "",
-      dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
-      company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
-      cats: ex.cats || [],
-      icpRole: ex.icpRole || [], icpSize: ex.icpSize || [], icpReason: ex.icpReason || [],
-      intentWhy: ex.intentWhy || "", intentBuyers: ex.intentBuyers || "",
-    });
-    setError(null);
-    setEditing(true);
-  };
+  // Fine-tune note state
+  const [noteText, setNoteText] = useState("");
+  const [noteType, setNoteType] = useState("context"); // context | priority | exclude
 
-  const cancelEdit = () => { setEditing(false); setError(null); };
-
-  const saveEdit = async () => {
+  const saveSection = async (extraFields={}) => {
     setSaving(true); setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {data:{session}} = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      const headers = { "Content-Type":"application/json", "x-fingoh-auth": `Bearer ${token}` };
+      const headers = {"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`};
 
-      // Update core event fields
+      // Company fields
       const coreRes = await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
-        method: "PATCH", headers,
+        method:"PATCH", headers,
         body: JSON.stringify({
-          name: form.name, venue: form.venue, country: form.country,
-          date_from: form.dateFrom, date_to: form.dateTo,
           company: form.company, product: form.product, website: form.website, booth_size: form.boothSize,
+          ...extraFields,
         })
       });
-      if (!coreRes.ok) throw new Error("Failed to save exhibition/company details");
+      if (!coreRes.ok) throw new Error("Failed to save company details");
 
-      // Update targeting (categories, ICP, intent)
-      const targetRes = await fetch(`/api/proxy?slug=v1/events/${ex.id}/targeting`, {
-        method: "PATCH", headers,
+      // Targeting fields
+      const tgtRes = await fetch(`/api/proxy?slug=v1/events/${ex.id}/targeting`, {
+        method:"PATCH", headers,
         body: JSON.stringify({
           categories: form.cats,
           icp_roles: form.icpRole, icp_company_sizes: form.icpSize, icp_visit_reasons: form.icpReason,
           intent_why: form.intentWhy, intent_buyers: form.intentBuyers,
+          finetune_notes: form.finetuneNotes,
         })
       });
-      if (!targetRes.ok) throw new Error("Failed to save targeting details");
+      if (!tgtRes.ok) throw new Error("Failed to save targeting details");
 
-      // Update local ex state via parent callback
-      if (onUpdate) onUpdate({...ex, ...form});
-      setEditing(false);
+      if (onUpdate) onUpdate({...ex, ...form, ...extraFields});
       setSaved(true); setTimeout(()=>setSaved(false), 2500);
-    } catch (e) {
-      setError(e.message || "Save failed — please try again");
-    } finally {
-      setSaving(false);
-    }
+    } catch(e) {
+      setError(e.message || "Save failed");
+    } finally { setSaving(false); }
   };
 
   const deleteEvent = async () => {
     setDeleting(true); setError(null);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {data:{session}} = await supabase.auth.getSession();
       const token = session?.access_token || "";
       const res = await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
-        method: "DELETE",
-        headers: { "x-fingoh-auth": `Bearer ${token}` }
+        method:"DELETE", headers:{"x-fingoh-auth":`Bearer ${token}`}
       });
-      if (!res.ok && res.status !== 204) throw new Error("Failed to delete event");
+      if (!res.ok && res.status!==204) throw new Error("Failed to delete event");
       if (onDelete) onDelete();
-    } catch (e) {
-      setError(e.message || "Delete failed — please try again");
-      setDeleting(false);
-    }
+    } catch(e) { setError(e.message); setDeleting(false); }
   };
 
-  const Section = ({title, icon, children}) => (
-    <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",marginBottom:16}}>
-      <div style={{padding:"13px 20px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",alignItems:"center",gap:9}}>
-        <span style={{fontSize:16}}>{icon}</span>
-        <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{title}</span>
+  // Chip toggle helper (same as create wizard)
+  const toggle = (arr, setArr, val) => setArr(arr.includes(val) ? arr.filter(x=>x!==val) : [...arr,val]);
+  const chip = (on, label, onClick) => (
+    <button key={label} onClick={onClick} style={{
+      padding:"6px 14px", borderRadius:99, fontSize:12, fontWeight:600, cursor:"pointer", fontFamily:F,
+      background: on ? C.navy : C.white,
+      color:       on ? C.white : C.muted,
+      border:     `1.5px solid ${on ? C.navy : "#E2E8F0"}`,
+      transition:"all .15s",
+    }}>{on && <span style={{marginRight:5}}>✓</span>}{label}</button>
+  );
+
+  // Shared UI helpers
+  const Field = ({label, value}) => (
+    <div style={{padding:"9px 0",borderBottom:"1px solid #F1F5F9"}}>
+      <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:4}}>{label}</div>
+      <div style={{fontSize:13,color:C.dark,lineHeight:1.5}}>{value || <span style={{color:C.muted2,fontStyle:"italic"}}>Not set</span>}</div>
+    </div>
+  );
+  const Input = ({label, value, onChange, type="text", placeholder}) => (
+    <div style={{marginBottom:14}}>
+      <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>{label}</label>
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||label}
+        style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+    </div>
+  );
+  const SaveBar = () => (
+    <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginTop:20,paddingTop:16,borderTop:"1px solid #F1F5F9"}}>
+      {error && <p style={{fontSize:11,color:"#DC2626",margin:0}}>⚠ {error}</p>}
+      {saved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:0}}>✓ Saved</p>}
+      <button onClick={()=>saveSection()} disabled={saving}
+        style={{padding:"9px 24px",background:saving?"#94A3B8":C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:F}}>
+        {saving?"Saving…":"Save changes"}
+      </button>
+    </div>
+  );
+
+  // ── Section content renderers ─────────────────────────────────────
+  const renderOverview = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Event overview</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Master event details — these are fixed and cannot be changed after creation.</p>
+      <div style={{background:"#FAFAFA",border:"1px solid #F1F5F9",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <Field label="Event name"  value={ex.name}/>
+        <Field label="Event type"  value={ex.type}/>
+        <Field label="Dates"       value={ex.dateFrom && ex.dateTo ? `${ex.dateFrom} – ${ex.dateTo}` : null}/>
+        <Field label="Venue"       value={ex.venue}/>
+        <Field label="Country"     value={ex.country}/>
+        <Field label="Event ID"    value={ex.id}/>
       </div>
-      <div style={{padding:"16px 20px"}}>{children}</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+        {[
+          ["🗂 Categories", (ex.cats||[]).length+" selected", C.blue],
+          ["🎯 ICP roles",  (ex.icpRole||[]).length+" defined", C.navy],
+          ["✦ Intent",     ex.intentWhy ? "Configured" : "Not set", ex.intentWhy?C.green:C.muted],
+        ].map(([l,v,c])=>(
+          <div key={l} style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 16px"}}>
+            <div style={{fontSize:12,color:C.muted,marginBottom:4}}>{l}</div>
+            <div style={{fontSize:14,fontWeight:700,color:c}}>{v}</div>
+          </div>
+        ))}
+      </div>
+      {/* Registration link */}
+      <div style={{marginTop:16,background:C.ltnavy,border:"1px solid #C7D0E8",borderRadius:12,padding:"14px 18px"}}>
+        <p style={{fontSize:11,fontWeight:700,color:C.navy,margin:"0 0 6px"}}>📋 Visitor registration link</p>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <code style={{fontSize:11,background:"white",padding:"6px 10px",borderRadius:6,border:"1px solid #E2E8F0",flex:1,color:C.muted,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {window.location.origin}?register={ex.id}
+          </code>
+          <button onClick={()=>navigator.clipboard.writeText(`${window.location.origin}?register=${ex.id}`)}
+            style={{padding:"6px 12px",background:C.navy,color:C.white,border:"none",borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>
+            Copy link
+          </button>
+        </div>
+      </div>
     </div>
   );
 
-  const Row = ({label, value}) => (
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",padding:"7px 0",borderBottom:"1px solid #F8FAFC"}}>
-      <span style={{fontSize:11,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:.06,flexShrink:0,minWidth:140}}>{label}</span>
-      <span style={{fontSize:12,color:C.dark,fontWeight:500,textAlign:"right",maxWidth:380,lineHeight:1.5}}>{value || <span style={{color:C.muted2,fontStyle:"italic"}}>Not set</span>}</span>
+  const renderCompany = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Company & booth</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Your company details and booth configuration for this event.</p>
+      <Input label="Company name"       value={form.company}   onChange={v=>upd("company",v)}/>
+      <Input label="Product / solution" value={form.product}   onChange={v=>upd("product",v)}  placeholder="What are you showcasing?"/>
+      <Input label="Website"            value={form.website}   onChange={v=>upd("website",v)}   placeholder="https://"/>
+      <Input label="Booth size (m²)"    value={form.boothSize} onChange={v=>upd("boothSize",v)} placeholder="e.g. 36"/>
+      <SaveBar/>
     </div>
   );
 
-  const inputS = {width:"100%",maxWidth:380,padding:"7px 10px",border:"1px solid #E2E8F0",borderRadius:7,fontSize:12,fontFamily:F,outline:"none",boxSizing:"border-box",textAlign:"right"};
-
-  const EditRow = ({label, value, onChange, type="text", placeholder}) => (
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"1px solid #F8FAFC",gap:12}}>
-      <span style={{fontSize:11,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:.06,flexShrink:0,minWidth:140}}>{label}</span>
-      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||label} style={inputS}/>
+  const renderCategories = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Visitor categories</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Select the product/technology categories you want to attract visitors from. IEI scoring weights visitors with these interests higher.</p>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
+        {(ex.dynamicCats||["Medical devices","Diagnostic imaging","Laboratory equipment","Digital health / IT","Surgical instruments","Patient monitoring","Pharmaceuticals","Biotechnology","Hospital infrastructure","Healthcare AI","Consumables & disposables","Rehabilitation equipment"]).map(cat=>
+          chip(form.cats.includes(cat), cat, ()=>upd("cats", form.cats.includes(cat)?form.cats.filter(x=>x!==cat):[...form.cats,cat]))
+        )}
+      </div>
+      {form.cats.length>0 && (
+        <div style={{padding:"10px 14px",background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:8,marginBottom:16}}>
+          <p style={{fontSize:11,color:"#14532D",margin:0}}><strong>{form.cats.length}</strong> categor{form.cats.length===1?"y":"ies"} selected · Fingoh will prioritise visitors with these interests</p>
+        </div>
+      )}
+      <SaveBar/>
     </div>
   );
 
-  const TagRow = ({label, items, color=C.blue, bg=C.ltblue}) => (
-    <div style={{padding:"7px 0",borderBottom:"1px solid #F8FAFC"}}>
-      <span style={{fontSize:11,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:7}}>{label}</span>
-      {items && items.length > 0
-        ? <div style={{display:"flex",flexWrap:"wrap",gap:5}}>{items.map((t,i)=><span key={i} style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:bg,color:color,fontWeight:500}}>{t}</span>)}</div>
-        : <span style={{fontSize:11,color:C.muted2,fontStyle:"italic"}}>Not set</span>}
+  const renderICP = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Ideal customer profile (ICP)</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Define who your ideal visitor looks like. These settings drive the Perfect / Good / Weak ICP tiers in IEI scoring.</p>
+
+      {/* Target roles */}
+      <div style={{marginBottom:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 8px"}}>Target visitor roles <span style={{fontSize:11,fontWeight:400,color:C.muted}}>(select all that apply)</span></p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {["C-Suite / CEO / MD","VP / Director","Procurement Manager","Clinical / Technical Lead","IT Manager","Department Head","Business Owner","R&D Lead","Finance / Budget holder","Consultant / Advisor","Marketing Manager","Operations Manager"].map(r=>
+            chip(form.icpRole.includes(r), r, ()=>upd("icpRole", form.icpRole.includes(r)?form.icpRole.filter(x=>x!==r):[...form.icpRole,r]))
+          )}
+        </div>
+      </div>
+
+      {/* Target company sizes */}
+      <div style={{marginBottom:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 8px"}}>Target company sizes</p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {["1–50 employees","51–200 employees","201–500 employees","501–1000 employees","1000+ employees","Government / Public sector","Academic / Research"].map(s=>
+            chip(form.icpSize.includes(s), s, ()=>upd("icpSize", form.icpSize.includes(s)?form.icpSize.filter(x=>x!==s):[...form.icpSize,s]))
+          )}
+        </div>
+      </div>
+
+      {/* Visit reasons */}
+      <div style={{marginBottom:20}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 8px"}}>Primary visit reasons you want to attract</p>
+        <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+          {["Active sourcing / procurement","Product evaluation","Comparing vendors","Technology scouting","Market research","Partnership / distribution","Academic / research","General interest","Budget approved — ready to buy","Replacing existing solution"].map(r=>
+            chip(form.icpReason.includes(r), r, ()=>upd("icpReason", form.icpReason.includes(r)?form.icpReason.filter(x=>x!==r):[...form.icpReason,r]))
+          )}
+        </div>
+      </div>
+
+      {/* ICP summary */}
+      <div style={{background:C.ltnavy,border:"1px solid #C7D0E8",borderRadius:12,padding:"12px 16px",marginBottom:4}}>
+        <p style={{fontSize:11,fontWeight:700,color:C.navy,margin:"0 0 4px"}}>◎ IEI scoring tuned to your ICP</p>
+        <p style={{fontSize:11,color:C.muted,margin:0,lineHeight:1.6}}>
+          {form.icpRole.length>0||form.icpReason.length>0
+            ? `Targeting ${form.icpRole.length>0?form.icpRole.slice(0,2).join(", "):"all roles"}${form.icpReason.length>0?" · "+form.icpReason.slice(0,2).join(", ")+" visitors score higher":""}`
+            : "No ICP filters set — Fingoh will score all visitors equally."}
+        </p>
+      </div>
+      <SaveBar/>
     </div>
   );
 
-  const EditTagRow = ({label, items, onChange, color=C.blue, bg=C.ltblue}) => {
-    const [draft, setDraft] = useState("");
-    const addTag = () => { const v=draft.trim(); if(v && !items.includes(v)){ onChange([...items,v]); setDraft(""); } };
-    const removeTag = (t) => onChange(items.filter(x=>x!==t));
+  const renderIntent = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Exhibitor intent</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Describe your goals in natural language. Fingoh parses this to extract intent signals and tune IEI scoring.</p>
+
+      <div style={{background:`linear-gradient(135deg,${C.ltnavy},#EEF2FF)`,border:"1px solid #C7D0E8",borderRadius:12,padding:"12px 16px",marginBottom:20,display:"flex",gap:10,alignItems:"flex-start"}}>
+        <span style={{fontSize:18}}>✦</span>
+        <p style={{fontSize:11,color:C.muted,margin:0,lineHeight:1.6}}>Write naturally — Fingoh extracts intent signals and uses them to tune IEI scores, agent prompts, and live visitor alerts specifically for your goals.</p>
+      </div>
+
+      <div style={{marginBottom:20}}>
+        <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Why are you attending this exhibition?</label>
+        <p style={{fontSize:11,color:C.muted2,margin:"0 0 8px",lineHeight:1.5}}>Describe your goals — products launching, deals to close, markets to enter.</p>
+        <textarea value={form.intentWhy} onChange={e=>upd("intentWhy",e.target.value)} rows={5}
+          placeholder="e.g. We are launching our new AI-powered CT scanner and want to generate qualified leads from hospital procurement teams. We're also looking to appoint regional distributors in Southeast Asia..."
+          style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.65}}/>
+      </div>
+
+      <div style={{marginBottom:20}}>
+        <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>What visitors or buyers do you want to meet?</label>
+        <p style={{fontSize:11,color:C.muted2,margin:"0 0 8px",lineHeight:1.5}}>Describe roles, organisations, or profiles you most want to connect with.</p>
+        <textarea value={form.intentBuyers} onChange={e=>upd("intentBuyers",e.target.value)} rows={5}
+          placeholder="e.g. Heads of procurement and clinical directors at private hospitals with 200+ beds across ASEAN. Decision-makers with budget authority, not just evaluators..."
+          style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.65}}/>
+      </div>
+
+      <div style={{background:"#F5F3FF",border:"1px solid #DDD6FE",borderRadius:10,padding:"10px 14px",marginBottom:4}}>
+        <p style={{fontSize:11,color:C.purple,margin:0,fontWeight:500}}>✦ Fingoh uses this intent to tune IEI scores, personalise agent outreach, and prioritise live visitor alerts.</p>
+      </div>
+      <SaveBar/>
+    </div>
+  );
+
+  const renderFinetune = () => {
+    const TYPE_CONFIG = {
+      context:  {label:"Context",         color:"#2563EB", bg:"#DBEAFE", icon:"📝", desc:"Add background context to improve scoring accuracy"},
+      priority: {label:"Prioritise",      color:"#16A34A", bg:"#DCFCE7", icon:"🎯", desc:"Tell Fingoh to prioritise specific visitor types"},
+      exclude:  {label:"Exclude / avoid", color:"#DC2626", bg:"#FEE2E2", icon:"🚫", desc:"Exclude certain roles, companies, or visitor types"},
+    };
+    const addNote = () => {
+      if (!noteText.trim()) return;
+      const note = {id: Date.now(), type: noteType, text: noteText.trim(), addedAt: new Date().toISOString()};
+      upd("finetuneNotes", [...form.finetuneNotes, note]);
+      setNoteText("");
+    };
+    const removeNote = (id) => upd("finetuneNotes", form.finetuneNotes.filter(n=>n.id!==id));
+
     return (
-      <div style={{padding:"7px 0",borderBottom:"1px solid #F8FAFC"}}>
-        <span style={{fontSize:11,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:7}}>{label}</span>
-        <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:8}}>
-          {items.map((t,i)=>(
-            <span key={i} style={{fontSize:11,padding:"3px 6px 3px 10px",borderRadius:99,background:bg,color:color,fontWeight:500,display:"flex",alignItems:"center",gap:5}}>
-              {t}
-              <button onClick={()=>removeTag(t)} style={{background:"none",border:"none",cursor:"pointer",color:color,fontSize:13,lineHeight:1,padding:0}}>×</button>
-            </span>
-          ))}
+      <div>
+        <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Fine-tune intent</h2>
+        <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Add notes as your understanding of the event evolves. These refine IEI scoring and match analysis without changing your core intent.</p>
+
+        {/* Add note */}
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:20}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>Add a refinement note</p>
+
+          {/* Type selector */}
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            {Object.entries(TYPE_CONFIG).map(([k,v])=>(
+              <button key={k} onClick={()=>setNoteType(k)}
+                style={{flex:1,padding:"8px 10px",borderRadius:8,border:`1.5px solid ${noteType===k?v.color:"#E2E8F0"}`,background:noteType===k?v.bg:"white",cursor:"pointer",fontFamily:F,transition:"all .15s"}}>
+                <div style={{fontSize:14,marginBottom:2}}>{v.icon}</div>
+                <div style={{fontSize:11,fontWeight:700,color:noteType===k?v.color:C.muted}}>{v.label}</div>
+                <div style={{fontSize:9,color:C.muted2,lineHeight:1.3,marginTop:2}}>{v.desc}</div>
+              </button>
+            ))}
+          </div>
+
+          <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} rows={3}
+            placeholder={
+              noteType==="context"  ? "e.g. This event has a strong pharma packaging segment — visitors from contract packaging companies are particularly relevant for our sealing solutions..." :
+              noteType==="priority" ? "e.g. Prioritise visitors from Bangladesh and Sri Lanka — we're expanding into these markets and any distributor leads are high value..." :
+                                     "e.g. Exclude academic visitors and students — they tend not to have procurement authority. Also avoid competitors from the European market..."
+            }
+            style={{width:"100%",padding:"10px 12px",border:`1.5px solid ${TYPE_CONFIG[noteType].color}40`,borderRadius:8,fontSize:12,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.6}}/>
+          <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
+            <button onClick={addNote} disabled={!noteText.trim()}
+              style={{padding:"8px 20px",background:noteText.trim()?C.navy:"#94A3B8",color:C.white,border:"none",borderRadius:7,fontSize:12,fontWeight:700,cursor:noteText.trim()?"pointer":"not-allowed",fontFamily:F}}>
+              + Add note
+            </button>
+          </div>
         </div>
-        <div style={{display:"flex",gap:6}}>
-          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addTag();}}}
-            placeholder="Type and press Enter to add" style={{flex:1,padding:"6px 10px",border:"1px solid #E2E8F0",borderRadius:7,fontSize:12,fontFamily:F,outline:"none"}}/>
-          <button onClick={addTag} style={{padding:"6px 14px",background:C.navy,color:C.white,border:"none",borderRadius:7,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>+ Add</button>
-        </div>
+
+        {/* Existing notes */}
+        {form.finetuneNotes.length===0 ? (
+          <div style={{padding:"24px",textAlign:"center",background:"#FAFAFA",borderRadius:12,border:"1px dashed #E2E8F0"}}>
+            <p style={{fontSize:28,margin:"0 0 8px"}}>⚡</p>
+            <p style={{fontSize:13,fontWeight:600,color:C.muted,margin:"0 0 4px"}}>No refinement notes yet</p>
+            <p style={{fontSize:11,color:C.muted2,margin:0}}>Add notes above as the event progresses to sharpen IEI scoring</p>
+          </div>
+        ) : (
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:4}}>
+            {form.finetuneNotes.map(note=>{
+              const cfg = TYPE_CONFIG[note.type]||TYPE_CONFIG.context;
+              return (
+                <div key={note.id} style={{background:C.white,border:`1px solid ${cfg.color}30`,borderLeft:`4px solid ${cfg.color}`,borderRadius:10,padding:"12px 16px",display:"flex",gap:12,alignItems:"flex-start"}}>
+                  <span style={{fontSize:16,flexShrink:0}}>{cfg.icon}</span>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:cfg.bg,color:cfg.color,fontWeight:700}}>{cfg.label}</span>
+                      <span style={{fontSize:9,color:C.muted2}}>{new Date(note.addedAt).toLocaleDateString()}</span>
+                    </div>
+                    <p style={{fontSize:12,color:C.dark,margin:0,lineHeight:1.5}}>{note.text}</p>
+                  </div>
+                  <button onClick={()=>removeNote(note.id)}
+                    style={{background:"none",border:"none",cursor:"pointer",color:C.muted2,fontSize:16,flexShrink:0,padding:0,lineHeight:1}}>×</button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <SaveBar/>
       </div>
     );
   };
 
-  const signals = ex.intentSignals || [];
-  const buyers  = ex.buyerSignals  || [];
-
-  return (
-    <div style={{padding:"28px 32px",maxWidth:860,margin:"0 auto",fontFamily:F}}>
-      {/* Page header */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24}}>
-        <div>
-          <h1 style={{fontSize:22,fontWeight:800,color:C.navy,letterSpacing:"-0.02em",margin:0,marginBottom:4}}>Event setup</h1>
-          <p style={{fontSize:13,color:C.muted,margin:0}}>Your configuration for <strong style={{color:C.navy}}>{ex.name}</strong> · Review or update at any time</p>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {saved && <span style={{fontSize:12,color:C.green,fontWeight:600}}>✓ Saved</span>}
-          {ex.isPast ? (
-            <span style={{fontSize:11,padding:"5px 13px",borderRadius:99,background:"#F1F5F9",border:"1px solid #CBD5E1",color:C.muted,fontWeight:700}}>Past event · Read only</span>
-          ) : (
-            <span style={{fontSize:11,padding:"5px 13px",borderRadius:99,background:C.ltgrn,border:"1px solid #86EFAC",color:"#14532D",fontWeight:700}}>✓ Active</span>
-          )}
-          {ex.isPast ? null : !editing ? (
-            <button onClick={startEdit}
-              style={{padding:"8px 16px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-              ✎ Edit
-            </button>
-          ) : (
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={cancelEdit} disabled={saving}
-                style={{padding:"8px 16px",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:F}}>
-                Cancel
-              </button>
-              <button onClick={saveEdit} disabled={saving}
-                style={{padding:"8px 16px",background:saving?"#94A3B8":C.green,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:F}}>
-                {saving?"Saving…":"✓ Save changes"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {error && (
-        <div style={{padding:"10px 14px",background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:8,marginBottom:16}}>
-          <p style={{fontSize:12,color:"#991B1B",margin:0}}>⚠ {error}</p>
-        </div>
-      )}
-
-      {/* Exhibition details */}
-      <Section title="Exhibition details" icon="🎪">
-        {!editing ? (<>
-          <Row label="Event name"   value={ex.name}/>
-          <Row label="Type"         value={ex.type}/>
-          <Row label="Dates"        value={ex.dateFrom && ex.dateTo ? `${ex.dateFrom} – ${ex.dateTo}` : null}/>
-          <Row label="Venue"        value={ex.venue}/>
-          <Row label="Country"      value={ex.country}/>
-        </>) : (<>
-          <EditRow label="Event name" value={form.name} onChange={v=>upd("name",v)}/>
-          <Row label="Type" value={ex.type}/>
-          <EditRow label="Start date" value={form.dateFrom} onChange={v=>upd("dateFrom",v)} type="date"/>
-          <EditRow label="End date"   value={form.dateTo}   onChange={v=>upd("dateTo",v)}   type="date"/>
-          <EditRow label="Venue"      value={form.venue}    onChange={v=>upd("venue",v)}/>
-          <EditRow label="Country"    value={form.country}  onChange={v=>upd("country",v)}/>
-        </>)}
-      </Section>
-
-      {/* Company & booth */}
-      <Section title="Your company & booth" icon="🏢">
-        {!editing ? (<>
-          <Row label="Company"      value={ex.company}/>
-          <Row label="Product / solution" value={ex.product}/>
-          <Row label="Website"      value={ex.website}/>
-          <Row label="Booth size"   value={ex.boothSize ? `${ex.boothSize} m²` : null}/>
-        </>) : (<>
-          <EditRow label="Company" value={form.company} onChange={v=>upd("company",v)}/>
-          <EditRow label="Product / solution" value={form.product} onChange={v=>upd("product",v)}/>
-          <EditRow label="Website" value={form.website} onChange={v=>upd("website",v)} placeholder="https://"/>
-          <EditRow label="Booth size (m²)" value={form.boothSize} onChange={v=>upd("boothSize",v)}/>
-        </>)}
-      </Section>
-
-      {/* Target categories */}
-      <Section title="Target visitor categories" icon="🎯">
-        {!editing ? (
-          <TagRow label="Categories" items={ex.cats} color={C.blue} bg={C.ltblue}/>
-        ) : (
-          <EditTagRow label="Categories" items={form.cats} onChange={v=>upd("cats",v)} color={C.blue} bg={C.ltblue}/>
-        )}
-        <div style={{marginTop:10,padding:"9px 12px",background:C.ltnavy,borderRadius:8}}>
-          <p style={{fontSize:11,color:C.muted,margin:0}}>Fingoh weights IEI scores higher for visitors with interests in these categories.</p>
-        </div>
-      </Section>
-
-      {/* ICP */}
-      <Section title="Ideal customer profile (ICP)" icon="🎖️">
-        {!editing ? (<>
-          <TagRow label="Target roles"          items={ex.icpRole}   color={C.navy}   bg={C.ltnavy}/>
-          <TagRow label="Target company sizes"  items={ex.icpSize}   color={C.purple} bg={C.ltpur}/>
-          <TagRow label="Visit reasons to attract" items={ex.icpReason} color={C.tealIEI} bg={C.tealLt}/>
-        </>) : (<>
-          <EditTagRow label="Target roles"          items={form.icpRole}   onChange={v=>upd("icpRole",v)}   color={C.navy}   bg={C.ltnavy}/>
-          <EditTagRow label="Target company sizes"  items={form.icpSize}   onChange={v=>upd("icpSize",v)}   color={C.purple} bg={C.ltpur}/>
-          <EditTagRow label="Visit reasons to attract" items={form.icpReason} onChange={v=>upd("icpReason",v)} color={C.tealIEI} bg={C.tealLt}/>
-        </>)}
-        <div style={{marginTop:10,padding:"9px 12px",background:C.ltnavy,borderRadius:8}}>
-          <p style={{fontSize:11,color:C.muted,margin:0}}>These parameters define the <strong>Perfect / Good / Weak</strong> ICP tiers in the IEI scoring model.</p>
-        </div>
-      </Section>
-
-      {/* Exhibitor intent */}
-      <Section title="Your exhibitor intent" icon="✦">
-        {!editing ? (<>
-          {ex.intentWhy ? (
-            <div style={{marginBottom:16}}>
-              <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Why you're attending</p>
-              <p style={{fontSize:13,color:C.dark,lineHeight:1.7,padding:"12px 14px",background:C.light,borderRadius:8,margin:0}}>{ex.intentWhy}</p>
-              {signals.length > 0 && (
-                <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:5}}>
-                  {signals.map((s,i)=><span key={i} style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:C.ltgrn,color:"#14532D",fontWeight:600}}>{s.icon} {s.label}</span>)}
-                </div>
-              )}
-            </div>
-          ) : <p style={{fontSize:12,color:C.muted2,fontStyle:"italic",marginBottom:16}}>No intent statement provided.</p>}
-
-          {ex.intentBuyers ? (
-            <div>
-              <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Visitors / buyers you want to meet</p>
-              <p style={{fontSize:13,color:C.dark,lineHeight:1.7,padding:"12px 14px",background:C.light,borderRadius:8,margin:0}}>{ex.intentBuyers}</p>
-              {buyers.length > 0 && (
-                <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:5}}>
-                  {buyers.map((s,i)=><span key={i} style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:C.ltblue,color:C.navy,fontWeight:600}}>{s.icon} {s.label}</span>)}
-                </div>
-              )}
-            </div>
-          ) : <p style={{fontSize:12,color:C.muted2,fontStyle:"italic"}}>No buyer profile provided.</p>}
-        </>) : (<>
-          <div style={{marginBottom:14}}>
-            <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Why you're attending</p>
-            <textarea value={form.intentWhy} onChange={e=>upd("intentWhy",e.target.value)} rows={3}
-              style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
-          </div>
-          <div>
-            <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Visitors / buyers you want to meet</p>
-            <textarea value={form.intentBuyers} onChange={e=>upd("intentBuyers",e.target.value)} rows={3}
-              style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
-          </div>
-        </>)}
-
-        <div style={{marginTop:14,padding:"9px 12px",background:`${C.purple}10`,border:`1px solid ${C.purple}30`,borderRadius:8}}>
-          <p style={{fontSize:11,color:C.purple,margin:0,fontWeight:500}}>✦ Fingoh uses this intent statement to tune IEI scores, agent prompts, and live visitor alerts specifically for your goals.</p>
-        </div>
-      </Section>
-
-      {/* Danger zone — delete event */}
-      {!ex.isPast && (
-      <div style={{background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:14,padding:20,marginTop:24}}>
-        <p style={{fontSize:13,fontWeight:700,color:"#991B1B",marginBottom:4}}>⚠ Danger zone</p>
-        <p style={{fontSize:12,color:"#7F1D1D",marginBottom:14,lineHeight:1.6}}>Deleting this event archives it and removes it from your active events list. Visitor data and signals are preserved but no longer accessible from the dashboard.</p>
+  const renderDanger = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:"#991B1B",margin:"0 0 4px"}}>⚠ Danger zone</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Irreversible actions. Please be certain before proceeding.</p>
+      <div style={{background:"#FEF2F2",border:"1px solid #FCA5A5",borderRadius:12,padding:20}}>
+        <p style={{fontSize:13,fontWeight:700,color:"#991B1B",margin:"0 0 6px"}}>Delete this event</p>
+        <p style={{fontSize:12,color:"#7F1D1D",margin:"0 0 16px",lineHeight:1.6}}>Deleting this event archives it and removes it from your active dashboard. Visitor data and signals are preserved.</p>
         {!confirmDelete ? (
-          <button onClick={()=>setConfirmDelete(true)}
-            style={{padding:"9px 18px",background:C.white,color:"#DC2626",border:"1.5px solid #DC2626",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+          <button onClick={()=>setConfirmDelete(true)} style={{padding:"9px 18px",background:"white",color:"#DC2626",border:"1.5px solid #DC2626",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
             🗑 Delete event
           </button>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:12,color:"#991B1B",fontWeight:600}}>Are you sure? This cannot be undone.</span>
-            <button onClick={()=>setConfirmDelete(false)} disabled={deleting}
-              style={{padding:"8px 16px",background:C.white,color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-              Cancel
-            </button>
-            <button onClick={deleteEvent} disabled={deleting}
-              style={{padding:"8px 16px",background:"#DC2626",color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:deleting?"not-allowed":"pointer",fontFamily:F}}>
-              {deleting?"Deleting…":"Yes, delete permanently"}
+            <button onClick={()=>setConfirmDelete(false)} style={{padding:"8px 14px",background:"white",color:C.muted,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>Cancel</button>
+            <button onClick={deleteEvent} disabled={deleting} style={{padding:"8px 14px",background:"#DC2626",color:"white",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:deleting?"not-allowed":"pointer",fontFamily:F}}>
+              {deleting?"Deleting…":"Yes, delete"}
             </button>
           </div>
         )}
+        {error && <p style={{fontSize:11,color:"#DC2626",margin:"10px 0 0"}}>⚠ {error}</p>}
       </div>
-      )}
+    </div>
+  );
+
+  const sectionRenderers = {
+    overview:   renderOverview,
+    company:    renderCompany,
+    categories: renderCategories,
+    icp:        renderICP,
+    intent:     renderIntent,
+    finetune:   renderFinetune,
+    danger:     renderDanger,
+  };
+
+  return (
+    <div style={{display:"flex",height:"100%",fontFamily:F}}>
+      {/* ── Left nav ── */}
+      <div style={{width:220,flexShrink:0,borderRight:"1px solid #E2E8F0",padding:"24px 0",background:"#FAFAFA",minHeight:"calc(100vh - 120px)"}}>
+        <div style={{padding:"0 16px 16px",borderBottom:"1px solid #F1F5F9",marginBottom:8}}>
+          <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0}}>Event setup</p>
+          <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:"4px 0 0",lineHeight:1.3,wordBreak:"break-word"}}>{ex.name}</p>
+        </div>
+        {SECTIONS.map(s=>(
+          <button key={s.id} onClick={()=>setActiveSection(s.id)}
+            style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 16px",border:"none",cursor:"pointer",fontFamily:F,textAlign:"left",
+              background:activeSection===s.id?"#EFF6FF":"transparent",
+              borderRight:activeSection===s.id?`3px solid ${C.navy}`:"3px solid transparent",
+              color:activeSection===s.id?C.navy:C.muted,
+              fontWeight:activeSection===s.id?700:500, fontSize:12,
+            }}>
+            <span style={{fontSize:15,flexShrink:0}}>{s.icon}</span>
+            {s.label}
+          </button>
+        ))}
+        {saved && (
+          <div style={{margin:"16px 12px 0",padding:"8px 12px",background:C.ltgrn,borderRadius:8,border:"1px solid #86EFAC"}}>
+            <p style={{fontSize:11,color:"#14532D",fontWeight:700,margin:0}}>✓ Changes saved</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Right content ── */}
+      <div style={{flex:1,padding:"28px 36px",overflowY:"auto",maxHeight:"calc(100vh - 120px)"}}>
+        {(sectionRenderers[activeSection] || renderOverview)()}
+      </div>
     </div>
   );
 }
