@@ -2008,6 +2008,213 @@ function AudienceUpload({ex, onNext}) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════
+// Claude-powered Meeting Match Detail Panel
+// ═══════════════════════════════════════════════════════════════════
+function MatchDetailPanel({p, ex, onClose, openModal}) {
+  const [analysis, setAnalysis] = React.useState(null);
+  const [loading,  setLoading]  = React.useState(true);
+
+  React.useEffect(()=>{
+    const run = async () => {
+      setLoading(true);
+      try {
+        const icpRoles    = (ex.icpRole   ||[]).join(", ") || "Not specified";
+        const icpSizes    = (ex.icpSize   ||[]).join(", ") || "Not specified";
+        const icpReasons  = (ex.icpReason ||[]).join(", ") || "Not specified";
+
+        const prompt = `You are an expert B2B event intelligence system analysing meeting match quality at a trade fair.
+
+EXHIBITOR PROFILE:
+- Company: ${ex.company || "Unknown"}
+- Event: ${ex.name || "Unknown"}
+- Target buyer roles: ${icpRoles}
+- Target company sizes: ${icpSizes}
+- Visitor intent they want to attract: ${icpReasons}
+
+VISITOR PROFILE:
+- Name: ${p.name}
+- Role: ${p.designation}
+- Company: ${p.company} (${p.country})
+- IEI Score: ${(p.iei_score||0).toFixed(1)} (${p.iei_tier} tier)
+- Visit reason: ${p.primary_reason || "Not stated"}
+- Product categories of interest: ${p.categories_interest || "Not specified"}
+- Wants meeting: ${p.meeting_interest === true || p.meeting_interest === "yes" ? "YES — explicitly opted in" : p.meeting_interest === false || p.meeting_interest === "no" ? "NO — opted out" : "Not specified"}
+- Purchase timeline: ${p.purchase_timeline || "Not stated"}
+- Actively sourcing: ${p.actively_sourcing ? "Yes" : "No"}
+- Specific product interest: ${p.specific_product || "Not stated"}
+- LambdaMART match score: ${Math.round(p.match_score||0)}/100
+- Meeting probability: ${Math.round((p.meeting_prob||0)*100)}%
+
+Analyse whether this visitor is genuinely a good meeting candidate for this exhibitor. Consider:
+1. Does their ROLE match the exhibitor's target buyer roles?
+2. Does their INTENT (visit reason, categories, sourcing status) align with what the exhibitor offers?
+3. Are there RED FLAGS (e.g. wrong department, policy vs procurement, research only)?
+4. What is the REAL probability of a productive meeting?
+
+Return ONLY valid JSON (no markdown, no explanation outside JSON):
+{
+  "intentAlignment": "HIGH" | "MED" | "LOW",
+  "alignmentSummary": "2-sentence honest assessment of fit between this visitor and exhibitor",
+  "matchFactors": [
+    {"factor": "string", "assessment": "string", "impact": "POSITIVE" | "NEUTRAL" | "NEGATIVE"}
+  ],
+  "redFlags": ["string"],
+  "talkingPoints": ["string"],
+  "recommendation": "Priority meeting" | "Worth exploring" | "Low priority",
+  "recommendationReason": "1-sentence honest recommendation with specific reasoning"
+}`;
+
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({
+            model:"claude-sonnet-4-6",
+            max_tokens:1000,
+            messages:[{role:"user", content:prompt}]
+          })
+        });
+        const data = await res.json();
+        const raw = data.content?.[0]?.text || "{}";
+        const clean = raw.replace(/```json|```/g,"").trim();
+        setAnalysis(JSON.parse(clean));
+      } catch(e) {
+        setAnalysis({
+          intentAlignment:"MED",
+          alignmentSummary:"Unable to generate analysis. Check API connection.",
+          matchFactors:[],
+          redFlags:[],
+          talkingPoints:[],
+          recommendation:"Worth exploring",
+          recommendationReason:"Manual review recommended."
+        });
+      }
+      setLoading(false);
+    };
+    run();
+  },[p.contact_id]);
+
+  const prob       = Math.round((p.meeting_prob||0)*100);
+  const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
+  const ieiColor   = p.iei_tier==="T1"?C.red:p.iei_tier==="T2"?C.yellow:C.blue;
+
+  const alignColor = a => a==="HIGH"?"#16A34A":a==="MED"?"#D97706":"#DC2626";
+  const alignBg    = a => a==="HIGH"?"#DCFCE7":a==="MED"?"#FEF3C7":"#FEE2E2";
+  const impactColor = i => i==="POSITIVE"?"#16A34A":i==="NEGATIVE"?"#DC2626":"#94A3B8";
+  const impactBg    = i => i==="POSITIVE"?"#DCFCE7":i==="NEGATIVE"?"#FEE2E2":"#F1F5F9";
+
+  const recColor = r => r==="Priority meeting"?"#16A34A":r==="Worth exploring"?"#2563EB":"#94A3B8";
+  const recBg    = r => r==="Priority meeting"?"#DCFCE7":r==="Worth exploring"?"#DBEAFE":"#F1F5F9";
+  const recIcon  = r => r==="Priority meeting"?"🏆":r==="Worth exploring"?"🔍":"⏸";
+
+  return (
+    <div style={{width:330,flexShrink:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:0,maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
+      {/* Header */}
+      <div style={{padding:"14px 16px",background:C.navy,color:C.white,flexShrink:0}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{flex:1,minWidth:0}}>
+            <p style={{fontSize:13,fontWeight:700,margin:"0 0 2px",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.name}</p>
+            <p style={{fontSize:11,color:"rgba(255,255,255,.7)",margin:0}}>{p.designation}</p>
+            <p style={{fontSize:11,color:"rgba(255,255,255,.5)",margin:"2px 0 0"}}>{p.company} · {p.country}</p>
+          </div>
+          <button onClick={onClose}
+            style={{background:"rgba(255,255,255,.15)",border:"none",color:C.white,borderRadius:6,width:24,height:24,cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginLeft:8}}>×</button>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          {[["Match",Math.round(p.match_score||0),matchColor],[prob+"%","Probability",matchColor],[p.iei_score?.toFixed(1)||"—","IEI",ieiColor]].map(([v,l,c],i)=>(
+            <div key={i} style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center",flex:1}}>
+              <div style={{fontSize:16,fontWeight:800,color:c}}>{v}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>{l}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Scrollable body */}
+      <div style={{overflowY:"auto",flex:1}}>
+        {loading ? (
+          <div style={{padding:32,textAlign:"center"}}>
+            <div style={{fontSize:24,marginBottom:8}}>🔍</div>
+            <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:"0 0 4px"}}>Analysing intent match…</p>
+            <p style={{fontSize:11,color:C.muted,margin:0}}>Claude is comparing visitor profile against your ICP</p>
+          </div>
+        ) : analysis ? (<>
+
+          {/* Recommendation banner */}
+          <div style={{padding:"10px 16px",background:recBg(analysis.recommendation),borderBottom:"1px solid #F1F5F9",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:16}}>{recIcon(analysis.recommendation)}</span>
+            <div>
+              <span style={{fontSize:12,fontWeight:700,color:recColor(analysis.recommendation)}}>{analysis.recommendation}</span>
+              <p style={{fontSize:10,color:C.muted,margin:"2px 0 0",lineHeight:1.4}}>{analysis.recommendationReason}</p>
+            </div>
+          </div>
+
+          {/* Intent alignment */}
+          <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Intent alignment</span>
+              <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:alignBg(analysis.intentAlignment),color:alignColor(analysis.intentAlignment),fontWeight:700}}>{analysis.intentAlignment}</span>
+            </div>
+            <p style={{fontSize:11,color:C.navy,margin:0,lineHeight:1.5}}>{analysis.alignmentSummary}</p>
+          </div>
+
+          {/* Match factors */}
+          {analysis.matchFactors?.length>0 && (
+            <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>Match factors</p>
+              {analysis.matchFactors.map((f,i)=>(
+                <div key={i} style={{marginBottom:8,padding:"7px 10px",background:"#FAFAFA",borderRadius:8,borderLeft:`3px solid ${impactColor(f.impact)}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                    <span style={{fontSize:11,fontWeight:600,color:C.navy}}>{f.factor}</span>
+                    <span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:impactBg(f.impact),color:impactColor(f.impact),fontWeight:700}}>{f.impact}</span>
+                  </div>
+                  <p style={{fontSize:10,color:C.muted,margin:0,lineHeight:1.4}}>{f.assessment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Red flags */}
+          {analysis.redFlags?.length>0 && (
+            <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <p style={{fontSize:10,fontWeight:700,color:"#DC2626",textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>⚠ Red flags</p>
+              {analysis.redFlags.map((f,i)=>(
+                <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:4}}>
+                  <span style={{color:"#DC2626",fontSize:12,flexShrink:0}}>•</span>
+                  <p style={{fontSize:10,color:"#DC2626",margin:0,lineHeight:1.4}}>{f}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Talking points */}
+          {analysis.talkingPoints?.length>0 && (
+            <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
+              <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>💬 Talking points</p>
+              {analysis.talkingPoints.map((t,i)=>(
+                <div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:4}}>
+                  <span style={{color:C.blue,fontSize:12,flexShrink:0}}>→</span>
+                  <p style={{fontSize:10,color:C.navy,margin:0,lineHeight:1.4}}>{t}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+        </>) : null}
+
+        {/* Action */}
+        <div style={{padding:"12px 16px"}}>
+          <button onClick={()=>openModal(p)}
+            style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+            + Request Meeting
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // SCREEN — Meetings (Pre-event + During Event)
 // ═══════════════════════════════════════════════════════════════════
@@ -2201,131 +2408,8 @@ function MeetingsScreen({ex}) {
           })}
         </div>
 
-        {/* ── Match Detail Panel ── */}
-        {selProspect && (()=>{
-          const p = selProspect;
-          const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
-          const ieiColor   = p.iei_tier==="T1"?C.red:p.iei_tier==="T2"?C.yellow:C.blue;
-          const prob       = Math.round((p.meeting_prob||0)*100);
-
-          // Derive signal explanations from prospect data
-          const signals = [];
-          const title = (p.designation||"").toLowerCase();
-          if (["ceo","cto","cfo","chief","president","md","managing director"].some(x=>title.includes(x)))
-            signals.push({icon:"👑", label:"Executive seniority", detail:"C-suite/MD title detected — highest priority for meetings", boost:"HIGH"});
-          else if (["vp","vice","svp","director","head"].some(x=>title.includes(x)))
-            signals.push({icon:"🏆", label:"Senior leadership", detail:"Director/VP level — strong decision-making authority", boost:"HIGH"});
-          else if (["manager","senior","lead","principal"].some(x=>title.includes(x)))
-            signals.push({icon:"⭐", label:"Mid-senior role", detail:"Manager/Lead level — likely involved in purchase decisions", boost:"MED"});
-          else
-            signals.push({icon:"👤", label:"Individual contributor", detail:"Role suggests limited purchasing authority", boost:"LOW"});
-
-          if (p.iei_score>=75)      signals.push({icon:"🎯", label:"IEI: Perfect match", detail:`Score ${p.iei_score?.toFixed(1)} — top tier fit with your ICP`, boost:"HIGH"});
-          else if (p.iei_score>=50) signals.push({icon:"📊", label:"IEI: Good match", detail:`Score ${p.iei_score?.toFixed(1)} — solid ICP alignment`, boost:"MED"});
-          else                      signals.push({icon:"📉", label:"IEI: Partial match", detail:`Score ${p.iei_score?.toFixed(1)} — limited ICP overlap`, boost:"LOW"});
-
-          if (prob>=70)      signals.push({icon:"🤝", label:"High meeting propensity", detail:"LambdaMART predicts strong likelihood of accepting a meeting", boost:"HIGH"});
-          else if (prob>=45) signals.push({icon:"📅", label:"Moderate propensity", detail:"Model predicts reasonable chance of meeting acceptance", boost:"MED"});
-          else               signals.push({icon:"⚠", label:"Low propensity", detail:"May not be actively seeking meetings — personalise outreach", boost:"LOW"});
-
-          const boostColor = b => b==="HIGH"?"#16A34A":b==="MED"?"#2563EB":"#94A3B8";
-          const boostBg    = b => b==="HIGH"?"#DCFCE7":b==="MED"?"#DBEAFE":"#F1F5F9";
-
-          return (
-            <div style={{width:320,flexShrink:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:0}}>
-              {/* Header */}
-              <div style={{padding:"14px 16px",background:C.navy,color:C.white}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                  <div>
-                    <p style={{fontSize:13,fontWeight:700,margin:"0 0 2px"}}>{p.name}</p>
-                    <p style={{fontSize:11,color:"rgba(255,255,255,.7)",margin:0}}>{p.designation}</p>
-                    <p style={{fontSize:11,color:"rgba(255,255,255,.5)",margin:"2px 0 0"}}>{p.company} · {p.country}</p>
-                  </div>
-                  <button onClick={()=>setSelProspect(null)}
-                    style={{background:"rgba(255,255,255,.15)",border:"none",color:C.white,borderRadius:6,width:24,height:24,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
-                </div>
-                {/* Score pills */}
-                <div style={{display:"flex",gap:8,marginTop:10}}>
-                  <div style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center"}}>
-                    <div style={{fontSize:18,fontWeight:800,color:matchColor}}>{Math.round(p.match_score)}</div>
-                    <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>Match</div>
-                  </div>
-                  <div style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center"}}>
-                    <div style={{fontSize:18,fontWeight:800,color:matchColor}}>{prob}%</div>
-                    <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>Probability</div>
-                  </div>
-                  <div style={{background:"rgba(255,255,255,.1)",borderRadius:8,padding:"6px 10px",textAlign:"center"}}>
-                    <div style={{fontSize:18,fontWeight:800,color:ieiColor}}>{p.iei_score?.toFixed(1)}</div>
-                    <div style={{fontSize:9,color:"rgba(255,255,255,.6)",textTransform:"uppercase",letterSpacing:.04}}>IEI</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Probability bar */}
-              <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                  <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.04}}>Meeting Probability</span>
-                  <span style={{fontSize:12,fontWeight:700,color:matchColor}}>{prob}%</span>
-                </div>
-                <div style={{height:8,background:"#F1F5F9",borderRadius:4,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:`${prob}%`,background:prob>=70?"#16A34A":prob>=45?"#2563EB":"#F59E0B",borderRadius:4,transition:"width .4s"}}/>
-                </div>
-                <p style={{fontSize:10,color:C.muted,margin:"6px 0 0",lineHeight:1.4}}>
-                  {prob>=70?"LambdaMART model predicts high likelihood of meeting acceptance based on role seniority, ICP fit, buying intent, and IEI score."
-                   :prob>=45?"Model predicts moderate acceptance probability. Personalised outreach recommended to increase conversion."
-                   :"Low predicted probability. Consider alternative engagement — content, demo invite, or booth visit first."}
-                </p>
-              </div>
-
-              {/* Signal breakdown */}
-              <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
-                <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>Why this score</p>
-                {signals.map((s,i)=>(
-                  <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",marginBottom:8}}>
-                    <span style={{fontSize:14,flexShrink:0}}>{s.icon}</span>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <span style={{fontSize:11,fontWeight:600,color:C.navy}}>{s.label}</span>
-                        <span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:boostBg(s.boost),color:boostColor(s.boost),fontWeight:700}}>{s.boost}</span>
-                      </div>
-                      <p style={{fontSize:10,color:C.muted,margin:"2px 0 0",lineHeight:1.4}}>{s.detail}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* How scored */}
-              <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9"}}>
-                <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 8px"}}>How scoring works</p>
-                <p style={{fontSize:10,color:C.muted,margin:0,lineHeight:1.6}}>
-                  Match score is computed by a <strong>LambdaMART</strong> ranking model trained on meeting conversion patterns. It combines:
-                </p>
-                <div style={{marginTop:8}}>
-                  {[
-                    ["Role seniority","~30% weight — decision-maker authority"],
-                    ["IEI score","~25% weight — overall buyer fit"],
-                    ["Buying intent","~20% weight — visit reason + sourcing signals"],
-                    ["Meeting interest","~15% weight — explicit opt-in from registration"],
-                    ["Profile completeness","~10% weight — data quality signal"],
-                  ].map(([k,v])=>(
-                    <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"3px 0",borderBottom:"1px solid #F8FAFC"}}>
-                      <span style={{fontSize:10,fontWeight:600,color:C.navy}}>{k}</span>
-                      <span style={{fontSize:10,color:C.muted}}>{v}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Action */}
-              <div style={{padding:"12px 16px"}}>
-                <button onClick={()=>{ openModal(p); }}
-                  style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-                  + Request Meeting
-                </button>
-              </div>
-            </div>
-          );
-        })()}
+        {/* ── Match Detail Panel (Claude-powered) ── */}
+        {selProspect && <MatchDetailPanel key={selProspect.contact_id} p={selProspect} ex={ex} onClose={()=>setSelProspect(null)} openModal={openModal}/>}
         </div>
       )}
 
