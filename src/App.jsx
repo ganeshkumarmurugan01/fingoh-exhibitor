@@ -2016,7 +2016,15 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
   const [analysis, setAnalysis] = React.useState(null);
   const [loading,  setLoading]  = React.useState(true);
 
+  const [forceRefresh, setForceRefresh] = React.useState(false);
+
+  // Pre-load from cached analysis if available
   React.useEffect(()=>{
+    if (p.cached_analysis && !forceRefresh) {
+      setAnalysis({...p.cached_analysis, cached_at: p.cached_analysed_at, from_cache: true});
+      setLoading(false);
+      return;
+    }
     const run = async () => {
       setLoading(true);
       try {
@@ -2030,7 +2038,7 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
         const res = await fetch("/api/proxy?slug=v1/meetings/match-analysis", {
           method:"POST",
           headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
-          body: JSON.stringify({ prospect: p, exhibitor: ex })
+          body: JSON.stringify({ prospect: p, exhibitor: ex, force_refresh: forceRefresh })
         });
         if (!res.ok) throw new Error(await res.text());
         setAnalysis(await res.json());
@@ -2048,7 +2056,7 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
       setLoading(false);
     };
     run();
-  },[p.contact_id]);
+  },[p.contact_id, forceRefresh]);
 
   const prob       = Math.round((p.meeting_prob||0)*100);
   const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
@@ -2279,7 +2287,7 @@ function MeetingsScreen({ex}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
         <div>
           <h1 style={{fontSize:20,fontWeight:700,color:C.navy,letterSpacing:"-0.02em",marginBottom:3}}>Meeting Match</h1>
-          <p style={{fontSize:13,color:C.muted,margin:0}}>{ex.company} · {ex.name} · LambdaMART-ranked prospects</p>
+          <p style={{fontSize:13,color:C.muted,margin:0}}>{ex.company} · {ex.name} · IEI-based match score · ranked prospects</p>
         </div>
         <div style={{display:"flex",gap:8}}>
           {[["prospects","🎯 Prospects"],["scheduled","📅 Scheduled"]].map(([id,lbl])=>(
@@ -2308,7 +2316,7 @@ function MeetingsScreen({ex}) {
         <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
         <div style={{flex:1,minWidth:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"10px 18px",background:"#FAFAFA",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Ranked by LambdaMART match score</span>
+            <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Ranked by IEI-based match score</span>
             <span style={{fontSize:11,color:C.muted}}>{prospects.length} contacts scored</span>
           </div>
           {/* Column headers */}
@@ -2363,7 +2371,7 @@ function MeetingsScreen({ex}) {
           })}
         </div>
 
-        {/* ── Match Detail Panel (Claude-powered) ── */}
+        {/* ── Match Detail Panel ── */}
         {selProspect && <MatchDetailPanel key={selProspect.contact_id} p={selProspect} ex={ex} onClose={()=>setSelProspect(null)} openModal={openModal}/>}
         </div>
       )}
