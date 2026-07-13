@@ -5580,7 +5580,7 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || "";
-        const res = await fetch(`/api/v1/agent/queue?event_id=${ex.id}`, {
+        const res = await fetch(`/api/proxy?slug=v1/agent/queue&event_id=${ex.id}`, {
           headers: { "x-fingoh-auth": `Bearer ${token}` },
         });
         if (res.ok) {
@@ -6012,7 +6012,7 @@ function AgentPage({ ex, onQueueLoaded }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         const token = session?.access_token || "";
-        const res = await fetch(`/api/v1/agent/queue?event_id=${ex.id}`, {
+        const res = await fetch(`/api/proxy?slug=v1/agent/queue&event_id=${ex.id}`, {
           headers: { "x-fingoh-auth": `Bearer ${token}` },
         });
         if (res.ok) {
@@ -6050,7 +6050,7 @@ function AgentPage({ ex, onQueueLoaded }) {
       const prompt = buildAgentPrompt(item.agentId, item, ex);
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      const res = await fetch("/api/v1/agent/generate", {
+      const res = await fetch("/api/proxy?slug=v1/agent/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
         body: JSON.stringify({ prompt, event_id: ex?.id, contact_id: item.id, agent_id: item.agentId }),
@@ -6079,7 +6079,7 @@ function AgentPage({ ex, onQueueLoaded }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      const res = await fetch("/api/v1/agent/send", {
+      const res = await fetch("/api/proxy?slug=v1/agent/send", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
         body: JSON.stringify({
