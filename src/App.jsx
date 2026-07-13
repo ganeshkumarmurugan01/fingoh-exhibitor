@@ -3452,6 +3452,32 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     return ()=>clearInterval(iv);
   },[loadData]);
 
+  // ── Toast notifications for realtime staff activity ────────────
+  const [toasts, setToasts] = useState([]);
+  const addToast = (msg, color="#16A34A") => {
+    const id = Date.now();
+    setToasts(p=>[{id, msg, color}, ...p.slice(0,4)]);
+    setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)), 5000);
+  };
+
+  // Trigger toast on new signal
+  useEffect(()=>{
+    if (signals.length === 0) return;
+    const latest = signals[0];
+    if (!latest) return;
+    const contact = contacts.find(c=>c.id===latest.contact_id);
+    const name = contact?.name || "Unknown visitor";
+    const staff = latest.staff_name || "Staff";
+    const action = latest.meeting_completed ? "completed a meeting" :
+                   latest.meeting_booked    ? "booked a meeting"    :
+                   latest.demo_requested    ? "requested a demo"    :
+                   latest.return_visit      ? "returned to booth"   :
+                   latest.badge_scan        ? "badge scanned"       :
+                   "logged a conversation";
+    const color = latest.meeting_completed?"#16A34A":latest.meeting_booked?"#2563EB":latest.demo_requested?"#7C3AED":"#D97706";
+    addToast(`${staff} → ${name} · ${action}`, color);
+  },[signals[0]?.id]);
+
   // Map contacts to display rows — use onsite scores where available
   const visitors = contacts.map(c=>{
     const sig = signals.filter(s=>s.contact_id===c.id).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
@@ -3601,7 +3627,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         <div style={{display:"flex",gap:16,marginTop:8}}>{tiers.map(({t,n,c})=><div key={t} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:11,color:C.muted}}>{t}: {Math.round(n/tot*100)}%</span></div>)}</div>
       </div>
 
-      <div style={{display:"block"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16,alignItems:"start"}}>
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
           {/* ── Filter bar ── */}
@@ -3734,7 +3760,97 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           </div>
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
-  </div>
+        </div>
+
+        {/* ── Activity Feed Panel ── */}
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:16}}>
+          {/* Header */}
+          <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:"#16A34A",display:"inline-block",boxShadow:"0 0 0 2px #BBF7D0"}}/>
+              <span style={{fontSize:12,fontWeight:700,color:C.navy}}>Staff activity</span>
+            </div>
+            <span style={{fontSize:10,color:C.muted}}>{signals.length} signals</span>
+          </div>
+
+          {/* Feed */}
+          <div style={{maxHeight:600,overflowY:"auto"}}>
+            {signals.length === 0 ? (
+              <div style={{padding:"32px 16px",textAlign:"center"}}>
+                <p style={{fontSize:24,margin:"0 0 8px"}}>📡</p>
+                <p style={{fontSize:12,fontWeight:600,color:C.muted,margin:"0 0 4px"}}>Waiting for activity</p>
+                <p style={{fontSize:11,color:C.muted2,margin:0}}>Staff signals will appear here in real time</p>
+              </div>
+            ) : signals.map((s,i)=>{
+              const contact = contacts.find(c=>c.id===s.contact_id);
+              const name    = contact?.name || "Unknown visitor";
+              const company = contact?.company || "";
+              const actionIcon  = s.meeting_completed?"✅":s.meeting_booked?"📅":s.demo_requested?"🖥":s.return_visit?"🔄":s.badge_scan?"🏷":"💬";
+              const actionLabel = s.meeting_completed?"Meeting completed":s.meeting_booked?"Meeting booked":s.demo_requested?"Demo requested":s.return_visit?"Return visit":s.badge_scan?"Badge scanned":"Conversation logged";
+              const actionColor = s.meeting_completed?"#16A34A":s.meeting_booked?"#2563EB":s.demo_requested?"#7C3AED":s.return_visit?"#D97706":"#64748B";
+              const time = new Date(s.created_at).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"});
+              return (
+                <div key={s.id} style={{padding:"10px 14px",borderBottom:"1px solid #F8FAFC",background:i===0?"#F0FDF4":"transparent",transition:"background .5s"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
+                    <div style={{display:"flex",gap:6,alignItems:"center",flex:1,minWidth:0}}>
+                      <span style={{fontSize:14,flexShrink:0}}>{actionIcon}</span>
+                      <div style={{minWidth:0}}>
+                        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{name}</p>
+                        {company && <p style={{fontSize:10,color:C.muted,margin:0}}>{company}</p>}
+                      </div>
+                    </div>
+                    <span style={{fontSize:10,color:C.muted2,flexShrink:0,marginLeft:6}}>{time}</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:10,fontWeight:600,color:actionColor}}>{actionLabel}</span>
+                    {s.staff_name && <span style={{fontSize:9,color:C.muted2}}>by {s.staff_name.split(" ")[0]}</span>}
+                  </div>
+                  {s.notes && (
+                    <p style={{fontSize:10,color:C.muted,margin:"4px 0 0",lineHeight:1.4,fontStyle:"italic",background:"#F8FAFC",borderRadius:5,padding:"3px 6px"}}>
+                      "{s.notes.slice(0,100)}{s.notes.length>100?"…":""}"
+                    </p>
+                  )}
+                  {s.conversation_quality>0 && (
+                    <div style={{display:"flex",gap:3,marginTop:4}}>
+                      {Array.from({length:5}).map((_,i)=>(
+                        <div key={i} style={{width:12,height:4,borderRadius:2,background:i<s.conversation_quality?"#2563EB":"#E2E8F0"}}/>
+                      ))}
+                      <span style={{fontSize:9,color:C.muted,marginLeft:2}}>{s.conversation_quality}/5</span>
+                    </div>
+                  )}
+                  {s.ai_buying_signals?.length>0 && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:3,marginTop:4}}>
+                      {s.ai_buying_signals.slice(0,3).map(sig=>(
+                        <span key={sig} style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:"#EDE9FE",color:"#7C3AED",fontWeight:600}}>{sig}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Meeting completions summary */}
+          {signals.filter(s=>s.meeting_completed).length>0 && (
+            <div style={{padding:"10px 14px",borderTop:"1px solid #F1F5F9",background:"#F0FDF4"}}>
+              <p style={{fontSize:11,fontWeight:700,color:"#14532D",margin:"0 0 2px"}}>✅ {signals.filter(s=>s.meeting_completed).length} meeting{signals.filter(s=>s.meeting_completed).length>1?"s":""} completed today</p>
+              <p style={{fontSize:10,color:"#166534",margin:0}}>Follow-up agent queue ready</p>
+            </div>
+          )}
+        </div>
+
+      </div>
+
+      {/* ── Toast notifications ── */}
+      <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,display:"flex",flexDirection:"column",gap:8,pointerEvents:"none"}}>
+        {toasts.map(t=>(
+          <div key={t.id} style={{padding:"10px 16px",background:C.white,border:`2px solid ${t.color}`,borderRadius:10,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",display:"flex",alignItems:"center",gap:10,minWidth:280,animation:"slideIn .3s ease"}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:t.color,flexShrink:0}}/>
+            <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:0,lineHeight:1.4}}>{t.msg}</p>
+          </div>
+        ))}
+      </div>
+
   </div>
   );
 }
