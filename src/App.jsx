@@ -3776,7 +3776,6 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           </div>
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
-        </div>}
 
         {innerTab==="activity" && <div>
 
