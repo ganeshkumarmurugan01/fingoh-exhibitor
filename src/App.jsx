@@ -5997,6 +5997,7 @@ function AgentPage({ ex, onQueueLoaded }) {
   const [dismissed, setDismissed]         = useState({});
   const [sending, setSending]             = useState({});
   const [sendResult, setSendResult]       = useState({});
+  const [selItem, setSelItem]             = useState(null);
 
   // ── Fetch queue on mount ───────────────────────────────────────
   useEffect(() => {
@@ -6029,6 +6030,7 @@ function AgentPage({ ex, onQueueLoaded }) {
           setOutputs(savedOutputs);
           setParsedDrafts(savedParsed);
           onQueueLoaded && onQueueLoaded(q.length);
+          if (q.length > 0) setSelItem(q[0]);
         }
       } catch(e) { console.error("Agent queue fetch failed:", e); }
       finally { setQueueLoading(false); }
@@ -6164,70 +6166,98 @@ function AgentPage({ ex, onQueueLoaded }) {
         </div>
       </div>
 
-      {/* Content area */}
-      <div style={{flex:1,padding:"24px 32px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:20,alignItems:"start"}}>
+      {/* Content area — list + detail panel */}
+      <div style={{flex:1,display:"flex",overflow:"hidden"}}>
 
-        {queueLoading ? (
-          <div style={{gridColumn:"1/-1",textAlign:"center",padding:"60px 0",color:"#94A3B8"}}>
-            <div style={{fontSize:32,marginBottom:12}}>✦</div>
-            <p style={{fontSize:14,fontWeight:500,margin:0}}>Loading agent queue…</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div style={{gridColumn:"1/-1",textAlign:"center",padding:"60px 0",color:"#94A3B8"}}>
-            <div style={{fontSize:48,marginBottom:16}}>{activeAgentDef?.icon}</div>
-            <p style={{fontSize:16,fontWeight:600,margin:"0 0 8px",color:"#475569"}}>No pending actions</p>
-            <p style={{fontSize:13,margin:0}}>All {activeAgentDef?.label} items have been reviewed</p>
-          </div>
-        ) : items.map(item => {
-          const pd      = parsedDrafts[item.id] || {};
-          const out     = outputs[item.id];
-          const isGen   = generating[item.id];
-          const isDone  = approved[item.id];
-          const isFollowup = item.agentId === "followup";
-          const isRouting  = item.agentId === "routing";
-          const sendKey2   = item.id + "_2";
+        {/* ── Left: scrollable contact list ── */}
+        <div style={{width:320,flexShrink:0,borderRight:"1px solid #E2E8F0",overflowY:"auto",background:"#FAFAFA"}}>
+          {queueLoading ? (
+            <div style={{textAlign:"center",padding:"60px 20px",color:"#94A3B8"}}>
+              <div style={{fontSize:28,marginBottom:10}}>✦</div>
+              <p style={{fontSize:13,margin:0}}>Loading queue…</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div style={{textAlign:"center",padding:"60px 20px",color:"#94A3B8"}}>
+              <div style={{fontSize:40,marginBottom:12}}>{activeAgentDef?.icon}</div>
+              <p style={{fontSize:14,fontWeight:600,margin:"0 0 6px",color:"#475569"}}>No pending actions</p>
+              <p style={{fontSize:12,margin:0}}>All {activeAgentDef?.label} items reviewed</p>
+            </div>
+          ) : items.map((item,idx) => {
+            const isDone   = approved[item.id];
+            const isActive = selItem?.id === item.id;
+            const hasDraft = !!outputs[item.id];
+            return (
+              <div key={item.id} onClick={()=>setSelItem(item)}
+                style={{padding:"12px 16px",borderBottom:"1px solid #E2E8F0",cursor:"pointer",
+                  background: isActive ? "#EFF6FF" : isDone ? "#F0FDF4" : "#fff",
+                  borderLeft: `3px solid ${isActive ? activeAgentDef.color : isDone ? "#16A34A" : "transparent"}`,
+                  transition:"background .15s"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:3}}>
+                  <span style={{fontSize:13,fontWeight:700,color:isDone?"#14532D":"#0F172A"}}>{item.visitor}</span>
+                  <span style={{fontSize:13,fontWeight:800,color:item.ieiScore>=75?"#16A34A":activeAgentDef.color,flexShrink:0,marginLeft:8}}>
+                    {typeof item.ieiScore==="number"?item.ieiScore.toFixed(1):item.ieiScore}
+                  </span>
+                </div>
+                <p style={{fontSize:11,color:"#64748B",margin:"0 0 4px"}}>{item.company}{item.role?` · ${item.role}`:""}</p>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  {isDone && <span style={{fontSize:9,background:"#DCFCE7",color:"#14532D",padding:"1px 7px",borderRadius:99,fontWeight:700}}>✓ Sent</span>}
+                  {hasDraft && !isDone && <span style={{fontSize:9,background:`${activeAgentDef.color}20`,color:activeAgentDef.color,padding:"1px 7px",borderRadius:99,fontWeight:700}}>Draft ready</span>}
+                  {!hasDraft && !isDone && <span style={{fontSize:9,color:"#94A3B8"}}>Not generated</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
 
-          return (
-            <div key={item.id} style={{background:"#fff",borderRadius:14,border:`1px solid ${isDone ? "#86EFAC" : activeAgentDef.color + "30"}`,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-
-              {/* Card header */}
-              <div style={{padding:"14px 18px",background:isDone ? "#F0FDF4" : `${activeAgentDef.color}08`,borderBottom:`1px solid ${isDone ? "#86EFAC" : activeAgentDef.color + "20"}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                <div>
-                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                    <span style={{fontSize:14,fontWeight:700,color:isDone ? "#14532D" : "#0F172A"}}>{item.visitor}</span>
-                    {isDone && <span style={{fontSize:10,background:"#DCFCE7",color:"#14532D",padding:"1px 7px",borderRadius:99,fontWeight:700}}>✓ Sent</span>}
+        {/* ── Right: detail + generate panel ── */}
+        <div style={{flex:1,overflowY:"auto",padding:"24px 28px",background:"#fff"}}>
+          {!selItem ? (
+            <div style={{textAlign:"center",padding:"80px 20px",color:"#94A3B8"}}>
+              <div style={{fontSize:40,marginBottom:12}}>👈</div>
+              <p style={{fontSize:14,fontWeight:600,color:"#475569",margin:"0 0 6px"}}>Select a contact</p>
+              <p style={{fontSize:12,margin:0}}>Pick someone from the list to generate or review their outreach</p>
+            </div>
+          ) : (() => {
+            const item     = selItem;
+            const pd       = parsedDrafts[item.id] || {};
+            const out      = outputs[item.id];
+            const isGen    = generating[item.id];
+            const isDone   = approved[item.id];
+            const isFollowup = item.agentId === "followup";
+            const sendKey2   = item.id + "_2";
+            return (
+              <div>
+                {/* Contact header */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16,paddingBottom:16,borderBottom:"1px solid #F1F5F9"}}>
+                  <div>
+                    <h2 style={{fontSize:18,fontWeight:800,color:"#0F172A",margin:"0 0 4px"}}>{item.visitor}</h2>
+                    <p style={{fontSize:12,color:"#64748B",margin:"0 0 2px"}}>{item.role} · {item.company}</p>
+                    <p style={{fontSize:11,color:"#94A3B8",margin:0,fontStyle:"italic"}}>⚡ {item.reason}</p>
                   </div>
-                  <p style={{fontSize:11,color:"#64748B",margin:"0 0 2px"}}>{item.company}{item.role ? ` · ${item.role}` : ""}</p>
-                  {item.industry && <p style={{fontSize:10,color:"#94A3B8",margin:0}}>{item.industry}</p>}
+                  <div style={{textAlign:"right",flexShrink:0,marginLeft:16}}>
+                    <div style={{fontSize:28,fontWeight:800,color:activeAgentDef.color}}>{typeof item.ieiScore==="number"?item.ieiScore.toFixed(1):item.ieiScore}</div>
+                    <div style={{fontSize:10,color:"#94A3B8",fontWeight:600}}>IEI SCORE</div>
+                  </div>
                 </div>
-                <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                  <span style={{fontSize:20,fontWeight:800,color:item.ieiScore >= 75 ? "#16A34A" : "#2563EB"}}>{typeof item.ieiScore === "number" ? item.ieiScore.toFixed(1) : item.ieiScore}</span>
-                  <button onClick={() => dismiss(item.id)} style={{fontSize:12,color:"#94A3B8",background:"none",border:"none",cursor:"pointer",fontFamily:F,padding:4}}>✕</button>
-                </div>
-              </div>
 
-              {/* Reason */}
-              <div style={{padding:"8px 18px",background:"#F8FAFC",borderBottom:`1px solid ${activeAgentDef.color}15`}}>
-                <p style={{fontSize:11,color:"#64748B",margin:0,fontStyle:"italic"}}>⚡ {item.reason}</p>
-              </div>
-
-              {/* Output area */}
-              <div style={{padding:"16px 18px"}}>
+                {/* Generate / Loading / Draft */}
                 {!out && !isGen && (
-                  <button onClick={() => generate(item)} style={{
-                    width:"100%",padding:"11px 0",
+                  <button onClick={()=>generate(item)} style={{
+                    width:"100%",padding:"14px 0",marginBottom:16,
                     background:`linear-gradient(135deg,${activeAgentDef.color},${activeAgentDef.color}CC)`,
-                    color:"#fff",border:"none",borderRadius:9,fontSize:12,fontWeight:700,
+                    color:"#fff",border:"none",borderRadius:10,fontSize:13,fontWeight:700,
                     cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",gap:8,
                   }}>
-                    <span>✦</span> Generate with Claude Opus 4.8
+                    <span style={{fontSize:16}}>✦</span>
+                    {isFollowup ? "Generate 3-touch follow-up sequence" : "Generate personalised outreach email"}
                   </button>
                 )}
 
                 {isGen && (
-                  <div style={{textAlign:"center",padding:"20px 0"}}>
-                    <div style={{fontSize:28,color:activeAgentDef.color,marginBottom:10}}>◎</div>
-                    <p style={{fontSize:12,color:"#64748B",margin:0}}>Claude Opus 4.8 is drafting…</p>
+                  <div style={{textAlign:"center",padding:"40px 0",marginBottom:16}}>
+                    <div style={{fontSize:36,color:activeAgentDef.color,marginBottom:12}}>◎</div>
+                    <p style={{fontSize:13,fontWeight:600,color:"#475569",margin:"0 0 4px"}}>Claude Opus 4.8 is drafting…</p>
+                    <p style={{fontSize:11,color:"#94A3B8",margin:0}}>Personalising based on their IEI profile and your intent</p>
                   </div>
                 )}
 
@@ -6235,89 +6265,83 @@ function AgentPage({ ex, onQueueLoaded }) {
                   <div>
                     {/* Email 1 */}
                     {pd.email1Subject && (
-                      <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
-                        <p style={{fontSize:10,fontWeight:700,color:activeAgentDef.color,textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>
-                          {isFollowup ? "Email 1 (Day 1)" : "Outreach Email"} · {pd.email1Subject}
+                      <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <p style={{fontSize:10,fontWeight:700,color:activeAgentDef.color,textTransform:"uppercase",letterSpacing:.06,margin:0}}>
+                            {isFollowup ? "Email 1 — Day 1" : "Outreach email"}
+                          </p>
+                          <button onClick={()=>navigator.clipboard.writeText(`Subject: ${pd.email1Subject}\n\n${pd.email1Body}`)}
+                            style={{fontSize:10,color:"#64748B",background:"#fff",border:"1px solid #E2E8F0",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:F}}>
+                            Copy
+                          </button>
+                        </div>
+                        <p style={{fontSize:11,fontWeight:700,color:"#0F172A",margin:"0 0 8px",padding:"6px 10px",background:"#fff",borderRadius:6,border:"1px solid #E2E8F0"}}>
+                          Subject: {pd.email1Subject}
                         </p>
-                        <pre style={{fontSize:11,lineHeight:1.7,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email1Body}</pre>
+                        <pre style={{fontSize:12,lineHeight:1.8,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email1Body}</pre>
                       </div>
                     )}
 
                     {/* LinkedIn */}
                     {isFollowup && pd.linkedinText && (
-                      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:9,padding:14,marginBottom:10}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                          <p style={{fontSize:10,fontWeight:700,color:"#1D4ED8",textTransform:"uppercase",letterSpacing:.06,margin:0}}>LinkedIn (Day 3)</p>
-                          <button onClick={() => navigator.clipboard.writeText(pd.linkedinText)}
-                            style={{fontSize:10,color:"#1D4ED8",background:"none",border:"1px solid #BFDBFE",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:F}}>
+                      <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <p style={{fontSize:10,fontWeight:700,color:"#1D4ED8",textTransform:"uppercase",letterSpacing:.06,margin:0}}>LinkedIn — Day 3</p>
+                          <button onClick={()=>navigator.clipboard.writeText(pd.linkedinText)}
+                            style={{fontSize:10,color:"#1D4ED8",background:"#fff",border:"1px solid #BFDBFE",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:F}}>
                             Copy
                           </button>
                         </div>
-                        <pre style={{fontSize:11,lineHeight:1.7,color:"#1E3A8A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.linkedinText}</pre>
+                        <pre style={{fontSize:12,lineHeight:1.8,color:"#1E3A8A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.linkedinText}</pre>
                       </div>
                     )}
 
                     {/* Email 2 */}
                     {isFollowup && pd.email2Subject && (
-                      <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:9,padding:14,marginBottom:10}}>
-                        <p style={{fontSize:10,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>
-                          Email 2 (Day 7) · {pd.email2Subject}
+                      <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:12}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <p style={{fontSize:10,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:.06,margin:0}}>Email 2 — Day 7</p>
+                          <button onClick={()=>navigator.clipboard.writeText(`Subject: ${pd.email2Subject}\n\n${pd.email2Body}`)}
+                            style={{fontSize:10,color:"#64748B",background:"#fff",border:"1px solid #E2E8F0",borderRadius:5,padding:"2px 8px",cursor:"pointer",fontFamily:F}}>
+                            Copy
+                          </button>
+                        </div>
+                        <p style={{fontSize:11,fontWeight:700,color:"#0F172A",margin:"0 0 8px",padding:"6px 10px",background:"#fff",borderRadius:6,border:"1px solid #E2E8F0"}}>
+                          Subject: {pd.email2Subject}
                         </p>
-                        <pre style={{fontSize:11,lineHeight:1.7,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email2Body}</pre>
-                      </div>
-                    )}
-
-                    {/* Routing brief */}
-                    {isRouting && (
-                      <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:9,padding:14,marginBottom:10}}>
-                        <p style={{fontSize:10,fontWeight:700,color:"#EA580C",textTransform:"uppercase",letterSpacing:.06,marginBottom:6}}>Staff Brief</p>
-                        <pre style={{fontSize:11,lineHeight:1.7,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{out}</pre>
+                        <pre style={{fontSize:12,lineHeight:1.8,color:"#0F172A",margin:0,whiteSpace:"pre-wrap",fontFamily:F}}>{pd.email2Body}</pre>
                       </div>
                     )}
 
                     {/* Action buttons */}
                     {!isDone ? (
-                      <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:4}}>
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                          <button onClick={() => sendEmail(item, 1)} style={{
-                            padding:"10px 0",background:isDone ? "#94A3B8" : "#16A34A",
-                            color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,
-                            cursor:"pointer",fontFamily:F,
-                          }}>
-                            {sending[item.id] ? "Sending…" : isRouting ? "✓ Approve Brief" : "✉ Send Email 1"}
-                          </button>
-                          <button onClick={() => generate(item)} style={{
-                            padding:"10px 0",background:"#fff",color:"#0F172A",
-                            border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,
-                            cursor:"pointer",fontFamily:F,
-                          }}>
-                            ↻ Regenerate
-                          </button>
-                        </div>
+                      <div style={{display:"flex",gap:10,marginTop:4,flexWrap:"wrap"}}>
+                        <button onClick={()=>sendEmail(item,1)}
+                          style={{flex:1,minWidth:140,padding:"11px 0",background:"#16A34A",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                          {sending[item.id] ? "Sending…" : "✉ Send Email 1"}
+                        </button>
+                        <button onClick={()=>generate(item)}
+                          style={{flex:1,minWidth:120,padding:"11px 0",background:"#fff",color:"#0F172A",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                          ↻ Regenerate
+                        </button>
+                        <button onClick={()=>dismiss(item.id)}
+                          style={{padding:"11px 16px",background:"#fff",color:"#94A3B8",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                          Dismiss
+                        </button>
                         {isFollowup && pd.email2Subject && (
-                          <button onClick={() => sendEmail(item, 2)} style={{
-                            padding:"10px 0",background:"#1D4ED8",color:"#fff",
-                            border:"none",borderRadius:8,fontSize:12,fontWeight:700,
-                            cursor:"pointer",fontFamily:F,
-                          }}>
+                          <button onClick={()=>sendEmail(item,2)}
+                            style={{width:"100%",padding:"11px 0",background:"#1D4ED8",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                             {sending[sendKey2] ? "Sending…" : "✉ Send Email 2 (Day 7)"}
                           </button>
                         )}
-                        <button onClick={() => dismiss(item.id)} style={{
-                          padding:"8px 0",background:"#fff",color:"#94A3B8",
-                          border:"1px solid #E2E8F0",borderRadius:8,fontSize:11,fontWeight:600,
-                          cursor:"pointer",fontFamily:F,
-                        }}>
-                          Dismiss
-                        </button>
                       </div>
                     ) : (
-                      <div style={{padding:"10px 14px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:8,fontSize:12,fontWeight:600,color:"#14532D"}}>
+                      <div style={{padding:"12px 16px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:8,fontSize:13,fontWeight:600,color:"#14532D"}}>
                         {sendResult[item.id]?.ok
                           ? `✓ Email 1 sent to ${sendResult[item.id].to}`
                           : sendResult[item.id]?.error
                             ? `✗ ${sendResult[item.id].error}`
-                            : isRouting ? "✓ Brief approved" : "✓ Email 1 sent"}
+                            : "✓ Email 1 sent"}
                         {isFollowup && sendResult[sendKey2]?.ok && (
                           <div style={{marginTop:4,color:"#1D4ED8"}}>✓ Email 2 sent to {sendResult[sendKey2].to}</div>
                         )}
@@ -6326,9 +6350,9 @@ function AgentPage({ ex, onQueueLoaded }) {
                   </div>
                 )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })()}
+        </div>
       </div>
     </div>
   );
