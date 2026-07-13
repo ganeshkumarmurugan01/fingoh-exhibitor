@@ -3845,8 +3845,6 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
             </div>
           )}
         </div>
-
-        </div>
       </div>
 
       {/* ── Toast notifications ── */}
