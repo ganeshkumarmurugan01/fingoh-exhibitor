@@ -3839,19 +3839,17 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           )}
         </div>
 
-      </div>
-
       {/* ── Toast notifications ── */}
       <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,display:"flex",flexDirection:"column",gap:8,pointerEvents:"none"}}>
         {toasts.map(t=>(
-          <div key={t.id} style={{padding:"10px 16px",background:C.white,border:`2px solid ${t.color}`,borderRadius:10,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",display:"flex",alignItems:"center",gap:10,minWidth:280,animation:"slideIn .3s ease"}}>
+          <div key={t.id} style={{padding:"10px 16px",background:C.white,border:`2px solid ${t.color}`,borderRadius:10,boxShadow:"0 4px 20px rgba(0,0,0,0.12)",display:"flex",alignItems:"center",gap:10,minWidth:280}}>
             <span style={{width:8,height:8,borderRadius:"50%",background:t.color,flexShrink:0}}/>
             <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:0,lineHeight:1.4}}>{t.msg}</p>
           </div>
         ))}
       </div>
 
-  </div>
+    </div>
   );
 }
 // ════════════════════════════════════════════════════════════════════
