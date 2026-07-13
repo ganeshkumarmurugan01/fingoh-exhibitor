@@ -2335,7 +2335,7 @@ function MeetingsScreen({ex}) {
 
       {/* Prospects tab */}
       {tab==="prospects" && (
-        <div style={{display:"flex",gap:16,alignItems:"flex-start",width:"100%"}}>
+        <div style={{display:"flex",gap:16,alignItems:"flex-start",width:"100%",position:"relative"}}>
         <div style={{flex:1,minWidth:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
           <div style={{padding:"10px 18px",background:"#FAFAFA",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Ranked by IEI-based match score</span>
@@ -3627,7 +3627,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         <div style={{display:"flex",gap:16,marginTop:8}}>{tiers.map(({t,n,c})=><div key={t} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:11,color:C.muted}}>{t}: {Math.round(n/tot*100)}%</span></div>)}</div>
       </div>
 
-      <div style={{display:"flex",gap:16,alignItems:"flex-start",width:"100%"}}>
+      <div style={{display:"flex",gap:16,alignItems:"flex-start",width:"100%",position:"relative"}}>
         <div style={{flex:1,minWidth:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
           {/* ── Filter bar ── */}
@@ -3763,7 +3763,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         </div>
 
         {/* ── Activity Feed Panel ── */}
-        <div style={{width:300,flexShrink:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:16,maxHeight:"80vh",overflowY:"auto"}}>
+        <div style={{width:300,flexShrink:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:80,maxHeight:"calc(100vh - 120px)",overflowY:"auto",alignSelf:"flex-start"}}>
           {/* Header */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
