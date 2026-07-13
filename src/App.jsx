@@ -3645,7 +3645,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           ))}
         </div>
 
-        {innerTab==="visitors" && <div>
+        <div style={{display:innerTab==="visitors"?"block":"none"}}>
           {/* ── Filter bar ── */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",flexDirection:"column",gap:10}}>
             {/* Row 1 — search + result count */}
@@ -3776,9 +3776,9 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           </div>
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
-        </div>}
+        </div>
 
-        {innerTab==="activity" && <div>
+        <div style={{display:innerTab==="activity"?"block":"none"}}>
 
           {/* Feed */}
           <div style={{maxHeight:600,overflowY:"auto"}}>
@@ -3846,7 +3846,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           )}
         </div>
 
-        </div>}
+        </div>
       </div>
 
       {/* ── Toast notifications ── */}
