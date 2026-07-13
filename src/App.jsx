@@ -3533,7 +3533,6 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   const [sortCol,  setSortCol]  = useState("liveScore");
   const [sortDir,  setSortDir]  = useState("desc");
   const [meetingModal, setMeetingModal] = useState(null); // {name, meeting} | null
-  const [innerTab, setInnerTab]         = useState("visitors"); // visitors | activity
 
   const toggleSort = col => {
     if(sortCol===col) setSortDir(d=>d==="desc"?"asc":"desc");
@@ -3594,9 +3593,6 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
 
   const ieiTierColor = t => t==="T1"?C.red:t==="T2"?C.yellow:t==="T3"?C.blue:"#94A3B8";
 
-  const showVisitors = innerTab === "visitors";
-  const showActivity  = innerTab === "activity";
-
   return (
     <div style={{padding:24,maxWidth:1240,margin:"0 auto",fontFamily:F}}>
       {/* Header */}
@@ -3631,24 +3627,9 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         <div style={{display:"flex",gap:16,marginTop:8}}>{tiers.map(({t,n,c})=><div key={t} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:11,color:C.muted}}>{t}: {Math.round(n/tot*100)}%</span></div>)}</div>
       </div>
 
-      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16,alignItems:"start"}}>
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
-        {/* ── Inner tabs ── */}
-        <div style={{display:"flex",gap:0,borderBottom:"1px solid #E2E8F0",background:"#FAFAFA"}}>
-          {[["visitors","👥 Visitors"],["activity","📡 Staff activity"]].map(([id,label])=>(
-            <button key={id} onClick={()=>setInnerTab(id)}
-              style={{padding:"11px 20px",border:"none",cursor:"pointer",fontFamily:F,fontSize:12,fontWeight:innerTab===id?700:500,
-                color:innerTab===id?C.navy:C.muted,background:"transparent",
-                borderBottom:innerTab===id?`2px solid ${C.navy}`:`2px solid transparent`,transition:"all .15s"}}>
-              {label}
-              {id==="activity" && signals.length>0 && (
-                <span style={{marginLeft:6,background:C.green,color:"#fff",fontSize:9,padding:"1px 6px",borderRadius:99,fontWeight:700}}>{signals.length}</span>
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div style={{display:showVisitors?"block":"none"}}>
           {/* ── Filter bar ── */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",flexDirection:"column",gap:10}}>
             {/* Row 1 — search + result count */}
@@ -3779,8 +3760,18 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           </div>
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
+        </div>
 
-        <div style={{display:showActivity?"block":"none"}}>
+        {/* ── Activity Feed Panel ── */}
+        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:16}}>
+          {/* Header */}
+          <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{width:7,height:7,borderRadius:"50%",background:"#16A34A",display:"inline-block",boxShadow:"0 0 0 2px #BBF7D0"}}/>
+              <span style={{fontSize:12,fontWeight:700,color:C.navy}}>Staff activity</span>
+            </div>
+            <span style={{fontSize:10,color:C.muted}}>{signals.length} signals</span>
+          </div>
 
           {/* Feed */}
           <div style={{maxHeight:600,overflowY:"auto"}}>
@@ -3847,7 +3838,6 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
             </div>
           )}
         </div>
-      </div>
 
       {/* ── Toast notifications ── */}
       <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,display:"flex",flexDirection:"column",gap:8,pointerEvents:"none"}}>
@@ -7883,6 +7873,7 @@ function RegistrationPage({ eventId }) {
           </div>
         )}
       </div>
+    </div>
   );
 }
 
