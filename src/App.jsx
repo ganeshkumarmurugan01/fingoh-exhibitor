@@ -3627,8 +3627,8 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         <div style={{display:"flex",gap:16,marginTop:8}}>{tiers.map(({t,n,c})=><div key={t} style={{display:"flex",alignItems:"center",gap:5}}><div style={{width:8,height:8,borderRadius:"50%",background:c}}/><span style={{fontSize:11,color:C.muted}}>{t}: {Math.round(n/tot*100)}%</span></div>)}</div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 300px",gap:16,alignItems:"start"}}>
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+      <div style={{display:"flex",gap:16,alignItems:"flex-start"}}>
+        <div style={{flex:1,minWidth:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
           {/* ── Filter bar ── */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",flexDirection:"column",gap:10}}>
