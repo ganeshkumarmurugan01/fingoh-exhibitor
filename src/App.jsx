@@ -3594,6 +3594,9 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
 
   const ieiTierColor = t => t==="T1"?C.red:t==="T2"?C.yellow:t==="T3"?C.blue:"#94A3B8";
 
+  const showVisitors = innerTab === "visitors";
+  const showActivity  = innerTab === "activity";
+
   return (
     <div style={{padding:24,maxWidth:1240,margin:"0 auto",fontFamily:F}}>
       {/* Header */}
@@ -3645,7 +3648,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
           ))}
         </div>
 
-        <div style={{display:innerTab==="visitors"?"block":"none"}}>
+        <div style={{display:showVisitors?"block":"none"}}>
           {/* ── Filter bar ── */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",flexDirection:"column",gap:10}}>
             {/* Row 1 — search + result count */}
@@ -3777,7 +3780,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         </div>
         {meetingModal && <MeetingOverviewModal data={meetingModal} onClose={()=>setMeetingModal(null)}/>}
 
-        <div style={{display:innerTab==="activity"?"block":"none"}}>
+        <div style={{display:showActivity?"block":"none"}}>
 
           {/* Feed */}
           <div style={{maxHeight:600,overflowY:"auto"}}>
