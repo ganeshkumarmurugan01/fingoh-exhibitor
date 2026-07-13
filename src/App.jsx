@@ -5439,21 +5439,14 @@ function OutcomesDashboard({ex}) {
 // ── Agent definitions ─────────────────────────────────────────────
 const AGENT_DEFS = [
   {
-    id:"outreach", phase:"Pre-event", icon:"📤", color:"#29ABE2", lt:"#E8F7FC",
+    id:"outreach", phase:"Pre-event", icon:"📤", color:"#7C3AED", lt:"#F5F3FF",
     title:"Outreach Personalisation",
     tagline:"Drafts a personalised email for each high-propensity visitor",
     persona:"Marketing",
     approval:"required",
     trigger:"High-propensity visitors with no outreach sent",
   },
-  {
-    id:"routing", phase:"Live event", icon:"🔥", color:"#ED1C24", lt:"#FEE8E8",
-    title:"Hot Buyer Routing",
-    tagline:"Detects T1 buyer on floor and pushes micro-brief to the right staff",
-    persona:"Sales",
-    approval:"one-tap",
-    trigger:"T1 visitor detected with no staff contact in 60+ min",
-  },
+
   {
     id:"followup", phase:"Post-event", icon:"✉️", color:"#1D9E75", lt:"#E1F5EE",
     title:"Follow-up Sequence",
@@ -6103,9 +6096,8 @@ function AgentPage({ ex, onQueueLoaded }) {
   const dismiss = (id) => setDismissed(p => ({ ...p, [id]: true }));
 
   const AGENT_DEFS = [
-    { id:"outreach", icon:"📤", label:"Outreach",      color:"#7C3AED", desc:"High-intent prospects with no outreach yet" },
-    { id:"routing",  icon:"🔥", label:"Hot Routing",   color:"#EA580C", desc:"Active on floor — route staff now"         },
-    { id:"followup", icon:"✉️", label:"Follow-up",     color:"#0369A1", desc:"Completed meetings — send 3-touch sequence" },
+    { id:"outreach", icon:"📤", label:"Outreach",  color:"#7C3AED", desc:"High-intent prospects with no outreach yet" },
+    { id:"followup", icon:"✉️", label:"Follow-up", color:"#0369A1", desc:"Completed meetings — send 3-touch sequence" },
   ];
 
   const activeAgentDef = AGENT_DEFS.find(a => a.id === activeAgent);
