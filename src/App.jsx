@@ -3763,7 +3763,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
         </div>
 
         {/* ── Activity Feed Panel ── */}
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:16}}>
+        <div style={{width:300,flexShrink:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden",position:"sticky",top:16,maxHeight:"80vh",overflowY:"auto"}}>
           {/* Header */}
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F1F5F9",background:"#FAFAFA",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
