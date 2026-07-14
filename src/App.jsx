@@ -6483,6 +6483,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
     {id:"icp",       icon:"🎯", label:"Ideal customer profile"},
     {id:"intent",    icon:"✦",  label:"Exhibitor intent"},
     {id:"finetune",  icon:"⚡", label:"Fine-tune intent"},
+    {id:"email",     icon:"✉️", label:"Email configuration"},
     {id:"danger",    icon:"⚠",  label:"Danger zone"},
   ];
   const [activeSection, setActiveSection] = useState("overview");
@@ -6491,6 +6492,41 @@ function EventSetup({ex, onUpdate, onDelete}) {
   const [saved,    setSaved]    = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [emailConfig, setEmailConfig] = useState({
+    logo_url:"", primary_color:"#0F172A", banner_url:"",
+    sender_name:"", reply_to:"", signature_name:"", signature_title:"",
+    signature_phone:"", signature_linkedin:"", signature_company:"",
+    footer_text:"Sent via Fingoh · AI-powered event intelligence",
+    templates:{},
+  });
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved,  setEmailSaved]  = useState(false);
+
+  // Load email config on mount
+  React.useEffect(()=>{
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token||"";
+      fetch(`/api/proxy?slug=v1/email-config/${ex.id}`,{headers:{"x-fingoh-auth":`Bearer ${token}`}})
+        .then(r=>r.json()).then(d=>{ if(d&&!d.detail) setEmailConfig(ec=>({...ec,...d})); })
+        .catch(()=>{});
+    });
+  },[ex?.id]);
+
+  const saveEmailConfig = async () => {
+    setEmailSaving(true);
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token||"";
+      await fetch(`/api/proxy?slug=v1/email-config/${ex.id}`,{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body:JSON.stringify(emailConfig),
+      });
+      setEmailSaved(true); setTimeout(()=>setEmailSaved(false),2500);
+    } catch(e){ setError(e.message); }
+    setEmailSaving(false);
+  };
 
   // Editable form state
   const [form, setForm] = useState({
@@ -6931,6 +6967,183 @@ function EventSetup({ex, onUpdate, onDelete}) {
     </div>
   );
 
+  const DEFAULT_TEMPLATES = {
+    meeting_request: {
+      subject: "Meeting request from {{sender_name}} at {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nI would love to connect with you at {{event_name}}. I believe there is a strong synergy between what we offer and your goals.\n\nPlease click the link below to accept or decline this meeting request.\n\nLooking forward to meeting you!",
+    },
+    outreach: {
+      subject: "Connecting at {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nI noticed you will be attending {{event_name}} and wanted to reach out personally. We have solutions that I believe would be highly relevant to you.\n\nWould you be open to a brief 20-minute meeting at our booth?",
+    },
+    followup_day1: {
+      subject: "Great meeting you at {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nThank you for visiting our booth at {{event_name}}. It was a pleasure speaking with you.\n\nAs discussed, I am sharing some additional information that might be helpful for your evaluation.",
+    },
+    followup_day7: {
+      subject: "Following up — {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nI wanted to follow up on our conversation at {{event_name}} last week. I hope you had a chance to review the materials I shared.\n\nWould you be available for a brief call this week to discuss next steps?",
+    },
+  };
+
+  const EMAIL_TYPES = [
+    {id:"meeting_request", label:"Meeting request", desc:"Sent when you request a meeting with a visitor"},
+    {id:"outreach",        label:"Pre-event outreach", desc:"Agent outreach email before the event"},
+    {id:"followup_day1",   label:"Follow-up Day 1", desc:"Sent day after event closes"},
+    {id:"followup_day7",   label:"Follow-up Day 7", desc:"Value-add follow-up one week after"},
+  ];
+
+  const MERGE_TAGS = ["{{visitor_name}}","{{event_name}}","{{sender_name}}","{{signature_name}}","{{signature_title}}","{{signature_company}}"];
+
+  const [activeEmailType, setActiveEmailType] = useState("meeting_request");
+
+  const updEmail = (k,v) => setEmailConfig(ec=>({...ec,[k]:v}));
+  const updTemplate = (type,k,v) => setEmailConfig(ec=>({
+    ...ec, templates:{...ec.templates,[type]:{...(ec.templates?.[type]||{}), [k]:v}}
+  }));
+  const getTemplate = (type,k) => emailConfig.templates?.[type]?.[k] || DEFAULT_TEMPLATES[type]?.[k] || "";
+
+  const renderEmail = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Email configuration</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Configure branding, sender identity and email templates. All outgoing emails will use these settings.</p>
+
+      {/* Brand */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>🎨 Brand & appearance</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Logo URL</label>
+            <input value={emailConfig.logo_url||""} onChange={e=>updEmail("logo_url",e.target.value)}
+              placeholder="https://your-cdn.com/logo.png"
+              style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+            <p style={{fontSize:10,color:C.muted2,margin:"3px 0 0"}}>Paste URL of hosted logo image (PNG/SVG, max 200px tall)</p>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Brand colour</label>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <input type="color" value={emailConfig.primary_color||"#0F172A"} onChange={e=>updEmail("primary_color",e.target.value)}
+                style={{width:40,height:36,padding:2,border:"1px solid #E2E8F0",borderRadius:8,cursor:"pointer"}}/>
+              <input value={emailConfig.primary_color||"#0F172A"} onChange={e=>updEmail("primary_color",e.target.value)}
+                style={{flex:1,padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
+            </div>
+          </div>
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Banner image URL <span style={{fontWeight:400,textTransform:"none"}}>(optional — shown below header)</span></label>
+          <input value={emailConfig.banner_url||""} onChange={e=>updEmail("banner_url",e.target.value)}
+            placeholder="https://your-cdn.com/event-banner.jpg (600×200px recommended)"
+            style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        {emailConfig.logo_url && (
+          <div style={{marginTop:12,padding:"10px 14px",background:"#FAFAFA",borderRadius:8,border:"1px solid #F1F5F9"}}>
+            <p style={{fontSize:10,color:C.muted,margin:"0 0 6px",fontWeight:600}}>PREVIEW</p>
+            <div style={{background:emailConfig.primary_color||"#0F172A",padding:"12px 20px",borderRadius:8,display:"inline-block"}}>
+              <img src={emailConfig.logo_url} alt="Logo" style={{maxHeight:32,display:"block"}}/>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Sender & signature */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>✍️ Sender identity & signature</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          {[
+            ["Sender name","sender_name","e.g. Ganesh Kumar — ACG Pharma Solutions"],
+            ["Reply-to email","reply_to","e.g. ganesh@akiraas.com"],
+            ["Signature name","signature_name","Full name as it appears in signature"],
+            ["Job title","signature_title","e.g. Head of Sales"],
+            ["Company","signature_company","e.g. ACG Pharma Solutions"],
+            ["Phone","signature_phone","e.g. +91 98765 43210"],
+          ].map(([label,key,placeholder])=>(
+            <div key={key}>
+              <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>{label}</label>
+              <input value={emailConfig[key]||""} onChange={e=>updEmail(key,e.target.value)}
+                placeholder={placeholder}
+                style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+          ))}
+        </div>
+        <div>
+          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>LinkedIn URL <span style={{fontWeight:400,textTransform:"none"}}>(optional)</span></label>
+          <input value={emailConfig.signature_linkedin||""} onChange={e=>updEmail("signature_linkedin",e.target.value)}
+            placeholder="https://linkedin.com/in/yourprofile"
+            style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 8px"}}>📝 Email footer text</p>
+        <textarea value={emailConfig.footer_text||""} onChange={e=>updEmail("footer_text",e.target.value)} rows={2}
+          placeholder="e.g. © 2026 ACG Pharma Solutions · Sent via Fingoh · Unsubscribe"
+          style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
+      </div>
+
+      {/* Email templates */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 4px"}}>📧 Email templates</p>
+        <p style={{fontSize:11,color:C.muted,margin:"0 0 14px"}}>Customise the default text for each email type. Use merge tags to personalise.</p>
+
+        {/* Merge tag reference */}
+        <div style={{background:"#F8FAFC",border:"1px solid #F1F5F9",borderRadius:8,padding:"8px 12px",marginBottom:14}}>
+          <p style={{fontSize:10,fontWeight:700,color:C.muted,margin:"0 0 5px"}}>AVAILABLE MERGE TAGS</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {MERGE_TAGS.map(tag=>(
+              <code key={tag} style={{fontSize:10,background:"#EFF6FF",color:"#1E40AF",padding:"2px 6px",borderRadius:4,cursor:"pointer"}}
+                onClick={()=>navigator.clipboard.writeText(tag)}>{tag}</code>
+            ))}
+          </div>
+        </div>
+
+        {/* Tab per email type */}
+        <div style={{display:"flex",gap:0,borderBottom:"1px solid #E2E8F0",marginBottom:16}}>
+          {EMAIL_TYPES.map(t=>(
+            <button key={t.id} onClick={()=>setActiveEmailType(t.id)}
+              style={{padding:"8px 14px",border:"none",cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:activeEmailType===t.id?700:500,
+                color:activeEmailType===t.id?C.navy:C.muted,background:"transparent",
+                borderBottom:activeEmailType===t.id?"2px solid "+C.navy:"2px solid transparent"}}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {EMAIL_TYPES.filter(t=>t.id===activeEmailType).map(t=>(
+          <div key={t.id}>
+            <p style={{fontSize:11,color:C.muted,margin:"0 0 12px"}}>{t.desc}</p>
+            <div style={{marginBottom:12}}>
+              <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Subject line</label>
+              <input value={getTemplate(t.id,"subject")} onChange={e=>updTemplate(t.id,"subject",e.target.value)}
+                style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Email body</label>
+              <textarea value={getTemplate(t.id,"body")} onChange={e=>updTemplate(t.id,"body",e.target.value)} rows={8}
+                style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.6}}/>
+            </div>
+            <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
+              <button onClick={()=>updTemplate(t.id,"subject",DEFAULT_TEMPLATES[t.id]?.subject||"") || updTemplate(t.id,"body",DEFAULT_TEMPLATES[t.id]?.body||"")}
+                style={{fontSize:11,color:C.muted,background:"none",border:"none",cursor:"pointer",fontFamily:F}}>
+                ↺ Reset to default
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Save */}
+      <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10}}>
+        {error && <p style={{fontSize:11,color:"#DC2626",margin:0}}>⚠ {error}</p>}
+        {emailSaved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:0}}>✓ Email configuration saved</p>}
+        <button onClick={saveEmailConfig} disabled={emailSaving}
+          style={{padding:"9px 24px",background:emailSaving?"#94A3B8":C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:emailSaving?"not-allowed":"pointer",fontFamily:F}}>
+          {emailSaving?"Saving…":"Save configuration"}
+        </button>
+      </div>
+    </div>
+  );
+
   const sectionRenderers = {
     overview:   renderOverview,
     company:    renderCompany,
@@ -6938,6 +7151,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
     icp:        renderICP,
     intent:     renderIntent,
     finetune:   renderFinetune,
+    email:      renderEmail,
     danger:     renderDanger,
   };
 
