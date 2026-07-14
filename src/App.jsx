@@ -4955,11 +4955,11 @@ function PredictedFunnel({ex}) {
   const WARM_CONV = 0.25;  // Warm tier meeting conversion
 
   // Actuals from real on-site data
-  // onsite_iei_score means staff logged a real conversation
-  // meeting_booked is a specific buying signal captured onsite
-  const actualBooth    = contacts.filter(c => c.onsite_iei_score && c.onsite_signals).length;
+  // Only count contacts where staff actively logged signals (non-empty onsite_signals object)
+  const hasRealSignals = c => c.onsite_signals && typeof c.onsite_signals === 'object' && Object.values(c.onsite_signals).some(v => v !== null && v !== false && v !== 0);
+  const actualBooth    = contacts.filter(c => c.onsite_iei_score && hasRealSignals(c)).length;
   const actualMeetings = contacts.filter(c => c.onsite_signals?.meeting_booked).length;
-  const actualSignals  = contacts.filter(c => c.onsite_signals && Object.keys(c.onsite_signals).length > 0).length;
+  const actualSignals  = contacts.filter(hasRealSignals).length;
   const pipelineRaw = contacts.reduce((sum, c) => {
     const score = (c.onsite_iei_score || c.iei_score || 0) / 100;
     const tier  = c.onsite_iei_tier || c.iei_tier || "";
