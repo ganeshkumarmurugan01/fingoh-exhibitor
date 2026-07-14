@@ -6472,6 +6472,31 @@ function AgentTriggerButton({onClick, queueCount}) {
 // ═══════════════════════════════════════════════════════════════════
 // EVENT SETUP SUMMARY
 // ═══════════════════════════════════════════════════════════════════
+
+function BrandSaveBtn({emailConfig, ex, setEmailSaved}) {
+  const [saving, setSaving] = useState(false);
+  const doSave = async () => {
+    setSaving(true);
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token||"";
+      await fetch(`/api/proxy?slug=v1/email-config/${ex.id}`,{
+        method:"PATCH",
+        headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body:JSON.stringify(emailConfig),
+      });
+      setEmailSaved(true); setTimeout(()=>setEmailSaved(false),2500);
+    } catch(e){ console.error(e); }
+    setSaving(false);
+  };
+  return (
+    <button onClick={doSave} disabled={saving}
+      style={{padding:"5px 14px",background:saving?"#94A3B8":"#0F172A",color:"#fff",border:"none",borderRadius:7,fontSize:11,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:"DM Sans, sans-serif"}}>
+      {saving?"Saving…":"Save"}
+    </button>
+  );
+}
+
 function EventSetup({ex, onUpdate, onDelete}) {
   if (!ex) return null;
 
@@ -6967,141 +6992,229 @@ function EventSetup({ex, onUpdate, onDelete}) {
     </div>
   );
 
-  const DEFAULT_TEMPLATES = {
-    meeting_request: {
-      subject: "Meeting request from {{sender_name}} at {{event_name}}",
-      body: "Dear {{visitor_name}},\n\nI would love to connect with you at {{event_name}}. I believe there is a strong synergy between what we offer and your goals.\n\nPlease click the link below to accept or decline this meeting request.\n\nLooking forward to meeting you!",
-    },
-    outreach: {
-      subject: "Connecting at {{event_name}}",
-      body: "Dear {{visitor_name}},\n\nI noticed you will be attending {{event_name}} and wanted to reach out personally. We have solutions that I believe would be highly relevant to you.\n\nWould you be open to a brief 20-minute meeting at our booth?",
-    },
-    followup_day1: {
-      subject: "Great meeting you at {{event_name}}",
-      body: "Dear {{visitor_name}},\n\nThank you for visiting our booth at {{event_name}}. It was a pleasure speaking with you.\n\nAs discussed, I am sharing some additional information that might be helpful for your evaluation.",
-    },
-    followup_day7: {
-      subject: "Following up — {{event_name}}",
-      body: "Dear {{visitor_name}},\n\nI wanted to follow up on our conversation at {{event_name}} last week. I hope you had a chance to review the materials I shared.\n\nWould you be available for a brief call this week to discuss next steps?",
-    },
+
+  const uploadEmailAsset = async (file, folder) => {
+    const ext  = file.name.split(".").pop();
+    const name = `${ex.id}/${folder}/${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage
+      .from("email-assets")
+      .upload(name, file, { upsert: true, contentType: file.type });
+    if (error) throw new Error(error.message);
+    const { data: pub } = supabase.storage.from("email-assets").getPublicUrl(name);
+    return pub.publicUrl;
   };
 
-  const EMAIL_TYPES = [
-    {id:"meeting_request", label:"Meeting request", desc:"Sent when you request a meeting with a visitor"},
-    {id:"outreach",        label:"Pre-event outreach", desc:"Agent outreach email before the event"},
-    {id:"followup_day1",   label:"Follow-up Day 1", desc:"Sent day after event closes"},
-    {id:"followup_day7",   label:"Follow-up Day 7", desc:"Value-add follow-up one week after"},
-  ];
+  const [emailPreview, setEmailPreview] = useState(null);
 
-  const MERGE_TAGS = ["{{visitor_name}}","{{event_name}}","{{sender_name}}","{{signature_name}}","{{signature_title}}","{{signature_company}}"];
+  const buildPreviewHtml = (type) => {
+    const tpl   = emailConfig.templates?.[type] || DEFAULT_TEMPLATES[type] || {};
+    const body  = (tpl.body || "").replace(/\n/g, "<br>");
+    const pc    = emailConfig.primary_color || "#0F172A";
+    const logo  = emailConfig.logo_url || "";
+    const banner= emailConfig.banner_url || "";
+    const sigN  = emailConfig.signature_name || emailConfig.sender_name || "Your Name";
+    const sigT  = emailConfig.signature_title || "";
+    const sigC  = emailConfig.signature_company || "";
+    const sigP  = emailConfig.signature_phone || "";
+    const sigL  = emailConfig.signature_linkedin || "";
+    const footer= emailConfig.footer_text || "";
+    const footerImg = emailConfig.footer_image_url || "";
 
-  const [activeEmailType, setActiveEmailType] = useState("meeting_request");
+    const merged = body
+      .replace(/\{\{visitor_name\}\}/g, "Alex Johnson")
+      .replace(/\{\{event_name\}\}/g, ex.name || "Your Event")
+      .replace(/\{\{sender_name\}\}/g, sigN)
+      .replace(/\{\{signature_name\}\}/g, sigN)
+      .replace(/\{\{signature_title\}\}/g, sigT)
+      .replace(/\{\{signature_company\}\}/g, sigC);
 
-  const updEmail = (k,v) => setEmailConfig(ec=>({...ec,[k]:v}));
-  const updTemplate = (type,k,v) => setEmailConfig(ec=>({
-    ...ec, templates:{...ec.templates,[type]:{...(ec.templates?.[type]||{}), [k]:v}}
-  }));
-  const getTemplate = (type,k) => emailConfig.templates?.[type]?.[k] || DEFAULT_TEMPLATES[type]?.[k] || "";
+    const sigRows = [
+      `<p style="margin:2px 0;font-size:13px;font-weight:700;color:${pc};">${sigN}</p>`,
+      sigT ? `<p style="margin:2px 0;font-size:12px;color:#64748B;">${sigT}</p>` : "",
+      sigC ? `<p style="margin:2px 0;font-size:12px;color:#64748B;">${sigC}</p>` : "",
+      sigP ? `<p style="margin:2px 0;font-size:12px;color:#64748B;">${sigP}</p>` : "",
+      sigL ? `<p style="margin:2px 0;font-size:12px;"><a href="${sigL}" style="color:${pc};">LinkedIn</a></p>` : "",
+    ].join("");
+
+    const footerContent = footerImg
+      ? `<img src="${footerImg}" alt="Footer" style="max-width:100%;height:auto;">`
+      : `<p style="margin:0;font-size:11px;color:#94A3B8;">${footer}</p>`;
+
+    return `<!DOCTYPE html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:24px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;border:1px solid #E2E8F0;overflow:hidden;max-width:600px;">
+<tr><td style="background:${pc};padding:20px 32px;">
+  ${logo ? `<img src="${logo}" alt="Logo" style="max-height:48px;display:block;margin-bottom:4px;">` : `<p style="margin:0;color:#fff;font-size:18px;font-weight:700;">Your Logo</p>`}
+  <p style="margin:4px 0 0;color:rgba(255,255,255,.8);font-size:12px;">${ex.name || "Event Name"}</p>
+</td></tr>
+${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:100%;display:block;"></td></tr>` : ""}
+<tr><td style="padding:32px;color:#0F172A;font-size:14px;line-height:1.7;">
+  ${merged}
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #E2E8F0;">${sigRows}</div>
+</td></tr>
+<tr><td style="background:#F8FAFC;padding:14px 32px;border-top:1px solid #E2E8F0;text-align:center;">
+  ${footerContent}
+</td></tr>
+</table>
+</td></tr></table></body></html>`;
+  };
 
   const renderEmail = () => (
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Email configuration</h2>
-      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Configure branding, sender identity and email templates. All outgoing emails will use these settings.</p>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Configure branding, sender identity and email templates. Each section saves independently.</p>
 
-      {/* Brand */}
+      {/* SECTION 1 — Brand */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
-        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>🎨 Brand & appearance</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Logo URL</label>
-            <input value={emailConfig.logo_url||""} onChange={e=>updEmail("logo_url",e.target.value)}
-              placeholder="https://your-cdn.com/logo.png"
-              style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
-            <p style={{fontSize:10,color:C.muted2,margin:"3px 0 0"}}>Paste URL of hosted logo image (PNG/SVG, max 200px tall)</p>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>🎨 Brand & appearance</p>
+          <BrandSaveBtn emailConfig={emailConfig} ex={ex} setEmailSaved={setEmailSaved} />
+        </div>
+
+        {/* Logo upload */}
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:6}}>Logo</label>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            {emailConfig.logo_url && <img src={emailConfig.logo_url} alt="Logo" style={{height:40,borderRadius:6,border:"1px solid #E2E8F0",padding:4,background:"#fff"}}/>}
+            <label style={{padding:"7px 14px",background:C.ltnavy,color:C.navy,border:"1px solid #C7D0E8",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+              📁 {emailConfig.logo_url ? "Replace logo" : "Upload logo"}
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{
+                const f = e.target.files[0]; if(!f) return;
+                try { const url = await uploadEmailAsset(f,"logos"); updEmail("logo_url",url); }
+                catch(err) { setError(err.message); }
+              }}/>
+            </label>
+            {emailConfig.logo_url && <button onClick={()=>updEmail("logo_url","")} style={{fontSize:11,color:"#DC2626",background:"none",border:"none",cursor:"pointer"}}>Remove</button>}
           </div>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Brand colour</label>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <input type="color" value={emailConfig.primary_color||"#0F172A"} onChange={e=>updEmail("primary_color",e.target.value)}
-                style={{width:40,height:36,padding:2,border:"1px solid #E2E8F0",borderRadius:8,cursor:"pointer"}}/>
-              <input value={emailConfig.primary_color||"#0F172A"} onChange={e=>updEmail("primary_color",e.target.value)}
-                style={{flex:1,padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
-            </div>
+          <p style={{fontSize:10,color:C.muted2,margin:"4px 0 0"}}>PNG, SVG or JPG · Max 2MB · Recommended height 48px</p>
+        </div>
+
+        {/* Brand colour */}
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:6}}>Brand colour</label>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <input type="color" value={emailConfig.primary_color||"#0F172A"} onChange={e=>updEmail("primary_color",e.target.value)}
+              style={{width:40,height:36,padding:2,border:"1px solid #E2E8F0",borderRadius:8,cursor:"pointer"}}/>
+            <input value={emailConfig.primary_color||"#0F172A"} onChange={e=>updEmail("primary_color",e.target.value)}
+              style={{width:120,padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
           </div>
         </div>
+
+        {/* Banner upload */}
         <div>
-          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Banner image URL <span style={{fontWeight:400,textTransform:"none"}}>(optional — shown below header)</span></label>
-          <input value={emailConfig.banner_url||""} onChange={e=>updEmail("banner_url",e.target.value)}
-            placeholder="https://your-cdn.com/event-banner.jpg (600×200px recommended)"
-            style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
-        </div>
-        {emailConfig.logo_url && (
-          <div style={{marginTop:12,padding:"10px 14px",background:"#FAFAFA",borderRadius:8,border:"1px solid #F1F5F9"}}>
-            <p style={{fontSize:10,color:C.muted,margin:"0 0 6px",fontWeight:600}}>PREVIEW</p>
-            <div style={{background:emailConfig.primary_color||"#0F172A",padding:"12px 20px",borderRadius:8,display:"inline-block"}}>
-              <img src={emailConfig.logo_url} alt="Logo" style={{maxHeight:32,display:"block"}}/>
-            </div>
+          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:6}}>Banner image <span style={{fontWeight:400,textTransform:"none"}}>(shown below header)</span></label>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            {emailConfig.banner_url && <img src={emailConfig.banner_url} alt="Banner" style={{height:40,borderRadius:6,border:"1px solid #E2E8F0",objectFit:"cover",width:120}}/>}
+            <label style={{padding:"7px 14px",background:C.ltnavy,color:C.navy,border:"1px solid #C7D0E8",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+              📁 {emailConfig.banner_url ? "Replace banner" : "Upload banner"}
+              <input type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{
+                const f = e.target.files[0]; if(!f) return;
+                try { const url = await uploadEmailAsset(f,"banners"); updEmail("banner_url",url); }
+                catch(err) { setError(err.message); }
+              }}/>
+            </label>
+            {emailConfig.banner_url && <button onClick={()=>updEmail("banner_url","")} style={{fontSize:11,color:"#DC2626",background:"none",border:"none",cursor:"pointer"}}>Remove</button>}
           </div>
-        )}
+          <p style={{fontSize:10,color:C.muted2,margin:"4px 0 0"}}>Recommended: 600×200px JPG or PNG</p>
+        </div>
       </div>
 
-      {/* Sender & signature */}
+      {/* SECTION 2 — Sender identity */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
-        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>✍️ Sender identity & signature</p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>✍️ Sender identity & signature</p>
+          <BrandSaveBtn emailConfig={emailConfig} ex={ex} setEmailSaved={setEmailSaved} />
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
           {[
-            ["Sender name","sender_name","e.g. Ganesh Kumar — ACG Pharma Solutions"],
+            ["Sender name","sender_name","e.g. Ganesh Kumar"],
             ["Reply-to email","reply_to","e.g. ganesh@akiraas.com"],
-            ["Signature name","signature_name","Full name as it appears in signature"],
+            ["Signature name","signature_name","Full name in signature"],
             ["Job title","signature_title","e.g. Head of Sales"],
             ["Company","signature_company","e.g. ACG Pharma Solutions"],
             ["Phone","signature_phone","e.g. +91 98765 43210"],
           ].map(([label,key,placeholder])=>(
             <div key={key}>
               <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>{label}</label>
-              <input value={emailConfig[key]||""} onChange={e=>updEmail(key,e.target.value)}
-                placeholder={placeholder}
+              <input value={emailConfig[key]||""} onChange={e=>updEmail(key,e.target.value)} placeholder={placeholder}
                 style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
             </div>
           ))}
         </div>
-        <div>
-          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>LinkedIn URL <span style={{fontWeight:400,textTransform:"none"}}>(optional)</span></label>
+        <div style={{marginTop:12}}>
+          <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>LinkedIn URL</label>
           <input value={emailConfig.signature_linkedin||""} onChange={e=>updEmail("signature_linkedin",e.target.value)}
             placeholder="https://linkedin.com/in/yourprofile"
             style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
         </div>
       </div>
 
-      {/* Footer */}
+      {/* SECTION 3 — Footer */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
-        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 8px"}}>📝 Email footer text</p>
-        <textarea value={emailConfig.footer_text||""} onChange={e=>updEmail("footer_text",e.target.value)} rows={2}
-          placeholder="e.g. © 2026 ACG Pharma Solutions · Sent via Fingoh · Unsubscribe"
-          style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>📝 Email footer</p>
+          <BrandSaveBtn emailConfig={emailConfig} ex={ex} setEmailSaved={setEmailSaved} />
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          <button onClick={()=>updEmail("footer_type","text")}
+            style={{padding:"6px 14px",borderRadius:7,border:"1px solid #E2E8F0",background:(!emailConfig.footer_type||emailConfig.footer_type==="text")?C.navy:"#fff",color:(!emailConfig.footer_type||emailConfig.footer_type==="text")?C.white:C.muted,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+            Text footer
+          </button>
+          <button onClick={()=>updEmail("footer_type","image")}
+            style={{padding:"6px 14px",borderRadius:7,border:"1px solid #E2E8F0",background:emailConfig.footer_type==="image"?C.navy:"#fff",color:emailConfig.footer_type==="image"?C.white:C.muted,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+            Image footer
+          </button>
+        </div>
+        {emailConfig.footer_type==="image" ? (
+          <div>
+            <div style={{display:"flex",gap:10,alignItems:"center"}}>
+              {emailConfig.footer_image_url && <img src={emailConfig.footer_image_url} alt="Footer" style={{height:40,borderRadius:6,border:"1px solid #E2E8F0"}}/>}
+              <label style={{padding:"7px 14px",background:C.ltnavy,color:C.navy,border:"1px solid #C7D0E8",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                📁 {emailConfig.footer_image_url ? "Replace footer image" : "Upload footer image"}
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={async e=>{
+                  const f=e.target.files[0]; if(!f) return;
+                  try { const url=await uploadEmailAsset(f,"footers"); updEmail("footer_image_url",url); }
+                  catch(err){ setError(err.message); }
+                }}/>
+              </label>
+              {emailConfig.footer_image_url && <button onClick={()=>updEmail("footer_image_url","")} style={{fontSize:11,color:"#DC2626",background:"none",border:"none",cursor:"pointer"}}>Remove</button>}
+            </div>
+            <p style={{fontSize:10,color:C.muted2,margin:"4px 0 0"}}>Recommended: 600×80px PNG · Include unsubscribe text in image</p>
+          </div>
+        ) : (
+          <textarea value={emailConfig.footer_text||""} onChange={e=>updEmail("footer_text",e.target.value)} rows={2}
+            placeholder="e.g. © 2026 ACG Pharma Solutions · Sent via Fingoh · Unsubscribe"
+            style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical"}}/>
+        )}
       </div>
 
-      {/* Email templates */}
+      {/* SECTION 4 — Email templates */}
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
-        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 4px"}}>📧 Email templates</p>
-        <p style={{fontSize:11,color:C.muted,margin:"0 0 14px"}}>Customise the default text for each email type. Use merge tags to personalise.</p>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>📧 Email templates</p>
+          <BrandSaveBtn emailConfig={emailConfig} ex={ex} setEmailSaved={setEmailSaved} />
+        </div>
+        <p style={{fontSize:11,color:C.muted,margin:"0 0 14px"}}>Customise each email type. Upload an HTML file or edit directly. Use merge tags to personalise.</p>
 
         {/* Merge tag reference */}
         <div style={{background:"#F8FAFC",border:"1px solid #F1F5F9",borderRadius:8,padding:"8px 12px",marginBottom:14}}>
-          <p style={{fontSize:10,fontWeight:700,color:C.muted,margin:"0 0 5px"}}>AVAILABLE MERGE TAGS</p>
+          <p style={{fontSize:10,fontWeight:700,color:C.muted,margin:"0 0 5px"}}>AVAILABLE MERGE TAGS — click to copy</p>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             {MERGE_TAGS.map(tag=>(
-              <code key={tag} style={{fontSize:10,background:"#EFF6FF",color:"#1E40AF",padding:"2px 6px",borderRadius:4,cursor:"pointer"}}
-                onClick={()=>navigator.clipboard.writeText(tag)}>{tag}</code>
+              <code key={tag} onClick={()=>navigator.clipboard.writeText(tag)}
+                style={{fontSize:10,background:"#EFF6FF",color:"#1E40AF",padding:"2px 6px",borderRadius:4,cursor:"pointer"}}>{tag}</code>
             ))}
           </div>
         </div>
 
-        {/* Tab per email type */}
+        {/* Tabs */}
         <div style={{display:"flex",gap:0,borderBottom:"1px solid #E2E8F0",marginBottom:16}}>
           {EMAIL_TYPES.map(t=>(
             <button key={t.id} onClick={()=>setActiveEmailType(t.id)}
-              style={{padding:"8px 14px",border:"none",cursor:"pointer",fontFamily:F,fontSize:11,fontWeight:activeEmailType===t.id?700:500,
+              style={{padding:"8px 14px",border:"none",cursor:"pointer",fontFamily:F,fontSize:11,
+                fontWeight:activeEmailType===t.id?700:500,
                 color:activeEmailType===t.id?C.navy:C.muted,background:"transparent",
                 borderBottom:activeEmailType===t.id?"2px solid "+C.navy:"2px solid transparent"}}>
               {t.label}
@@ -7112,39 +7225,87 @@ function EventSetup({ex, onUpdate, onDelete}) {
         {EMAIL_TYPES.filter(t=>t.id===activeEmailType).map(t=>(
           <div key={t.id}>
             <p style={{fontSize:11,color:C.muted,margin:"0 0 12px"}}>{t.desc}</p>
+
+            {/* HTML file upload */}
+            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12,padding:"8px 12px",background:"#F8FAFC",borderRadius:8,border:"1px solid #F1F5F9"}}>
+              <span style={{fontSize:11,color:C.muted}}>Upload HTML template:</span>
+              <label style={{padding:"4px 12px",background:C.navy,color:C.white,borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                📄 Upload .html
+                <input type="file" accept=".html,.htm" style={{display:"none"}} onChange={e=>{
+                  const f=e.target.files[0]; if(!f) return;
+                  const reader=new FileReader();
+                  reader.onload=ev=>{
+                    const html=ev.target.result;
+                    // Extract body content if full HTML file
+                    const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+                    updTemplate(t.id,"body", bodyMatch ? bodyMatch[1].trim() : html);
+                    updTemplate(t.id,"is_html",true);
+                  };
+                  reader.readAsText(f);
+                }}/>
+              </label>
+              {emailConfig.templates?.[t.id]?.is_html && <span style={{fontSize:10,color:C.green,fontWeight:700}}>✓ HTML template loaded</span>}
+            </div>
+
+            {/* Subject */}
             <div style={{marginBottom:12}}>
               <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Subject line</label>
               <input value={getTemplate(t.id,"subject")} onChange={e=>updTemplate(t.id,"subject",e.target.value)}
                 style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
             </div>
+
+            {/* Body editor */}
             <div>
-              <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Email body</label>
-              <textarea value={getTemplate(t.id,"body")} onChange={e=>updTemplate(t.id,"body",e.target.value)} rows={8}
-                style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.6}}/>
+              <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>
+                Email body {emailConfig.templates?.[t.id]?.is_html ? "(HTML)" : "(plain text — auto-wrapped in template)"}
+              </label>
+              <textarea value={getTemplate(t.id,"body")} onChange={e=>{updTemplate(t.id,"body",e.target.value); updTemplate(t.id,"is_html",false);}} rows={10}
+                style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontFamily:"monospace",outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.6}}/>
             </div>
-            <div style={{marginTop:8,display:"flex",justifyContent:"flex-end"}}>
-              <button onClick={()=>updTemplate(t.id,"subject",DEFAULT_TEMPLATES[t.id]?.subject||"") || updTemplate(t.id,"body",DEFAULT_TEMPLATES[t.id]?.body||"")}
+
+            {/* Actions */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+              <button onClick={()=>{updTemplate(t.id,"subject",DEFAULT_TEMPLATES[t.id]?.subject||""); updTemplate(t.id,"body",DEFAULT_TEMPLATES[t.id]?.body||""); updTemplate(t.id,"is_html",false);}}
                 style={{fontSize:11,color:C.muted,background:"none",border:"none",cursor:"pointer",fontFamily:F}}>
                 ↺ Reset to default
+              </button>
+              <button onClick={()=>setEmailPreview({type:t.id,html:buildPreviewHtml(t.id)})}
+                style={{padding:"7px 16px",background:"#F5F3FF",color:"#7C3AED",border:"1px solid #DDD6FE",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                👁 Preview email
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Save */}
-      <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10}}>
-        {error && <p style={{fontSize:11,color:"#DC2626",margin:0}}>⚠ {error}</p>}
-        {emailSaved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:0}}>✓ Email configuration saved</p>}
-        <button onClick={saveEmailConfig} disabled={emailSaving}
-          style={{padding:"9px 24px",background:emailSaving?"#94A3B8":C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:emailSaving?"not-allowed":"pointer",fontFamily:F}}>
-          {emailSaving?"Saving…":"Save configuration"}
-        </button>
-      </div>
+      {emailSaved && <p style={{fontSize:12,color:C.green,fontWeight:700,textAlign:"right",margin:"0 0 8px"}}>✓ Saved successfully</p>}
+      {error && <p style={{fontSize:12,color:"#DC2626",textAlign:"right",margin:"0 0 8px"}}>⚠ {error}</p>}
+
+      {/* Email preview modal */}
+      {emailPreview && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{background:C.white,borderRadius:14,width:"min(680px,100%)",maxHeight:"90vh",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{padding:"14px 20px",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <p style={{fontSize:13,fontWeight:700,color:C.navy,margin:0}}>Email preview</p>
+                <p style={{fontSize:11,color:C.muted,margin:"2px 0 0"}}>This is how the email will appear to recipients</p>
+              </div>
+              <button onClick={()=>setEmailPreview(null)}
+                style={{background:C.ltnavy,border:"none",color:C.navy,borderRadius:8,padding:"6px 12px",cursor:"pointer",fontFamily:F,fontSize:12,fontWeight:600}}>
+                Close ×
+              </button>
+            </div>
+            <div style={{flex:1,overflowY:"auto",padding:16,background:"#F8FAFC"}}>
+              <iframe srcDoc={emailPreview.html} style={{width:"100%",height:600,border:"none",borderRadius:8,background:"#fff"}} title="Email preview"/>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
-  const sectionRenderers = {
+
+    const sectionRenderers = {
     overview:   renderOverview,
     company:    renderCompany,
     categories: renderCategories,
