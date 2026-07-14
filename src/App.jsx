@@ -7269,7 +7269,14 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           return (
           <div key={t.id}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
-              <p style={{fontSize:11,color:C.muted,margin:0}}>{t.desc}</p>
+              <div>
+                <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>{t.desc}</p>
+                <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,fontWeight:700,
+                  background:isHtmlMode?"#1E1E2E":"#DCFCE7",
+                  color:isHtmlMode?"#CDD6F4":"#14532D"}}>
+                  {isHtmlMode?"</> HTML mode active — custom HTML will be sent":"🎨 Design mode active — branded template will be sent"}
+                </span>
+              </div>
               {/* Mode toggle */}
               <div style={{display:"flex",background:"#F1F5F9",borderRadius:8,padding:2,gap:2,flexShrink:0,marginLeft:12}}>
                 <button onClick={()=>updTemplate(t.id,"mode","design")}
