@@ -781,6 +781,18 @@ function CreateEventWizard({onBack, onCreated}) {
 }
 
 // ── Post-login Event Home ─────────────────────────────────────────────────────
+const PLAN_LABELS = {
+  trial:             "Trial",
+  single_event:      "Single Event",
+  event_bundle:      "Event Bundle",
+  event_portfolio:   "Event Portfolio",
+  annual_self_serve: "Annual · Self-serve",
+  annual_enterprise: "Annual · Enterprise",
+  starter:           "Starter",
+  pro:               "Pro",
+  enterprise:        "Enterprise",
+};
+
 function EventHome({onLaunch, onCreateEvent, profile}) {
   const [showTeam, setShowTeam] = useState(false);
 
@@ -792,6 +804,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
   const [staffForm, setStaffForm]       = useState({name:"",email:"",title:"",responsibility:""});
   const [staffSaved, setStaffSaved]     = useState(false);
   const [staffError, setStaffError]     = useState(null);
+  const [planInfo, setPlanInfo]         = useState(null);
 
   const sfUpd = (k,v) => setStaffForm(p=>({...p,[k]:v}));
   const sfReady = staffForm.name && staffForm.email && staffForm.title;
@@ -810,6 +823,11 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
     getStaff()
       .then(data => { setStaffList(data || []); setStaffLoading(false); })
       .catch(() => setStaffLoading(false));
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token||"";
+      fetch("/api/v1/events/plan-info", { headers:{"x-fingoh-auth":`Bearer ${token}`} })
+        .then(r=>r.json()).then(setPlanInfo).catch(()=>{});
+    });
   }, []);
 
   const [staffErrors, setStaffErrors] = useState({});
@@ -944,16 +962,49 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
 
       <div style={{maxWidth:1100,margin:"0 auto",padding:"36px 24px"}}>
         {/* Welcome header */}
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:32}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:planInfo ? 16 : 32}}>
           <div>
             <h1 style={{fontSize:26,fontWeight:800,color:C.navy,letterSpacing:"-0.02em",margin:0,marginBottom:4}}>Your Events</h1>
             <p style={{fontSize:13,color:C.muted,margin:0}}>Join an upcoming exhibition or create a new event to start capturing buyer intent</p>
           </div>
-          <button onClick={onCreateEvent}
-            style={{padding:"11px 22px",background:C.navy,color:C.white,border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8,boxShadow:"0 2px 12px rgba(13,27,62,0.18)"}}>
+          <button onClick={planInfo?.limit_reached ? undefined : onCreateEvent}
+            disabled={planInfo?.limit_reached}
+            title={planInfo?.limit_reached ? `Event limit reached on your ${PLAN_LABELS[planInfo.plan]||planInfo?.plan} plan` : ""}
+            style={{padding:"11px 22px",background:planInfo?.limit_reached?"#CBD5E1":C.navy,color:C.white,border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:planInfo?.limit_reached?"not-allowed":"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8,boxShadow:"0 2px 12px rgba(13,27,62,0.18)"}}>
             <span style={{fontSize:16}}>＋</span> Create new event
           </button>
         </div>
+
+        {/* Plan usage banner */}
+        {planInfo && (
+          <div style={{
+            marginBottom:24, padding:"10px 16px", borderRadius:10,
+            background: planInfo.limit_reached ? "#FEF2F2" : planInfo.active_events >= planInfo.max_events * 0.8 ? "#FFFBEB" : "#F0F9FF",
+            border: `1px solid ${planInfo.limit_reached ? "#FECACA" : planInfo.active_events >= planInfo.max_events * 0.8 ? "#FDE68A" : "#BAE6FD"}`,
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:13}}>
+                {planInfo.limit_reached ? "🔴" : planInfo.active_events >= planInfo.max_events * 0.8 ? "🟡" : "🟢"}
+              </span>
+              <div>
+                <span style={{fontSize:12,fontWeight:700,color:C.navy}}>
+                  {PLAN_LABELS[planInfo.plan] || planInfo.plan} plan
+                </span>
+                <span style={{fontSize:12,color:C.muted,marginLeft:8}}>
+                  {planInfo.max_events >= 999
+                    ? `${planInfo.active_events} active event${planInfo.active_events!==1?"s":""}`
+                    : `${planInfo.active_events} of ${planInfo.max_events} event${planInfo.max_events!==1?"s":""} used`}
+                </span>
+              </div>
+            </div>
+            {planInfo.limit_reached && (
+              <span style={{fontSize:11,color:"#DC2626",fontWeight:600}}>
+                Event limit reached — contact us to upgrade
+              </span>
+            )}
+          </div>
+        )}
 
         {/* My events — split into Upcoming and Past */}
         {(()=>{
