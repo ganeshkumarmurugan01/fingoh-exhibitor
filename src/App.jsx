@@ -7044,6 +7044,12 @@ function EventSetup({ex, onUpdate, onDelete}) {
 
   const buildPreviewHtml = (type) => {
     const tpl   = emailConfig.templates?.[type] || DEFAULT_TEMPLATES[type] || {};
+    // If HTML mode and html_body exists, return it directly
+    if (tpl.mode === "html" && tpl.html_body) {
+      let h = tpl.html_body;
+      [{k:"{{visitor_name}}",v:"Alex Johnson"},{k:"{{event_name}}",v:ex.name||"Your Event"},{k:"{{sender_name}}",v:emailConfig.signature_name||emailConfig.sender_name||"Your Name"},{k:"{{signature_name}}",v:emailConfig.signature_name||""},{k:"{{signature_title}}",v:emailConfig.signature_title||""},{k:"{{signature_company}}",v:emailConfig.signature_company||""}].forEach(({k,v})=>{ h=h.split(k).join(v); });
+      return h;
+    }
     const body  = (tpl.body || "").replace(/\n/g, "<br>");
     const pc    = emailConfig.primary_color || "#0F172A";
     const logo  = emailConfig.logo_url || "";
@@ -7245,7 +7251,7 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Email type tabs */}
         <div style={{display:"flex",gap:0,borderBottom:"1px solid #E2E8F0",marginBottom:16}}>
           {EMAIL_TYPES.map(t=>(
             <button key={t.id} onClick={()=>setActiveEmailType(t.id)}
@@ -7258,51 +7264,100 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           ))}
         </div>
 
-        {EMAIL_TYPES.filter(t=>t.id===activeEmailType).map(t=>(
+        {EMAIL_TYPES.filter(t=>t.id===activeEmailType).map(t=>{
+          const isHtmlMode = emailConfig.templates?.[t.id]?.mode === "html";
+          return (
           <div key={t.id}>
-            <p style={{fontSize:11,color:C.muted,margin:"0 0 12px"}}>{t.desc}</p>
-
-            {/* HTML file upload */}
-            <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12,padding:"8px 12px",background:"#F8FAFC",borderRadius:8,border:"1px solid #F1F5F9"}}>
-              <span style={{fontSize:11,color:C.muted}}>Upload HTML template:</span>
-              <label style={{padding:"4px 12px",background:C.navy,color:C.white,borderRadius:6,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-                📄 Upload .html
-                <input type="file" accept=".html,.htm" style={{display:"none"}} onChange={e=>{
-                  const f=e.target.files[0]; if(!f) return;
-                  const reader=new FileReader();
-                  reader.onload=ev=>{
-                    const html=ev.target.result;
-                    // Extract body content if full HTML file
-                    const bodyMatch=html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
-                    updTemplate(t.id,"body", bodyMatch ? bodyMatch[1].trim() : html);
-                    updTemplate(t.id,"is_html",true);
-                  };
-                  reader.readAsText(f);
-                }}/>
-              </label>
-              {emailConfig.templates?.[t.id]?.is_html && <span style={{fontSize:10,color:C.green,fontWeight:700}}>✓ HTML template loaded</span>}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+              <p style={{fontSize:11,color:C.muted,margin:0}}>{t.desc}</p>
+              {/* Mode toggle */}
+              <div style={{display:"flex",background:"#F1F5F9",borderRadius:8,padding:2,gap:2,flexShrink:0,marginLeft:12}}>
+                <button onClick={()=>updTemplate(t.id,"mode","design")}
+                  style={{padding:"5px 14px",borderRadius:6,border:"none",fontSize:11,fontWeight:!isHtmlMode?700:500,
+                    background:!isHtmlMode?C.white:"transparent",color:!isHtmlMode?C.navy:C.muted,
+                    cursor:"pointer",fontFamily:F,boxShadow:!isHtmlMode?"0 1px 3px rgba(0,0,0,.1)":"none"}}>
+                  🎨 Design
+                </button>
+                <button onClick={()=>updTemplate(t.id,"mode","html")}
+                  style={{padding:"5px 14px",borderRadius:6,border:"none",fontSize:11,fontWeight:isHtmlMode?700:500,
+                    background:isHtmlMode?C.white:"transparent",color:isHtmlMode?C.navy:C.muted,
+                    cursor:"pointer",fontFamily:F,boxShadow:isHtmlMode?"0 1px 3px rgba(0,0,0,.1)":"none"}}>
+                  {"</>"} HTML
+                </button>
+              </div>
             </div>
 
-            {/* Subject */}
-            <div style={{marginBottom:12}}>
+            {/* Subject line — same for both modes */}
+            <div style={{marginBottom:14}}>
               <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Subject line</label>
               <input value={getTemplate(t.id,"subject")} onChange={e=>updTemplate(t.id,"subject",e.target.value)}
+                placeholder="e.g. Meeting request from {{sender_name}} at {{event_name}}"
                 style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
             </div>
 
-            {/* Body editor */}
-            <div>
-              <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>
-                Email body {emailConfig.templates?.[t.id]?.is_html ? "(HTML)" : "(plain text — auto-wrapped in template)"}
-              </label>
-              <textarea value={getTemplate(t.id,"body")} onChange={e=>{updTemplate(t.id,"body",e.target.value); updTemplate(t.id,"is_html",false);}} rows={10}
-                style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontFamily:"monospace",outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.6}}/>
-            </div>
+            {!isHtmlMode ? (
+              /* ── DESIGN MODE ── */
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>
+                  Email body <span style={{fontWeight:400,textTransform:"none"}}>(plain text — auto-wrapped in your branded template)</span>
+                </label>
+                <textarea value={getTemplate(t.id,"body")}
+                  onChange={e=>{updTemplate(t.id,"body",e.target.value); updTemplate(t.id,"mode","design");}}
+                  rows={10} placeholder={"Dear {{visitor_name}},\n\nWrite your email here..."}
+                  style={{width:"100%",padding:"10px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.7}}/>
+                <p style={{fontSize:10,color:C.muted2,margin:"4px 0 0"}}>Your logo, header, signature and footer from the sections above will be added automatically.</p>
+              </div>
+            ) : (
+              /* ── HTML MODE ── */
+              <div>
+                <div style={{background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,padding:"10px 14px",marginBottom:12}}>
+                  <p style={{fontSize:11,color:"#92400E",margin:"0 0 4px",fontWeight:700}}>📋 HTML mode — full control</p>
+                  <p style={{fontSize:11,color:"#92400E",margin:0,lineHeight:1.5}}>Paste your full HTML email. Use <code style={{background:"#FEF3C7",padding:"1px 4px",borderRadius:3}}>{"{{visitor_name}}"}</code> merge tags inside the HTML. Brand settings above will NOT be applied — your HTML is used as-is.</p>
+                </div>
 
-            {/* Actions */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
-              <button onClick={()=>{updTemplate(t.id,"subject",DEFAULT_TEMPLATES[t.id]?.subject||""); updTemplate(t.id,"body",DEFAULT_TEMPLATES[t.id]?.body||""); updTemplate(t.id,"is_html",false);}}
-                style={{fontSize:11,color:C.muted,background:"none",border:"none",cursor:"pointer",fontFamily:F}}>
+                {/* Import HTML file button */}
+                <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+                  <label style={{padding:"7px 14px",background:C.ltnavy,color:C.navy,border:"1px solid #C7D0E8",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                    📄 Import .html file
+                    <input type="file" accept=".html,.htm" style={{display:"none"}} onChange={e=>{
+                      const f=e.target.files[0]; if(!f) return;
+                      const reader=new FileReader();
+                      reader.onload=ev=>{ updTemplate(t.id,"html_body",ev.target.result); updTemplate(t.id,"mode","html"); };
+                      reader.readAsText(f);
+                    }}/>
+                  </label>
+                  <span style={{fontSize:11,color:C.muted}}>or paste HTML below</span>
+                </div>
+
+                <div style={{position:"relative"}}>
+                  <textarea
+                    value={emailConfig.templates?.[t.id]?.html_body || ""}
+                    onChange={e=>updTemplate(t.id,"html_body",e.target.value)}
+                    rows={16}
+                    placeholder={"<!DOCTYPE html>\n<html>\n<body>\n  <p>Dear {{visitor_name}},</p>\n  <p>Your email content here...</p>\n</body>\n</html>"}
+                    style={{width:"100%",padding:"12px 14px",border:"1px solid #6366F1",borderRadius:8,fontSize:12,fontFamily:"'Courier New',monospace",outline:"none",boxSizing:"border-box",resize:"vertical",lineHeight:1.6,background:"#1E1E2E",color:"#CDD6F4"}}/>
+                  {/* Merge tag inserter */}
+                  <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:5}}>
+                    {MERGE_TAGS.map(tag=>(
+                      <code key={tag} onClick={()=>navigator.clipboard.writeText(tag)}
+                        title="Click to copy"
+                        style={{fontSize:10,background:"#EFF6FF",color:"#1E40AF",padding:"2px 6px",borderRadius:4,cursor:"pointer",border:"1px solid #BFDBFE"}}>
+                        {tag}
+                      </code>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Actions row */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:12}}>
+              <button onClick={()=>{
+                updTemplate(t.id,"subject",DEFAULT_TEMPLATES[t.id]?.subject||"");
+                updTemplate(t.id,"body",DEFAULT_TEMPLATES[t.id]?.body||"");
+                updTemplate(t.id,"mode","design");
+                updTemplate(t.id,"html_body","");
+              }} style={{fontSize:11,color:C.muted,background:"none",border:"none",cursor:"pointer",fontFamily:F}}>
                 ↺ Reset to default
               </button>
               <button onClick={()=>setEmailPreview({type:t.id,html:buildPreviewHtml(t.id)})}
@@ -7311,7 +7366,8 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
               </button>
             </div>
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {emailSaved && <p style={{fontSize:12,color:C.green,fontWeight:700,textAlign:"right",margin:"0 0 8px"}}>✓ Saved successfully</p>}
