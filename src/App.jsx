@@ -7279,17 +7279,25 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
               </div>
               {/* Mode toggle */}
               <div style={{display:"flex",background:"#F1F5F9",borderRadius:8,padding:2,gap:2,flexShrink:0,marginLeft:12}}>
-                <button onClick={()=>updTemplate(t.id,"mode","design")}
-                  style={{padding:"5px 14px",borderRadius:6,border:"none",fontSize:11,fontWeight:!isHtmlMode?700:500,
+                <button onClick={()=>{
+                  if(isHtmlMode && emailConfig.templates?.[t.id]?.html_body){
+                    if(!window.confirm("Switch to Design mode? Your HTML template will be kept but Design mode email will be sent instead.")) return;
+                  }
+                  updTemplate(t.id,"mode","design");
+                }} style={{padding:"5px 14px",borderRadius:6,border:"none",fontSize:11,fontWeight:!isHtmlMode?700:500,
                     background:!isHtmlMode?C.white:"transparent",color:!isHtmlMode?C.navy:C.muted,
                     cursor:"pointer",fontFamily:F,boxShadow:!isHtmlMode?"0 1px 3px rgba(0,0,0,.1)":"none"}}>
-                  🎨 Design
+                  🎨 Design {!isHtmlMode && "✓"}
                 </button>
-                <button onClick={()=>updTemplate(t.id,"mode","html")}
-                  style={{padding:"5px 14px",borderRadius:6,border:"none",fontSize:11,fontWeight:isHtmlMode?700:500,
+                <button onClick={()=>{
+                  if(!isHtmlMode && getTemplate(t.id,"body")){
+                    if(!window.confirm("Switch to HTML mode? Your design template will be kept but HTML email will be sent instead.")) return;
+                  }
+                  updTemplate(t.id,"mode","html");
+                }} style={{padding:"5px 14px",borderRadius:6,border:"none",fontSize:11,fontWeight:isHtmlMode?700:500,
                     background:isHtmlMode?C.white:"transparent",color:isHtmlMode?C.navy:C.muted,
                     cursor:"pointer",fontFamily:F,boxShadow:isHtmlMode?"0 1px 3px rgba(0,0,0,.1)":"none"}}>
-                  {"</>"} HTML
+                  {"</>"} HTML {isHtmlMode && "✓"}
                 </button>
               </div>
             </div>
