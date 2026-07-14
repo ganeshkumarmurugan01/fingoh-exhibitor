@@ -7701,9 +7701,79 @@ function UserMenu({ profile } = {}) {
                 </button>
               </div>
             )}
+
+            <div style={{height:1,background:"#F1F5F9",margin:"20px 0"}}/>
+
+            {/* GDPR erasure */}
+            <GdprErasureSection />
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function GdprErasureSection() {
+  const [email,   setEmail]   = React.useState("");
+  const [status,  setStatus]  = React.useState(null); // null | "loading" | "ok" | "err"
+  const [msg,     setMsg]     = React.useState("");
+  const [confirm, setConfirm] = React.useState(false);
+
+  async function handleErase() {
+    if (!email.trim()) return;
+    if (!confirm) { setConfirm(true); return; }
+    setStatus("loading"); setMsg("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch("/api/proxy?slug=v1/audience/erase", {
+        method: "DELETE",
+        headers: { "x-fingoh-auth": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), reason: "gdpr_erasure" }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setStatus("err"); setMsg(json.detail || "Deletion failed."); return; }
+      setStatus("ok");
+      setMsg(`✓ All data for ${email.trim()} permanently deleted (${json.records_deleted} record${json.records_deleted !== 1 ? "s" : ""}).`);
+      setEmail(""); setConfirm(false);
+    } catch (e) {
+      setStatus("err"); setMsg("Network error. Please try again.");
+    }
+  }
+
+  return (
+    <div>
+      <p style={{fontSize:11,fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.06,margin:"0 0 6px"}}>🔒 GDPR / Data Erasure</p>
+      <p style={{fontSize:11,color:"#64748B",margin:"0 0 10px",lineHeight:1.5}}>
+        Permanently delete all data for a visitor who has requested to be forgotten.
+      </p>
+      <div style={{display:"flex",gap:8,marginBottom:8}}>
+        <input
+          value={email}
+          onChange={e=>{ setEmail(e.target.value); setConfirm(false); setStatus(null); setMsg(""); }}
+          placeholder="visitor@email.com"
+          style={{flex:1,padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}
+        />
+        <button
+          onClick={handleErase}
+          disabled={!email.trim() || status === "loading"}
+          style={{
+            padding:"9px 14px",
+            background: confirm ? "#DC2626" : "#0D1B3E",
+            color:"#fff", border:"none", borderRadius:8,
+            fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:F, whiteSpace:"nowrap",
+            opacity: (!email.trim() || status === "loading") ? 0.5 : 1,
+          }}>
+          {status === "loading" ? "Deleting…" : confirm ? "⚠ Confirm" : "Erase"}
+        </button>
+      </div>
+      {confirm && status !== "loading" && (
+        <p style={{fontSize:11,color:"#DC2626",margin:"0 0 6px",fontWeight:600}}>
+          This is irreversible. Click Confirm to permanently delete all data for this visitor.
+        </p>
+      )}
+      {status === "ok"  && <p style={{fontSize:12,color:"#16A34A",margin:0,fontWeight:600}}>{msg}</p>}
+      {status === "err" && <p style={{fontSize:12,color:"#DC2626",margin:0}}>{msg}</p>}
     </div>
   );
 }
