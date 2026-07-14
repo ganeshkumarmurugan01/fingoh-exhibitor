@@ -4675,7 +4675,7 @@ function LeadExport({ex}) {
       .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          const sessionKey = `baseline_${eventId}`;
+          const sessionKey = `baseline_${ex.id}`;
           const hasBaseline = Object.keys(baselineScores.current).length > 0;
           if (!hasBaseline) {
             try {
