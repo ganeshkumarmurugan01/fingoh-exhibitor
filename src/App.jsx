@@ -1080,6 +1080,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
           </>);
         })()}
       </div>
+      <AppFooter/>
     </div>
   );
 }
@@ -1127,6 +1128,7 @@ function LoginScreen({onLogin}) {
           </button>
         </div>
       </div>
+      <AppFooter/>
     </div>
   );
 }
@@ -7886,6 +7888,170 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       </div>
 
       <div>{children}</div>
+      <AppFooter/>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// APP FOOTER — Privacy / DPA / GDPR links
+// ═══════════════════════════════════════════════════════════════════
+function AppFooter() {
+  const [modal, setModal] = useState(null); // null | "privacy" | "dpa" | "gdpr"
+  const close = () => setModal(null);
+
+  return (
+    <>
+      <div style={{
+        borderTop:"1px solid #E2E8F0", background:"#F8FAFC",
+        padding:"10px 24px", display:"flex", alignItems:"center",
+        justifyContent:"space-between", fontFamily:F,
+      }}>
+        <p style={{fontSize:10, color:"#94A3B8", margin:0}}>
+          © {new Date().getFullYear()} Fingoh · AI-powered exhibitor intelligence
+        </p>
+        <div style={{display:"flex", gap:16}}>
+          {[["privacy","Privacy Policy"],["dpa","Data Processing Agreement"],["gdpr","GDPR Notice"]].map(([id,label])=>(
+            <button key={id} onClick={()=>setModal(id)}
+              style={{background:"none",border:"none",fontSize:10,color:"#64748B",cursor:"pointer",fontFamily:F,textDecoration:"underline",padding:0}}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {modal && (
+        <div onClick={close} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:3000,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,maxWidth:680,width:"100%",maxHeight:"85vh",display:"flex",flexDirection:"column",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+            {/* Header */}
+            <div style={{padding:"20px 24px",borderBottom:"1px solid #E2E8F0",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}}>
+              <h2 style={{fontSize:16,fontWeight:700,color:"#0D1B3E",margin:0}}>
+                {modal==="privacy" && "Privacy Policy"}
+                {modal==="dpa"     && "Data Processing Agreement"}
+                {modal==="gdpr"    && "GDPR Compliance Notice"}
+              </h2>
+              <button onClick={close} style={{background:"none",border:"none",fontSize:18,color:"#94A3B8",cursor:"pointer"}}>✕</button>
+            </div>
+            {/* Body */}
+            <div style={{padding:"20px 24px",overflowY:"auto",fontSize:13,color:"#334155",lineHeight:1.7}}>
+              {modal==="privacy" && <PrivacyPolicyContent/>}
+              {modal==="dpa"     && <DpaContent/>}
+              {modal==="gdpr"    && <GdprContent/>}
+            </div>
+            <div style={{padding:"14px 24px",borderTop:"1px solid #E2E8F0",flexShrink:0,textAlign:"right"}}>
+              <button onClick={close} style={{padding:"8px 20px",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function PrivacyPolicyContent() {
+  const S = ({children})=><h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"18px 0 6px"}}>{children}</h3>;
+  return (
+    <div>
+      <p style={{fontSize:11,color:"#94A3B8",margin:"0 0 16px"}}>Last updated: {new Date().toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</p>
+
+      <S>1. Who we are</S>
+      <p>Fingoh ("we", "us", "our") provides an AI-powered exhibitor intelligence platform that helps trade fair exhibitors identify, score, and engage with qualified visitors. Our platform is operated as a B2B SaaS service.</p>
+
+      <S>2. Data we process</S>
+      <p>As a <strong>data processor</strong>, we process visitor data on behalf of our customers (exhibitors), who are the <strong>data controllers</strong>. This includes:</p>
+      <ul style={{paddingLeft:20,margin:"6px 0"}}>
+        <li>Visitor names, email addresses, job titles, company names and contact details</li>
+        <li>Event attendance signals and behavioural data logged during the exhibition</li>
+        <li>Meeting requests and conversation notes captured by exhibitor staff</li>
+        <li>AI-generated intent scores and lead classifications</li>
+      </ul>
+
+      <S>3. How we use your data</S>
+      <p>Visitor data is used exclusively to provide the Fingoh service to the exhibitor who collected it. We do not sell, share, or use visitor data for any purpose beyond delivering the contracted service.</p>
+
+      <S>4. Data storage & security</S>
+      <p>All data is stored in a secured database hosted on Supabase (AWS ap-northeast-2, Seoul). Data in transit is encrypted via TLS. Access is restricted by role-based authentication.</p>
+
+      <S>5. Data retention</S>
+      <p>Visitor contact data is retained for up to 24 months after the event end date to support cross-edition scoring models. After this period, personal data is anonymised or deleted. Exhibitors may request earlier deletion via the GDPR erasure feature in their account settings.</p>
+
+      <S>6. Your rights</S>
+      <p>If you are a visitor whose data has been collected by an exhibitor using Fingoh, you may contact that exhibitor to exercise your rights under applicable data protection law, including the right to access, rectify, or erase your personal data.</p>
+
+      <S>7. Contact</S>
+      <p>For privacy enquiries, contact us at <strong>privacy@fingoh.ai</strong></p>
+    </div>
+  );
+}
+
+function DpaContent() {
+  const S = ({children})=><h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"18px 0 6px"}}>{children}</h3>;
+  return (
+    <div>
+      <p style={{fontSize:11,color:"#94A3B8",margin:"0 0 16px"}}>This Data Processing Agreement ("DPA") forms part of the Fingoh Terms of Service between Fingoh ("Processor") and the subscribing organisation ("Controller").</p>
+
+      <S>1. Definitions</S>
+      <p><strong>Controller</strong> means the exhibiting organisation using Fingoh to manage visitor data. <strong>Processor</strong> means Fingoh. <strong>Personal Data</strong> means any information relating to an identified or identifiable natural person processed under this agreement.</p>
+
+      <S>2. Subject matter & purpose</S>
+      <p>The Processor shall process Personal Data only for the purpose of providing the Fingoh exhibitor intelligence platform as described in the Terms of Service, and strictly on documented instructions from the Controller.</p>
+
+      <S>3. Controller obligations</S>
+      <p>The Controller warrants that it has a valid lawful basis (such as legitimate interest or consent) for collecting and transferring visitor personal data to Fingoh for processing, and that it has provided visitors with appropriate privacy notices.</p>
+
+      <S>4. Processor obligations</S>
+      <p>Fingoh shall: (a) process Personal Data only on Controller instructions; (b) ensure persons authorised to process data are bound by confidentiality; (c) implement appropriate technical and organisational security measures; (d) not engage sub-processors without Controller consent; (e) assist the Controller in responding to data subject rights requests; (f) delete or return all Personal Data upon termination of services.</p>
+
+      <S>5. Sub-processors</S>
+      <p>Fingoh uses the following sub-processors: <strong>Supabase</strong> (database hosting, AWS Seoul), <strong>Anthropic</strong> (AI processing, USA), <strong>Modal Labs</strong> (ML scoring, USA), <strong>Vercel</strong> (frontend hosting, USA), <strong>Railway</strong> (backend hosting, USA). Sub-processor details are available on request.</p>
+
+      <S>6. Security measures</S>
+      <p>Fingoh implements: TLS encryption in transit, encrypted storage at rest, role-based access control, audit logging of all data access and deletion events, and regular security reviews.</p>
+
+      <S>7. Data subject rights</S>
+      <p>The Processor shall notify the Controller of any data subject rights request within 48 hours and shall provide reasonable assistance to enable the Controller to fulfil such requests within statutory timeframes.</p>
+
+      <S>8. Breach notification</S>
+      <p>In the event of a personal data breach, Fingoh shall notify the Controller without undue delay and in any case within 72 hours of becoming aware of the breach.</p>
+
+      <S>9. Governing law</S>
+      <p>This DPA is governed by the laws of India. For EU data subjects, the parties agree to comply with GDPR requirements and, where required, to execute Standard Contractual Clauses.</p>
+
+      <S>Contact</S>
+      <p>For DPA enquiries: <strong>privacy@fingoh.ai</strong></p>
+    </div>
+  );
+}
+
+function GdprContent() {
+  const S = ({children})=><h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"18px 0 6px"}}>{children}</h3>;
+  return (
+    <div>
+      <S>Our commitment to GDPR</S>
+      <p>Fingoh is designed with data protection by design and by default. As a data processor under GDPR Article 28, we support our customers (data controllers) in meeting their obligations under the General Data Protection Regulation (EU) 2016/679 and equivalent national laws.</p>
+
+      <S>Lawful basis for processing</S>
+      <p>Exhibitors using Fingoh are responsible for establishing a lawful basis for processing visitor personal data. Common lawful bases include <strong>legitimate interest</strong> (Article 6(1)(f)) for B2B trade fair contexts, or <strong>consent</strong> (Article 6(1)(a)) where obtained through registration forms.</p>
+
+      <S>Data subject rights we support</S>
+      <ul style={{paddingLeft:20,margin:"6px 0"}}>
+        <li><strong>Right of access (Art. 15)</strong> — Exhibitors can export all data for a visitor via CSV export</li>
+        <li><strong>Right to erasure (Art. 17)</strong> — Exhibitors can permanently delete all data for a visitor via Profile Settings → GDPR / Data Erasure</li>
+        <li><strong>Right to rectification (Art. 16)</strong> — Contact records can be edited via the visitor list</li>
+        <li><strong>Right to data portability (Art. 20)</strong> — All contact data is exportable as CSV at any time</li>
+      </ul>
+
+      <S>International transfers</S>
+      <p>Data is currently stored in AWS Seoul (ap-northeast-2). For EU-based data subjects, transfers are conducted in accordance with applicable transfer mechanisms. Please contact us if you require Standard Contractual Clauses (SCCs) to be executed.</p>
+
+      <S>Data retention</S>
+      <p>Personal data is retained for up to 24 months after the event end date. This retention period supports historical scoring models that improve lead quality for future editions. Exhibitors may delete specific visitor records at any time using the erasure feature.</p>
+
+      <S>Data Protection Officer</S>
+      <p>For GDPR-related enquiries or to request SCCs, contact us at <strong>privacy@fingoh.ai</strong></p>
     </div>
   );
 }
