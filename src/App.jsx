@@ -6993,6 +6993,41 @@ function EventSetup({ex, onUpdate, onDelete}) {
   );
 
 
+  const DEFAULT_TEMPLATES = {
+    meeting_request: {
+      subject: "Meeting request from {{sender_name}} at {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nI would love to connect with you at {{event_name}}. I believe there is a strong synergy between what we offer and your goals.\n\nPlease click the link below to accept or decline this meeting request.\n\nLooking forward to meeting you!",
+    },
+    outreach: {
+      subject: "Connecting at {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nI noticed you will be attending {{event_name}} and wanted to reach out personally. We have solutions that I believe would be highly relevant to you.\n\nWould you be open to a brief 20-minute meeting at our booth?",
+    },
+    followup_day1: {
+      subject: "Great meeting you at {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nThank you for visiting our booth at {{event_name}}. It was a pleasure speaking with you.\n\nAs discussed, I am sharing some additional information that might be helpful for your evaluation.",
+    },
+    followup_day7: {
+      subject: "Following up — {{event_name}}",
+      body: "Dear {{visitor_name}},\n\nI wanted to follow up on our conversation at {{event_name}} last week. I hope you had a chance to review the materials I shared.\n\nWould you be available for a brief call this week to discuss next steps?",
+    },
+  };
+
+  const EMAIL_TYPES = [
+    {id:"meeting_request", label:"Meeting request",    desc:"Sent when you request a meeting with a visitor"},
+    {id:"outreach",        label:"Pre-event outreach", desc:"Agent outreach email before the event"},
+    {id:"followup_day1",   label:"Follow-up Day 1",    desc:"Sent day after event closes"},
+    {id:"followup_day7",   label:"Follow-up Day 7",    desc:"Value-add follow-up one week after"},
+  ];
+
+  const MERGE_TAGS = ["{{visitor_name}}","{{event_name}}","{{sender_name}}","{{signature_name}}","{{signature_title}}","{{signature_company}}"];
+
+  const [activeEmailType, setActiveEmailType] = useState("meeting_request");
+
+  const updTemplate = (type,k,v) => setEmailConfig(ec=>({
+    ...ec, templates:{...ec.templates,[type]:{...(ec.templates?.[type]||{}), [k]:v}}
+  }));
+  const getTemplate = (type,k) => emailConfig.templates?.[type]?.[k] || DEFAULT_TEMPLATES[type]?.[k] || "";
+
   const uploadEmailAsset = async (file, folder) => {
     const ext  = file.name.split(".").pop();
     const name = `${ex.id}/${folder}/${Date.now()}.${ext}`;
