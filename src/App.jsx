@@ -7023,6 +7023,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
 
   const [activeEmailType, setActiveEmailType] = useState("meeting_request");
 
+  const updEmail = (k,v) => setEmailConfig(ec=>({...ec,[k]:v}));
   const updTemplate = (type,k,v) => setEmailConfig(ec=>({
     ...ec, templates:{...ec.templates,[type]:{...(ec.templates?.[type]||{}), [k]:v}}
   }));
