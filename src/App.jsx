@@ -6495,6 +6495,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
   // Editable form state
   const [form, setForm] = useState({
     company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
+    dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
+    venue: ex.venue || "", country: ex.country || "",
     cats:      ex.cats      || [],
     icpRole:   ex.icpRole   || [], icpSize: ex.icpSize || [], icpReason: ex.icpReason || [],
     intentWhy: ex.intentWhy || "", intentBuyers: ex.intentBuyers || "",
@@ -6518,6 +6520,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
         method:"PATCH", headers,
         body: JSON.stringify({
           company: form.company, product: form.product, website: form.website, booth_size: form.boothSize,
+          date_from: form.dateFrom, date_to: form.dateTo,
+          venue: form.venue, country: form.country,
           ...extraFields,
         })
       });
@@ -6596,14 +6600,31 @@ function EventSetup({ex, onUpdate, onDelete}) {
   const renderOverview = () => (
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Event overview</h2>
-      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Master event details — these are fixed and cannot be changed after creation.</p>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Event name and type are fixed. Dates, venue and country can be updated if plans change.</p>
       <div style={{background:"#FAFAFA",border:"1px solid #F1F5F9",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
         <Field label="Event name"  value={ex.name}/>
         <Field label="Event type"  value={ex.type}/>
-        <Field label="Dates"       value={ex.dateFrom && ex.dateTo ? `${ex.dateFrom} – ${ex.dateTo}` : null}/>
-        <Field label="Venue"       value={ex.venue}/>
-        <Field label="Country"     value={ex.country}/>
         <Field label="Event ID"    value={ex.id}/>
+      </div>
+      <div style={{marginBottom:16}}>
+        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 10px"}}>📅 Event dates <span style={{fontSize:11,fontWeight:400,color:C.muted}}>(can be updated if plans change)</span></p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Start date</label>
+            <input type="date" value={form.dateFrom} onChange={e=>upd("dateFrom",e.target.value)}
+              style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+          </div>
+          <div>
+            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>End date</label>
+            <input type="date" value={form.dateTo} min={form.dateFrom||undefined} onChange={e=>upd("dateTo",e.target.value)}
+              style={{width:"100%",padding:"8px 12px",border:`1px solid ${form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom?"#DC2626":"#E2E8F0"}`,borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+            {form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>End date must be after start date</p>}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Input label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
+          <Input label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
+        </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
         {[
