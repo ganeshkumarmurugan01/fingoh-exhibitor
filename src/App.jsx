@@ -4986,7 +4986,7 @@ function PredictedFunnel({ex}) {
         `Avg IEI score: ${avgIEI}`,
       ], atRisk: null },
     { id:"attend", label:"Will attend", icon:"✅",
-      actual: actualSignals > 0 ? actualSignals : null, predicted: predAttend, lo: predAttendLo, hi: predAttendHi,
+      actual: null, predicted: predAttend, lo: predAttendLo, hi: predAttendHi,
       color: C.tealIEI,
       model: "Cox PH survival model · registration timing + recency + ICP tier",
       drivers: [
@@ -5015,7 +5015,7 @@ function PredictedFunnel({ex}) {
       ] : null,
       desc: "Predicted visitors who will take a meaningful meeting at your booth" },
     { id:"score", label:"Will reach booth", icon:"🎯",
-      actual: actualBooth > 0 ? actualBooth : null, predicted: predBooth, lo: predBoothLo, hi: predBoothHi,
+      actual: null, predicted: predBooth, lo: predBoothLo, hi: predBoothHi,
       color: C.navy,
       model: "Floor traffic model · IEI tier + attendance probability",
       drivers: [
