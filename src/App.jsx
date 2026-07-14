@@ -6597,6 +6597,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
   );
 
   // ── Section content renderers ─────────────────────────────────────
+  const [editingDates, setEditingDates] = useState(false);
+
   const renderOverview = () => (
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Event overview</h2>
@@ -6606,25 +6608,81 @@ function EventSetup({ex, onUpdate, onDelete}) {
         <Field label="Event type"  value={ex.type}/>
         <Field label="Event ID"    value={ex.id}/>
       </div>
-      <div style={{marginBottom:16}}>
-        <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:"0 0 10px"}}>📅 Event dates <span style={{fontSize:11,fontWeight:400,color:C.muted}}>(can be updated if plans change)</span></p>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Start date</label>
-            <input type="date" value={form.dateFrom} onChange={e=>upd("dateFrom",e.target.value)}
-              style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-          <div>
-            <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>End date</label>
-            <input type="date" value={form.dateTo} min={form.dateFrom||undefined} onChange={e=>upd("dateTo",e.target.value)}
-              style={{width:"100%",padding:"8px 12px",border:`1px solid ${form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom?"#DC2626":"#E2E8F0"}`,borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
-            {form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>End date must be after start date</p>}
-          </div>
+
+      {/* Editable dates section */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>📅 Event dates, venue & location</p>
+          {!editingDates
+            ? <button onClick={()=>setEditingDates(true)}
+                style={{padding:"5px 14px",background:C.navy,color:C.white,border:"none",borderRadius:7,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                ✏ Edit
+              </button>
+            : <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setEditingDates(false)}
+                  style={{padding:"5px 14px",background:"#fff",color:C.muted,border:"1px solid #E2E8F0",borderRadius:7,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                  Cancel
+                </button>
+                <button onClick={async()=>{
+                  if(form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom) return;
+                  setSaving(true); setError(null);
+                  try {
+                    const {data:{session}} = await supabase.auth.getSession();
+                    const token = session?.access_token||"";
+                    // Determine new status based on dates
+                    const today = new Date().toISOString().split("T")[0];
+                    const newStatus = form.dateTo >= today ? (form.dateFrom <= today ? "live" : "upcoming") : "past";
+                    const res = await fetch(`/api/proxy?slug=v1/events/${ex.id}`,{
+                      method:"PATCH",
+                      headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+                      body:JSON.stringify({date_from:form.dateFrom,date_to:form.dateTo,venue:form.venue,country:form.country,status:newStatus})
+                    });
+                    if(!res.ok) throw new Error("Save failed");
+                    if(onUpdate) onUpdate({...ex,dateFrom:form.dateFrom,dateTo:form.dateTo,venue:form.venue,country:form.country,status:newStatus});
+                    setSaved(true); setTimeout(()=>setSaved(false),2500);
+                    setEditingDates(false);
+                  } catch(e){ setError(e.message); }
+                  finally{ setSaving(false); }
+                }} disabled={saving}
+                  style={{padding:"5px 14px",background:saving?"#94A3B8":C.green,color:C.white,border:"none",borderRadius:7,fontSize:11,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:F}}>
+                  {saving?"Saving…":"✓ Save dates"}
+                </button>
+              </div>
+          }
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Input label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
-          <Input label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
-        </div>
+
+        {!editingDates ? (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            {[["Start date",form.dateFrom||ex.dateFrom],["End date",form.dateTo||ex.dateTo],["Venue",form.venue||ex.venue],["Country",form.country||ex.country]].map(([l,v])=>(
+              <div key={l} style={{padding:"8px 0",borderBottom:"1px solid #F8FAFC"}}>
+                <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,marginBottom:3}}>{l}</div>
+                <div style={{fontSize:13,color:C.dark}}>{v || <span style={{color:C.muted2,fontStyle:"italic"}}>Not set</span>}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>Start date</label>
+                <input type="date" value={form.dateFrom} onChange={e=>upd("dateFrom",e.target.value)}
+                  style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>End date</label>
+                <input type="date" value={form.dateTo} min={form.dateFrom||undefined} onChange={e=>upd("dateTo",e.target.value)}
+                  style={{width:"100%",padding:"8px 12px",border:`1px solid ${form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom?"#DC2626":"#E2E8F0"}`,borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
+                {form.dateTo&&form.dateFrom&&form.dateTo<form.dateFrom&&<p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>End date must be after start date</p>}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <Input label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
+              <Input label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
+            </div>
+            {error && <p style={{fontSize:11,color:"#DC2626",margin:"8px 0 0"}}>⚠ {error}</p>}
+            {saved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:"8px 0 0"}}>✓ Dates updated successfully</p>}
+          </div>
+        )}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
         {[
