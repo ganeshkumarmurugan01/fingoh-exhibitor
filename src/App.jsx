@@ -3581,7 +3581,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
     const latest = signals[0];
     if (!latest) return;
     const contact = contacts.find(c=>c.id===latest.contact_id);
-    const name = contact?.name || "Unknown visitor";
+    const name = contact?.name || latest.contact_name || "Unknown visitor";
     const staff = latest.staff_name || "Staff";
     const action = latest.meeting_completed ? "completed a meeting" :
                    latest.meeting_booked    ? "booked a meeting"    :
@@ -3680,7 +3680,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
   const alertColors = [C.green, C.blue, C.purple, C.amber, C.red];
   const alerts = signals.slice(0,8).map((s,i)=>{
     const contact = contacts.find(c=>c.id===s.contact_id);
-    const name = contact?.name || "Unknown visitor";
+    const name = contact?.name || s?.contact_name || "Unknown visitor";
     const msg = s.meeting_booked?"Meeting booked — high priority follow-up":
                 s.demo_requested?"Demo requested at booth":
                 s.return_visit?"Return visit — strong buying signal":
