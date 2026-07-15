@@ -2241,12 +2241,65 @@ function MatchDetailPanel({p, ex, onClose, openModal}) {
 
         </>)}
 
-        {/* Action */}
-        <div style={{padding:"12px 16px"}}>
-          <button onClick={()=>openModal(p)}
-            style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-            + Request Meeting
-          </button>
+        {/* Action — status-aware */}
+        <div style={{padding:"12px 16px",borderTop:"1px solid #F1F5F9"}}>
+          {(() => {
+            const ms = p.meeting_status;
+            const mtg = p.meeting;
+            const fmtDt = d => d ? new Date(d).toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : null;
+            if (ms === "pending") return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:8,marginBottom:10}}>
+                  <span style={{fontSize:16}}>⏳</span>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#92400E"}}>Meeting request sent</div>
+                    {mtg?.proposed_datetime && <div style={{fontSize:10,color:"#B45309",marginTop:2}}>📅 {fmtDt(mtg.proposed_datetime)}</div>}
+                  </div>
+                </div>
+                <button onClick={()=>openModal(p)} style={{width:"100%",padding:"8px",background:C.white,color:C.blue,border:`1px solid ${C.blue}`,borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>↺ Reschedule</button>
+              </div>
+            );
+            if (ms === "accepted") return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#F0FDF4",border:"1px solid #86EFAC",borderRadius:8,marginBottom:10}}>
+                  <span style={{fontSize:16}}>✓</span>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:"#14532D"}}>Meeting accepted</div>
+                    {mtg?.proposed_datetime && <div style={{fontSize:10,color:"#16A34A",marginTop:2}}>📅 {fmtDt(mtg.proposed_datetime)}</div>}
+                    {mtg?.location && <div style={{fontSize:10,color:"#16A34A"}}>📍 {mtg.location}</div>}
+                  </div>
+                </div>
+                <button onClick={()=>openModal(p)} style={{width:"100%",padding:"8px",background:C.white,color:C.blue,border:`1px solid ${C.blue}`,borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>↺ Reschedule</button>
+              </div>
+            );
+            if (ms === "completed") return (
+              <div>
+                <div style={{padding:"8px 12px",background:"#F5F3FF",border:"1px solid #C4B5FD",borderRadius:8,marginBottom:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:14}}>✦</span>
+                    <span style={{fontSize:12,fontWeight:700,color:"#5B21B6"}}>Meeting completed</span>
+                  </div>
+                  {(mtg?.actual_start_time || mtg?.completed_at) && <div style={{fontSize:10,color:"#7C3AED"}}>📅 {fmtDt(mtg.actual_start_time || mtg.completed_at)}</div>}
+                  {mtg?.staff_completion_notes && <div style={{fontSize:10,color:"#6D28D9",marginTop:4,fontStyle:"italic",borderTop:"1px solid #DDD6FE",paddingTop:4}}>📝 {mtg.staff_completion_notes.slice(0,80)}{mtg.staff_completion_notes.length>80?"…":""}</div>}
+                </div>
+                <button onClick={()=>openModal(p)} style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>+ Request New Meeting</button>
+              </div>
+            );
+            if (ms === "declined" || ms === "cancelled") return (
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,marginBottom:10}}>
+                  <span style={{fontSize:14}}>—</span>
+                  <div style={{fontSize:12,fontWeight:700,color:"#991B1B"}}>{ms === "declined" ? "Meeting declined" : "Meeting cancelled"}</div>
+                </div>
+                <button onClick={()=>openModal(p)} style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>+ Request New Meeting</button>
+              </div>
+            );
+            return (
+              <button onClick={()=>openModal(p)} style={{width:"100%",padding:"9px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                + Request Meeting
+              </button>
+            );
+          })()}
         </div>
       </div>
     </div>
