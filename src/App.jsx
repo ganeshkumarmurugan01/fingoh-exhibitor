@@ -1159,24 +1159,26 @@ function LoginScreen({onLogin}) {
   };
 
   return (
-    <div style={{minHeight:"100vh",background:C.white,fontFamily:F,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-      <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at 20% 50%,rgba(41,171,226,0.05) 0%,transparent 55%),radial-gradient(ellipse at 80% 20%,rgba(57,181,74,0.04) 0%,transparent 50%)`}}/>
-      <div style={{width:"100%",maxWidth:420,position:"relative",zIndex:1}}>
-        <div style={{textAlign:"center",marginBottom:36}}>
-          <div style={{display:"inline-flex",marginBottom:10}}>
-            <img src={LOGO_BLACK} alt="Fingoh" style={{height:44,display:"block"}}/>
+    <div style={{minHeight:"100vh",background:C.white,fontFamily:F,display:"flex",flexDirection:"column"}}>
+      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:24,position:"relative"}}>
+        <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at 20% 50%,rgba(41,171,226,0.05) 0%,transparent 55%),radial-gradient(ellipse at 80% 20%,rgba(57,181,74,0.04) 0%,transparent 50%)`}}/>
+        <div style={{width:"100%",maxWidth:420,position:"relative",zIndex:1}}>
+          <div style={{textAlign:"center",marginBottom:36}}>
+            <div style={{display:"inline-flex",marginBottom:10}}>
+              <img src={LOGO_BLACK} alt="Fingoh" style={{height:44,display:"block"}}/>
+            </div>
+            <p style={{fontSize:12,color:C.muted,margin:0}}>Intent Intelligence · Exhibitor Edition</p>
           </div>
-          <p style={{fontSize:12,color:C.muted,margin:0}}>Intent Intelligence · Exhibitor Edition</p>
-        </div>
-        <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:16,padding:36,boxShadow:"0 4px 24px rgba(13,27,62,0.08)"}}>
-          <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:4}}>Sign in</h2>
-          <p style={{fontSize:12,color:C.muted,marginBottom:24}}>Exhibitor platform — know your buyers before they arrive</p>
-          <div style={{marginBottom:14}}><label style={lD}>Work email</label><input value={email} onChange={e=>setEmail(e.target.value)} style={iD}/></div>
-          <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={iD}/></div>
-          {error && <p style={{color:C.red,fontSize:12,marginBottom:12,textAlign:"center"}}>{error}</p>}
-          <button onClick={handleSignIn} disabled={loading} style={{width:"100%",padding:13,background:loading?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:F}}>
-            {loading ? "Signing in..." : "Sign in →"}
-          </button>
+          <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:16,padding:36,boxShadow:"0 4px 24px rgba(13,27,62,0.08)"}}>
+            <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:4}}>Sign in</h2>
+            <p style={{fontSize:12,color:C.muted,marginBottom:24}}>Exhibitor platform — know your buyers before they arrive</p>
+            <div style={{marginBottom:14}}><label style={lD}>Work email</label><input value={email} onChange={e=>setEmail(e.target.value)} style={iD}/></div>
+            <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={iD}/></div>
+            {error && <p style={{color:C.red,fontSize:12,marginBottom:12,textAlign:"center"}}>{error}</p>}
+            <button onClick={handleSignIn} disabled={loading} style={{width:"100%",padding:13,background:loading?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:F}}>
+              {loading ? "Signing in..." : "Sign in →"}
+            </button>
+          </div>
         </div>
       </div>
       <AppFooter/>
