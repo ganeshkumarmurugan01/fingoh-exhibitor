@@ -2265,6 +2265,7 @@ function MeetingsScreen({ex}) {
   const [selContact, setSelContact] = useState(null);
   const [selProspect, setSelProspect] = useState(null);   // prospect detail panel
   const [rescheduleId, setRescheduleId] = useState(null); // meeting id being rescheduled
+  const [detailMeeting, setDetailMeeting] = useState(null); // completed meeting detail modal
   const [sending,   setSending]     = useState(false);
   const [sent,      setSent]        = useState({});
   const [form, setForm] = useState({
@@ -2464,10 +2465,12 @@ function MeetingsScreen({ex}) {
             const contact = m.audience_contacts || {};
             const dt = m.proposed_datetime ? new Date(m.proposed_datetime).toLocaleString("en-IN",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "—";
             return (
-              <div key={m.id} style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 180px",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA"}}>
+              <div key={m.id} onClick={m.status==="completed" ? ()=>setDetailMeeting({name:contact.name||"—", meeting:m}) : undefined} style={{padding:"14px 18px",borderBottom:"1px solid #F1F5F9",display:"grid",gridTemplateColumns:"2fr 1fr 1fr 100px 180px",gap:12,alignItems:"center",background:i%2===0?C.white:"#FAFAFA",cursor:m.status==="completed"?"pointer":undefined,transition:"background .15s"}} onMouseEnter={m.status==="completed"?e=>e.currentTarget.style.background="#F0FDF4":undefined} onMouseLeave={m.status==="completed"?e=>e.currentTarget.style.background=i%2===0?C.white:"#FAFAFA":undefined}>
                 <div>
                   <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>{contact.name||"—"}</p>
                   <p style={{fontSize:11,color:C.muted,margin:0}}>{contact.designation||"—"} · {contact.company||"—"}</p>
+                  {m.status==="completed" && m.staff_completion_notes && <p style={{fontSize:10,color:"#16A34A",margin:"3px 0 0",fontStyle:"italic"}}>📝 {m.staff_completion_notes.slice(0,60)}{m.staff_completion_notes.length>60?"…":""}</p>}
+                  {m.status==="completed" && <p style={{fontSize:10,color:C.muted,margin:"2px 0 0"}}>Click to view notes & AI analysis →</p>}
                 </div>
                 <div>
                   <p style={{fontSize:12,color:C.dark,margin:0}}>📅 {dt}</p>
@@ -2542,6 +2545,9 @@ function MeetingsScreen({ex}) {
           })}
         </div>
       )}
+
+      {/* Completed Meeting Detail Modal */}
+      {detailMeeting && <MeetingOverviewModal data={detailMeeting} onClose={()=>setDetailMeeting(null)}/>}
 
       {/* Send Meeting Request Modal */}
       {showModal && selContact && (
@@ -3395,6 +3401,7 @@ function MeetingOverviewModal({data, onClose}) {
         <Row label="Topic" value={meeting.topic}/>
         <Row label="Notes (pre-meeting)" value={meeting.notes}/>
         <Row label="Staff completion notes" value={meeting.staff_completion_notes}/>
+        <Row label="Voice transcript" value={meeting.voice_transcript}/>
         {ai && (
           <div style={{padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
             <div style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,marginBottom:6}}>AI analysis</div>
