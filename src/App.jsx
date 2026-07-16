@@ -4002,22 +4002,17 @@ ${latestSig.ai_buying_signals?.length ? `- AI buying signals: ${latestSig.ai_buy
 
 Give a specific, personalised next step for the exhibitor's sales team. Reference the visitor's role and company. Be direct and actionable.`;
 
-    fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 200,
-        messages: [{ role: "user", content: prompt }]
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token || "";
+      fetch(`/api/proxy?slug=v1/agent/ai/recommend`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body: JSON.stringify({prompt, max_tokens: 200})
       })
-    })
-    .then(r => r.json())
-    .then(data => {
-      const text = data.content?.[0]?.text || "";
-      if (text) setAiRec(text);
-      setAiRecLoading(false);
-    })
-    .catch(()=>setAiRecLoading(false));
+      .then(r => r.json())
+      .then(data => { if (data.text) setAiRec(data.text); setAiRecLoading(false); })
+      .catch(()=>setAiRecLoading(false));
+    });
   }, [loadingSigs, signals.length]);
 
   // Load real conversation signals for this visitor
@@ -5862,17 +5857,15 @@ Analyse the notes and respond in this exact JSON format:
 
 Be specific and actionable. Missing signals should be questions that, if asked, would significantly improve the IEI score for this visitor.`;
 
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/agent/ai/analyse`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-opus-4-8",
-          max_tokens: 500,
-          messages: [{ role: "user", content: prompt }],
-        }),
+        headers: {"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body: JSON.stringify({prompt, max_tokens: 500}),
       });
       const data = await res.json();
-      const text = data.content?.[0]?.text || "{}";
+      const text = data.text || "{}";
       const clean = text.replace(/```json|```/g, "").trim();
       try { setConvAnalysis(JSON.parse(clean)); }
       catch { setConvAnalysis({ recommendation: text, missingSignals: [], nextQuestion: "", scoreDelta: "", buyingSignals: [], redFlags: [] }); }
