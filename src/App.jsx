@@ -2902,6 +2902,7 @@ function IEIAnalysis({ex}) {
   const [selId,setSelId]     = useState(null);
   const [tab,setTab]         = useState("layers");
   const [filter,setFilter]   = useState("All");
+  const [ieiSearch,setIeiSearch] = useState("");
   const [showAdd,setShowAdd] = useState(false);
   const [analysing,setAnalysing] = useState(false);
   const [aStep,setAStep]     = useState(0);
@@ -3169,7 +3170,14 @@ function IEIAnalysis({ex}) {
   // Use real DB contacts only — no demo fallback
   const baseList = dbContacts;
   const all = [...baseList,...extras];
-  const visible = filter==="All"?all:all.filter(v=>v.ieiTier===filter);
+  const visible = all.filter(v=>{
+    if (filter!=="All" && v.ieiTier!==filter) return false;
+    if (ieiSearch.trim()) {
+      const q = ieiSearch.toLowerCase();
+      return (v.name||"").toLowerCase().includes(q) || (v.company||"").toLowerCase().includes(q) || (v.title||"").toLowerCase().includes(q);
+    }
+    return true;
+  });
   const p = selId!==null ? all.find(x=>x.id===selId) : null;
   const rd = p?.contactId && researchData[p.contactId] ? researchData[p.contactId] : null;
   const intel = rd || p?.iei || null;
@@ -3512,10 +3520,18 @@ function IEIAnalysis({ex}) {
             <span style={{fontSize:12,fontWeight:600,color:C.white}}>Registered visitors</span>
             <span style={{fontSize:11,color:C.muted2}}>{all.length} total</span>
           </div>
-          <div style={{padding:"7px 10px",borderBottom:"1px solid #F1F5F9",display:"flex",gap:4}}>
-            {["All","T1","T2","T3","T4"].map(f=>(
-              <button key={f} onClick={()=>setFilter(f)} style={{padding:"3px 8px",fontSize:10,fontWeight:600,background:filter===f?C.navy:C.white,color:filter===f?C.white:C.muted,border:"1px solid #E2E8F0",borderRadius:99,cursor:"pointer"}}>{f}</button>
-            ))}
+          <div style={{padding:"7px 10px",borderBottom:"1px solid #F1F5F9"}}>
+            <input
+              value={ieiSearch}
+              onChange={e=>setIeiSearch(e.target.value)}
+              placeholder="Search name, company…"
+              style={{width:"100%",padding:"5px 10px",border:"1.5px solid #E2E8F0",borderRadius:7,fontSize:11,fontFamily:F,outline:"none",boxSizing:"border-box",marginBottom:6}}
+            />
+            <div style={{display:"flex",gap:4}}>
+              {["All","T1","T2","T3","T4"].map(f=>(
+                <button key={f} onClick={()=>setFilter(f)} style={{padding:"3px 8px",fontSize:10,fontWeight:600,background:filter===f?C.navy:C.white,color:filter===f?C.white:C.muted,border:"1px solid #E2E8F0",borderRadius:99,cursor:"pointer"}}>{f}</button>
+              ))}
+            </div>
           </div>
           <div style={{overflowY:"auto",maxHeight:560}}>
             {visible.map(v=>(
