@@ -1322,6 +1322,19 @@ function VisitorList({eventId, refreshKey}) {
   const [tier, setTier]             = React.useState("All");
   const [search, setSearch]         = React.useState("");
   const [sortCol, setSortCol]       = React.useState("iei_score");
+  const [selectedContactId, setSelectedContactId] = React.useState(null);
+  const deleteContact = async (contactId, name) => {
+    if (!window.confirm(`Delete ${name}? This will remove all their signals and meetings for this event.`)) return;
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}/${contactId}`, {
+        method:"DELETE", headers:{"x-fingoh-auth":`Bearer ${token}`}
+      });
+      if (res.ok) setContacts(prev => prev.filter(c => c.id !== contactId));
+      else alert("Delete failed — please try again.");
+    } catch { alert("Delete failed — please try again."); }
+  };
   const [sortDir, setSortDir]       = React.useState("desc");
   const [page, setPage]             = React.useState(1);
   const [perPage, setPerPage]       = React.useState(25);
@@ -1439,6 +1452,14 @@ function VisitorList({eventId, refreshKey}) {
 
   return (
     <div style={{marginTop:20}}>
+      {selectedContactId && (
+        <VisitorProfile
+          eventId={eventId}
+          contactId={selectedContactId}
+          onClose={()=>setSelectedContactId(null)}
+          onDeleted={(id)=>{setContacts(prev=>prev.filter(c=>c.id!==id));setSelectedContactId(null);}}
+        />
+      )}
       <ContactStats contacts={contacts}/>
 
       {/* Controls row */}
@@ -1479,6 +1500,7 @@ function VisitorList({eventId, refreshKey}) {
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Tier</th>
               <SortTh label="Attend Prob" col="reg_prob"/>
               <th style={{padding:"10px 14px",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,textAlign:"left"}}>Registered</th>
+              <th style={{padding:"10px 14px"}}></th>
             </tr>
           </thead>
           <tbody>
@@ -1487,8 +1509,11 @@ function VisitorList({eventId, refreshKey}) {
             ) : paginated.map((c,i) => (
               <tr key={c.id} style={{background:i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
                 <td style={{padding:"12px 14px"}}>
-                  <div style={{fontWeight:700,color:C.navy,fontSize:13}}>{c.name||"—"}</div>
-
+                  <div
+                    onClick={()=>setSelectedContactId(c.id)}
+                    style={{fontWeight:700,color:C.navy,fontSize:13,cursor:"pointer",textDecoration:"underline",textDecorationColor:"#CBD5E1",textUnderlineOffset:3}}>
+                    {c.name||"—"}
+                  </div>
                 </td>
                 <td style={{padding:"12px 14px"}}>
                   <div style={{fontWeight:600,color:C.navy,fontSize:12}}>{c.company||"—"}</div>
@@ -1529,6 +1554,12 @@ function VisitorList({eventId, refreshKey}) {
                       ? <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#DCFCE7",color:"#14532D",fontWeight:700}}>✓ Yes</span>
                       : <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#FEE2E2",color:"#991B1B",fontWeight:700}}>✗ No</span>
                     }
+                </td>
+                <td style={{padding:"8px 12px"}}>
+                  <button onClick={()=>deleteContact(c.id, c.name||"this visitor")}
+                    style={{background:"none",border:"1px solid #FCA5A5",borderRadius:6,color:"#DC2626",fontSize:11,fontWeight:600,cursor:"pointer",padding:"3px 8px"}}>
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}
@@ -1572,6 +1603,216 @@ function VisitorList({eventId, refreshKey}) {
   );
 }
 
+
+function VisitorProfile({eventId, contactId, onClose, onDeleted}) {
+  const [data, setData]     = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError]   = React.useState(null);
+
+  React.useEffect(() => {
+    supabase.auth.getSession().then(({data:{session}}) => {
+      const token = session?.access_token || "";
+      fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}/${contactId}`, {
+        headers:{"x-fingoh-auth":`Bearer ${token}`}
+      })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { setError("Failed to load profile."); setLoading(false); });
+    });
+  }, [contactId]);
+
+  const handleDelete = async () => {
+    const c = data?.contact;
+    if (!c) return;
+    if (!window.confirm(`Delete ${c.name}? This will remove all their signals and meetings for this event.`)) return;
+    const {data:{session}} = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const res = await fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}/${contactId}`, {
+      method:"DELETE", headers:{"x-fingoh-auth":`Bearer ${token}`}
+    });
+    if (res.ok) onDeleted(contactId);
+    else alert("Delete failed — please try again.");
+  };
+
+  const TIER_COLORS = {T1:"#ef4444",T2:"#f97316",T3:"#3b82f6",T4:"#9ca3af"};
+  const TIER_BG    = {T1:"#FEE2E2",T2:"#FEF3C7",T3:"#DBEAFE",T4:"#F1F5F9"};
+  const TIER_TEXT  = {T1:"#991B1B",T2:"#92400E",T3:"#1E40AF",T4:"#475569"};
+
+  const Pill = ({label,color,bg,text}) => (
+    <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:bg,color:text,fontWeight:700}}>{label}</span>
+  );
+
+  const SectionTitle = ({children}) => (
+    <p style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:"0 0 10px",borderBottom:"1px solid #E2E8F0",paddingBottom:6}}>{children}</p>
+  );
+
+  const Field = ({label, value}) => value ? (
+    <div style={{marginBottom:8}}>
+      <span style={{fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:.04}}>{label}</span>
+      <div style={{fontSize:13,color:C.dark,marginTop:2}}>{value}</div>
+    </div>
+  ) : null;
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:2000,display:"flex",alignItems:"flex-start",justifyContent:"flex-end"}}
+      onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div style={{width:"min(600px,96vw)",height:"100vh",background:C.white,overflowY:"auto",boxShadow:"-4px 0 24px rgba(0,0,0,0.15)",display:"flex",flexDirection:"column"}}>
+
+        {/* Header */}
+        <div style={{padding:"20px 24px",borderBottom:"1px solid #E2E8F0",display:"flex",justifyContent:"space-between",alignItems:"flex-start",background:"#F8FAFC",position:"sticky",top:0,zIndex:10}}>
+          <div>
+            {data?.contact && <>
+              <div style={{fontSize:18,fontWeight:800,color:C.navy}}>{data.contact.name||"—"}</div>
+              <div style={{fontSize:13,color:C.muted,marginTop:2}}>{[data.contact.designation,data.contact.company].filter(Boolean).join(" · ")}</div>
+            </>}
+            {loading && <div style={{fontSize:14,color:C.muted}}>Loading…</div>}
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            {data?.contact && (
+              <button onClick={handleDelete}
+                style={{padding:"6px 14px",background:"none",border:"1px solid #FCA5A5",borderRadius:8,color:"#DC2626",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                Delete
+              </button>
+            )}
+            <button onClick={onClose}
+              style={{padding:"6px 14px",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+              ✕ Close
+            </button>
+          </div>
+        </div>
+
+        <div style={{padding:"20px 24px",flex:1}}>
+          {loading && <p style={{color:C.muted,fontSize:13}}>Loading profile…</p>}
+          {error && <p style={{color:"#DC2626",fontSize:13}}>{error}</p>}
+
+          {data && (() => {
+            const c = data.contact || {};
+            const rd = c.raw_data || {};
+            const signals = data.signals || [];
+            const meetings = data.meetings || [];
+
+            return <>
+              {/* IEI scores */}
+              <div style={{display:"flex",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+                {c.iei_score != null && (
+                  <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 20px",textAlign:"center",minWidth:90}}>
+                    <div style={{fontSize:24,fontWeight:800,color:TIER_COLORS[c.iei_tier]||C.muted}}>{c.iei_score.toFixed(1)}</div>
+                    <div style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",marginTop:2}}>Pre-Event IEI</div>
+                    {c.iei_tier && <Pill label={c.iei_tier} bg={TIER_BG[c.iei_tier]} text={TIER_TEXT[c.iei_tier]}/>}
+                  </div>
+                )}
+                {c.onsite_iei_score != null && (
+                  <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 20px",textAlign:"center",minWidth:90}}>
+                    <div style={{fontSize:24,fontWeight:800,color:TIER_COLORS[c.onsite_iei_tier]||C.muted}}>{c.onsite_iei_score.toFixed(1)}</div>
+                    <div style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",marginTop:2}}>Onsite IEI</div>
+                    {c.onsite_iei_tier && <Pill label={c.onsite_iei_tier} bg={TIER_BG[c.onsite_iei_tier]} text={TIER_TEXT[c.onsite_iei_tier]}/>}
+                  </div>
+                )}
+                {c.reg_prob != null && (
+                  <div style={{background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 20px",textAlign:"center",minWidth:90}}>
+                    <div style={{fontSize:24,fontWeight:800,color:c.reg_prob>=0.7?"#16A34A":c.reg_prob>=0.4?"#2563EB":"#9CA3AF"}}>{(c.reg_prob*100).toFixed(0)}%</div>
+                    <div style={{fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",marginTop:2}}>Attend Prob</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Contact details */}
+              <div style={{marginBottom:20}}>
+                <SectionTitle>Contact Details</SectionTitle>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 20px"}}>
+                  <Field label="Email" value={c.email}/>
+                  <Field label="Phone" value={c.phone}/>
+                  <Field label="Company" value={c.company}/>
+                  <Field label="Designation" value={c.designation}/>
+                  <Field label="City" value={c.city}/>
+                  <Field label="Country" value={c.country}/>
+                </div>
+                {rd.enrichment_notes && (
+                  <div style={{marginTop:10,padding:"10px 14px",background:"#EFF6FF",borderRadius:8,fontSize:12,color:"#1D4ED8",lineHeight:1.6}}>
+                    <strong>Enrichment notes:</strong> {rd.enrichment_notes}
+                  </div>
+                )}
+              </div>
+
+              {/* Previous event history */}
+              {(rd.visited_booth_last_year != null || rd.had_meeting_last_year != null || rd.previous_event_history != null) && (
+                <div style={{marginBottom:20}}>
+                  <SectionTitle>Previous Event History</SectionTitle>
+                  <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                    {rd.visited_booth_last_year != null && (
+                      <div style={{padding:"8px 14px",borderRadius:8,background:rd.visited_booth_last_year?"#DCFCE7":"#F1F5F9",border:"1px solid",borderColor:rd.visited_booth_last_year?"#86EFAC":"#E2E8F0",fontSize:12,fontWeight:600,color:rd.visited_booth_last_year?"#14532D":"#64748B"}}>
+                        {rd.visited_booth_last_year ? "✓" : "✗"} Visited booth last year
+                      </div>
+                    )}
+                    {rd.had_meeting_last_year != null && (
+                      <div style={{padding:"8px 14px",borderRadius:8,background:rd.had_meeting_last_year?"#DCFCE7":"#F1F5F9",border:"1px solid",borderColor:rd.had_meeting_last_year?"#86EFAC":"#E2E8F0",fontSize:12,fontWeight:600,color:rd.had_meeting_last_year?"#14532D":"#64748B"}}>
+                        {rd.had_meeting_last_year ? "✓" : "✗"} Meeting last year
+                      </div>
+                    )}
+                    {rd.previous_event_history != null && (
+                      <div style={{padding:"8px 14px",borderRadius:8,background:"#F8FAFC",border:"1px solid #E2E8F0",fontSize:12,color:C.muted}}>
+                        History score: <strong style={{color:C.navy}}>{rd.previous_event_history}</strong>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Conversation signals */}
+              <div style={{marginBottom:20}}>
+                <SectionTitle>Conversation Signals ({signals.length})</SectionTitle>
+                {signals.length === 0 ? (
+                  <p style={{fontSize:12,color:C.muted}}>No signals logged yet.</p>
+                ) : (
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {signals.map((s,i) => (
+                      <div key={s.id||i} style={{padding:"10px 14px",borderRadius:8,background:"#F8FAFC",border:"1px solid #E2E8F0"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                          <div style={{flex:1}}>
+                            {s.signal_type && <span style={{fontSize:10,fontWeight:700,color:C.navy,textTransform:"uppercase",letterSpacing:.05,marginRight:8}}>{s.signal_type.replace(/_/g," ")}</span>}
+                            {s.summary && <div style={{fontSize:12,color:C.dark,marginTop:4,lineHeight:1.5}}>{s.summary}</div>}
+                            {s.notes && <div style={{fontSize:11,color:C.muted,marginTop:4,fontStyle:"italic"}}>{s.notes}</div>}
+                          </div>
+                          <div style={{fontSize:10,color:C.muted,whiteSpace:"nowrap"}}>{s.created_at ? new Date(s.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : ""}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Meeting requests */}
+              <div style={{marginBottom:20}}>
+                <SectionTitle>Meeting Requests ({meetings.length})</SectionTitle>
+                {meetings.length === 0 ? (
+                  <p style={{fontSize:12,color:C.muted}}>No meeting requests logged.</p>
+                ) : (
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {meetings.map((m,i) => {
+                      const statusColor = m.status==="confirmed"?"#16A34A":m.status==="cancelled"?"#DC2626":"#D97706";
+                      const statusBg    = m.status==="confirmed"?"#DCFCE7":m.status==="cancelled"?"#FEE2E2":"#FEF3C7";
+                      return (
+                        <div key={m.id||i} style={{padding:"10px 14px",borderRadius:8,background:"#F8FAFC",border:"1px solid #E2E8F0"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div>
+                              {m.requested_time && <div style={{fontSize:12,fontWeight:600,color:C.navy}}>{new Date(m.requested_time).toLocaleString("en-IN",{dateStyle:"medium",timeStyle:"short"})}</div>}
+                              {m.notes && <div style={{fontSize:11,color:C.muted,marginTop:3}}>{m.notes}</div>}
+                            </div>
+                            {m.status && <span style={{fontSize:10,padding:"2px 8px",borderRadius:99,background:statusBg,color:statusColor,fontWeight:700}}>{m.status}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>;
+          })()}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ContactStats({contacts}) {
   if (!contacts || contacts.length === 0) return null;
