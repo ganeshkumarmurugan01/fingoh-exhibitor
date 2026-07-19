@@ -1904,7 +1904,7 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploadi
     setUploading(false);
   }
 }
-function AudienceUpload({ex, onNext}) {
+function AudienceUpload({ex, onNext, planFeatures}) {
   React.useEffect(() => {
     const style = document.createElement("style");
     style.textContent = "@keyframes spin { to { transform: rotate(360deg); } }";
@@ -1958,7 +1958,7 @@ function AudienceUpload({ex, onNext}) {
 
   const SOURCES = [
     {id:"upload",       icon:"⬆",  label:"Upload list",             sub:"CSV / Excel import"},
-    {id:"database",     icon:"🗄️", label:"Contact database",        sub:"CRM or data warehouse"},
+    ...(planFeatures?.has_crm_sync !== false ? [{id:"database", icon:"🗄️", label:"Contact database", sub:"CRM or data warehouse"}] : []),
     {id:"registration", icon:"🔗", label:"Live registration feed",  sub:"Registration system API"},
     {id:"manual",       icon:"✏️", label:"Manual entry",            sub:"Add single contact"},
     {id:"visitors",     icon:"👥", label:"Visitor list",            sub:"All contacts · IEI scored"},
@@ -2898,7 +2898,7 @@ function MeetingsScreen({ex}) {
 // SCREEN — IEI Analysis (Pre-event)
 // Cox PH attendance prediction · IEI tier & score · no regProb
 // ═══════════════════════════════════════════════════════════════════
-function IEIAnalysis({ex}) {
+function IEIAnalysis({ex, planFeatures}) {
   const [selId,setSelId]     = useState(null);
   const [tab,setTab]         = useState("layers");
   const [filter,setFilter]   = useState("All");
@@ -3237,13 +3237,20 @@ function IEIAnalysis({ex}) {
               <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0}}>Basic IEI score shown</p>
               <p style={{fontSize:10,color:C.muted,margin:0}}>Run deep research for full intelligence layers, agent inference and exhibitor brief</p>
             </div>
-            <button onClick={()=>fetchResearch(p.contactId, p)} disabled={researchLoading}
-              style={{padding:"7px 16px",background:researchLoading?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:researchLoading?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
-              {researchLoading ? <>
-                <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-                Researching…
-              </> : "⚡ Deep IEI Analysis"}
-            </button>
+            {planFeatures?.has_deep_iei === false ? (
+              <div style={{textAlign:"right"}}>
+                <p style={{fontSize:11,fontWeight:700,color:"#92400E",margin:"0 0 2px 0"}}>🔒 Deep IEI not included</p>
+                <p style={{fontSize:10,color:C.muted,margin:0}}>Upgrade to Event Bundle or higher</p>
+              </div>
+            ) : (
+              <button onClick={()=>fetchResearch(p.contactId, p)} disabled={researchLoading}
+                style={{padding:"7px 16px",background:researchLoading?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:researchLoading?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
+                {researchLoading ? <>
+                  <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                  Researching…
+                </> : "⚡ Deep IEI Analysis"}
+              </button>
+            )}
           </div>
         )}
         {/* Tabs */}
@@ -8126,8 +8133,9 @@ function GdprErasureSection() {
 // ═══════════════════════════════════════════════════════════════════
 // NAV SHELL
 // ═══════════════════════════════════════════════════════════════════
-function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents, profile}) {
+function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents, profile, planFeatures}) {
   const isPast = !!ex?.isPast;
+  const hasMeetings = planFeatures?.has_meeting_scheduler !== false;
 
   const PHASES = [
     {
@@ -8138,11 +8146,11 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       border:"#DDD6FE",
       items: isPast ? [
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
-        {id:"meetings",    label:"Meetings",          icon:"🤝"},
+        ...(hasMeetings ? [{id:"meetings", label:"Meetings", icon:"🤝"}] : []),
       ] : [
         {id:"audience",    label:"Audience Upload",  icon:"⬆"},
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
-        {id:"meetings",    label:"Meetings",          icon:"🤝"},
+        ...(hasMeetings ? [{id:"meetings", label:"Meetings", icon:"🤝"}] : []),
       ]
     },
     {
@@ -8197,8 +8205,13 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
             <span style={{fontSize:11,fontWeight:700,color:C.navy,maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ex?.name}</span>
             <span style={{fontSize:11,color:C.muted2}}>·</span>
             <span style={{fontSize:11,color:C.muted}}>{ex?.company}</span>
+            {profile?.plan && (
+              <span style={{fontSize:9,padding:"2px 8px",borderRadius:99,background:"#F5F3FF",color:"#6D28D9",fontWeight:700,border:"1px solid #DDD6FE",textTransform:"uppercase",letterSpacing:"0.04em"}}>
+                {profile.plan.replace(/_/g," ")}
+              </span>
+            )}
             {activePhase && (
-              <span style={{fontSize:10,padding:"2px 9px",borderRadius:99,background:activePhase.bg,color:activePhase.color,fontWeight:700,border:`1px solid ${activePhase.border}`,marginLeft:6}}>
+              <span style={{fontSize:10,padding:"2px 9px",borderRadius:99,background:activePhase.bg,color:activePhase.color,fontWeight:700,border:`1px solid ${activePhase.border}`,marginLeft:4}}>
                 {activePhase.label}
               </span>
             )}
@@ -9024,9 +9037,9 @@ function RegistrationPage({ eventId }) {
 
   return (
     <>
-      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile}>
-        {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")}/>}
-        {screen==="iei"         && <IEIAnalysis ex={ex}/>}
+      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features}>
+        {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>}
+        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features}/>}
         {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
         {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
