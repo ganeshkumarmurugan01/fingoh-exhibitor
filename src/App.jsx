@@ -1483,32 +1483,29 @@ function VisitorList({eventId, refreshKey}) {
       })
       .then(r => r.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          const sessionKey = `baseline_${eventId}`;
-          const hasBaseline = Object.keys(baselineScores.current).length > 0;
-          if (!hasBaseline) {
-            try {
-              const saved = sessionStorage.getItem(sessionKey);
-              if (saved) {
-                baselineScores.current = JSON.parse(saved);
-              } else {
-                data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
-                sessionStorage.setItem(sessionKey, JSON.stringify(baselineScores.current));
-              }
-            } catch(e) {
-              data.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+        const arr = Array.isArray(data) ? data : (data?.contacts || []);
+        const sessionKey = `baseline_${eventId}`;
+        const hasBaseline = Object.keys(baselineScores.current).length > 0;
+        if (!hasBaseline) {
+          try {
+            const saved = sessionStorage.getItem(sessionKey);
+            if (saved) {
+              baselineScores.current = JSON.parse(saved);
+            } else {
+              arr.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
+              sessionStorage.setItem(sessionKey, JSON.stringify(baselineScores.current));
             }
+          } catch(e) {
+            arr.forEach(c => { baselineScores.current[c.id] = c.iei_score; });
           }
-          setContacts(data.map(c => {
-            const baseline = baselineScores.current[c.id];
-            return {
-              ...c,
-              prev_iei_score: (baseline !== undefined && baseline !== c.iei_score) ? baseline : null,
-            };
-          }));
-        } else {
-          setContacts([]);
         }
+        setContacts(arr.map(c => {
+          const baseline = baselineScores.current[c.id];
+          return {
+            ...c,
+            prev_iei_score: (baseline !== undefined && baseline !== c.iei_score) ? baseline : null,
+          };
+        }));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -8727,8 +8724,20 @@ function GdprContent() {
   const [agentOpen, setAgentOpen] = useState(false);
   const [ieiCredits, setIeiCredits] = useState(null);
 
-  // Reset credits when switching events
-  React.useEffect(() => { setIeiCredits(null); }, [ex?.id]);
+  // Fetch iei_credits for the active event whenever the event changes
+  React.useEffect(() => {
+    setIeiCredits(null);
+    if (!ex?.id) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const token = session?.access_token || "";
+      fetch(`/api/proxy?slug=v1/audience/contacts/${ex.id}`, {
+        headers: { "x-fingoh-auth": `Bearer ${token}` }
+      })
+        .then(r => r.json())
+        .then(data => { if (data?.iei_credits !== undefined) setIeiCredits(data.iei_credits); })
+        .catch(() => {});
+    });
+  }, [ex?.id]);
 
   // Real auth state
   const [authUser, setAuthUser]   = useState(null);
