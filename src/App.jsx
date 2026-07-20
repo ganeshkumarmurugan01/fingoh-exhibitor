@@ -8049,22 +8049,50 @@ function MeetingResponsePage({token}) {
 }
 
 // UserMenu component
+// ── Theme helpers ─────────────────────────────────────────────────────────────
+const ACCENT_COLORS = [
+  {key:"navy",  hex:"#0D1B3E"}, {key:"blue",   hex:"#29ABE2"}, {key:"green",  hex:"#39B54A"},
+  {key:"teal",  hex:"#1D9E75"}, {key:"purple", hex:"#534AB7"}, {key:"amber",  hex:"#C87800"},
+  {key:"coral", hex:"#C85228"}, {key:"slate",  hex:"#475569"},
+];
+function getTheme() {
+  try { return JSON.parse(localStorage.getItem("fingoh_theme") || "{}"); } catch { return {}; }
+}
+function saveTheme(t) {
+  try { localStorage.setItem("fingoh_theme", JSON.stringify(t)); } catch {}
+}
+function applyTheme(t) {
+  const root = document.documentElement;
+  const dark = t.mode === "dark" || (t.mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  root.style.setProperty("--theme-bg",      dark ? "#0F172A" : "#F4F6FA");
+  root.style.setProperty("--theme-surface",  dark ? "#1E293B" : "#FFFFFF");
+  root.style.setProperty("--theme-text",     dark ? "#F1F5F9" : "#0F172A");
+  root.style.setProperty("--theme-muted",    dark ? "#94A3B8" : "#64748B");
+  root.style.setProperty("--theme-border",   dark ? "#334155" : "#E2E8F0");
+  root.style.setProperty("--theme-accent",   t.accent || "#0D1B3E");
+}
+
 function UserMenu({ profile } = {}) {
   const userInitial = (profile?.name || profile?.org_name || "U")[0].toUpperCase();
-  const [open, setOpen]           = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [userName, setUserName]   = useState(profile?.name || "");
-  const [pw, setPw]               = useState({n:"", c:""});
-  const [err, setErr]             = useState("");
-  const [ok, setOk]               = useState(false);
-  const [nameOk, setNameOk]       = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [showPwSection, setShowPwSection] = useState(false);
+  const [open, setOpen]               = useState(false);
+  const [activeSection, setActiveSection] = useState("main"); // "main" | "profile" | "password"
+  const [userName, setUserName]       = useState(profile?.name || "");
+  const [pw, setPw]                   = useState({n:"", c:""});
+  const [err, setErr]                 = useState("");
+  const [ok, setOk]                   = useState(false);
+  const [nameOk, setNameOk]           = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [theme, setTheme]             = useState(() => ({ mode:"auto", accent:"#0D1B3E", ...getTheme() }));
 
-  // Sync name when profile loads
+  React.useEffect(() => { if (profile?.name) setUserName(profile.name); }, [profile?.name]);
+
   React.useEffect(() => {
-    if (profile?.name) setUserName(profile.name);
-  }, [profile?.name]);
+    applyTheme(theme);
+    saveTheme(theme);
+  }, [theme]);
+
+  const setMode   = (mode)   => setTheme(t => ({ ...t, mode }));
+  const setAccent = (accent) => setTheme(t => ({ ...t, accent }));
 
   const saveName = async () => {
     const nameErr = V.name(userName);
@@ -8074,120 +8102,223 @@ function UserMenu({ profile } = {}) {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
       const res = await fetch("/api/v1/onboarding/me", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
-        body: JSON.stringify({ name: userName.trim() }),
+        method:"PATCH",
+        headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
+        body:JSON.stringify({ name: userName.trim() }),
       });
       if (!res.ok) throw new Error("Failed to update name");
-      setNameOk(true);
-      setTimeout(() => setNameOk(false), 2000);
+      setNameOk(true); setTimeout(() => setNameOk(false), 2000);
     } catch(e) { setErr(e.message); }
     setLoading(false);
   };
 
   const savePw = async () => {
-    if (pw.n !== pw.c) { setErr("Passwords do not match"); return; }
-    if (pw.n.length < 8) { setErr("Min 8 characters"); return; }
+    if (pw.n !== pw.c)  { setErr("Passwords do not match"); return; }
+    if (pw.n.length < 8){ setErr("Min 8 characters"); return; }
     setLoading(true); setErr("");
     const { error } = await supabase.auth.updateUser({ password: pw.n });
     if (error) setErr(error.message);
-    else { setOk(true); setTimeout(()=>{ setOk(false); setPw({n:"",c:""}); setShowPwSection(false); },2000); }
+    else { setOk(true); setTimeout(()=>{ setOk(false); setPw({n:"",c:""}); setActiveSection("main"); },2000); }
     setLoading(false);
   };
 
-  const ReadRow = ({label, value}) => (
-    <div style={{marginBottom:12}}>
-      <p style={{fontSize:10,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.06,margin:"0 0 3px"}}>{label}</p>
-      <p style={{fontSize:13,color:"#0F172A",margin:0,fontWeight:500}}>{value || "—"}</p>
-    </div>
-  );
+  const PLAN_LABELS = { trial:"Free Trial", starter:"Starter", growth:"Growth", scale:"Scale" };
+  const planLabel   = PLAN_LABELS[profile?.plan] || profile?.plan || "Free Trial";
+  const accentColor = theme.accent || "#0D1B3E";
+
+  const panelBg   = "#FFFFFF";
+  const textMain  = "#0F172A";
+  const textMuted = "#64748B";
+  const border    = "#E2E8F0";
+  const sectionBg = "#F8FAFC";
+
+  const iS = {width:"100%",padding:"9px 12px",border:`1px solid ${border}`,borderRadius:8,fontSize:13,fontFamily:F,outline:"none",color:textMain,boxSizing:"border-box"};
+  const lbl = {fontSize:10,fontWeight:700,color:textMuted,textTransform:"uppercase",letterSpacing:".06em",margin:"0 0 4px",display:"block"};
 
   return (
     <div style={{position:"relative",display:"inline-block"}}>
-      <button onClick={()=>setOpen(o=>!o)}
-        style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:7,border:"1px solid #E2E8F0",cursor:"pointer",background:"transparent",fontSize:11,fontWeight:600,color:"#475569",fontFamily:F}}>
-        <div style={{width:22,height:22,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>{userInitial}</div>
-        <span>▾</span>
+      {/* Avatar button */}
+      <button onClick={()=>{ setOpen(o=>!o); setActiveSection("main"); setErr(""); }}
+        style={{display:"flex",alignItems:"center",gap:6,padding:"4px 10px",borderRadius:7,border:`1px solid ${border}`,cursor:"pointer",background:"transparent",fontFamily:F}}>
+        <div style={{width:26,height:26,borderRadius:"50%",background:accentColor,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700}}>
+          {userInitial}
+        </div>
+        <span style={{fontSize:11,fontWeight:600,color:textMuted}}>▾</span>
       </button>
 
+      {/* Slide-in panel */}
       {open && (
-        <div style={{position:"absolute",top:"110%",right:0,marginTop:4,background:"#fff",border:"1px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:1000,minWidth:180,overflow:"hidden"}} onClick={()=>setOpen(false)}>
-          <button onClick={(e)=>{e.stopPropagation(); setOpen(false); setShowProfile(true);}}
-            style={{width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#1E293B",cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8}}>
-            <span>👤</span> Profile settings
-          </button>
-          <div style={{height:1,background:"#F1F5F9"}}/>
-          <button onClick={()=>supabase.auth.signOut()}
-            style={{width:"100%",padding:"11px 16px",background:"none",border:"none",textAlign:"left",fontSize:12,color:"#DC2626",cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8}}>
-            <span>↪</span> Sign out
-          </button>
-        </div>
-      )}
+        <>
+          {/* Backdrop */}
+          <div style={{position:"fixed",inset:0,zIndex:1500}} onClick={()=>setOpen(false)}/>
 
-      {/* Profile Settings Modal */}
-      {showProfile && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:2000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={()=>setShowProfile(false)}>
-          <div style={{background:"#fff",borderRadius:16,padding:28,maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}} onClick={e=>e.stopPropagation()}>
+          <div style={{
+            position:"fixed",top:0,right:0,bottom:0,width:320,
+            background:panelBg,boxShadow:"-4px 0 32px rgba(0,0,0,0.15)",
+            zIndex:1600,display:"flex",flexDirection:"column",overflowY:"auto",
+            animation:"slideInRight .2s ease",
+          }}>
+            <style>{`@keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
 
-            {/* Header */}
-            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:24}}>
-              <div style={{width:48,height:48,borderRadius:"50%",background:"#0D1B3E",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,flexShrink:0}}>
-                {userInitial}
+            {/* ── Profile header ── */}
+            <div style={{background:accentColor,padding:"24px 20px 20px"}}>
+              <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <div style={{width:52,height:52,borderRadius:"50%",background:"rgba(255,255,255,0.2)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,flexShrink:0}}>
+                    {userInitial}
+                  </div>
+                  <div>
+                    <p style={{margin:0,fontSize:15,fontWeight:700,color:"#fff"}}>{profile?.name || "—"}</p>
+                    <p style={{margin:"2px 0 0",fontSize:11,color:"rgba(255,255,255,0.7)"}}>{profile?.email || ""}</p>
+                    <p style={{margin:"2px 0 0",fontSize:11,color:"rgba(255,255,255,0.6)"}}>{profile?.org_name || ""}</p>
+                  </div>
+                </div>
+                <button onClick={()=>setOpen(false)} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",width:28,height:28,borderRadius:"50%",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:F,flexShrink:0}}>✕</button>
               </div>
-              <div>
-                <h3 style={{fontSize:16,fontWeight:700,color:"#0D1B3E",margin:"0 0 2px"}}>{profile?.name || "Your Profile"}</h3>
-                <p style={{fontSize:12,color:"#64748B",margin:0}}>{profile?.org_name || "—"}</p>
-              </div>
-              <button onClick={()=>setShowProfile(false)} style={{marginLeft:"auto",background:"none",border:"none",fontSize:18,color:"#94A3B8",cursor:"pointer"}}>✕</button>
-            </div>
-
-            {/* Read-only fields */}
-            <ReadRow label="Email" value={profile?.email || "—"} />
-            <ReadRow label="Company" value={profile?.org_name || "—"} />
-            <ReadRow label="Role" value={profile?.role || "—"} />
-
-            {/* Editable name */}
-            <div style={{marginBottom:16}}>
-              <p style={{fontSize:10,fontWeight:600,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.06,margin:"0 0 5px"}}>Display name</p>
-              <div style={{display:"flex",gap:8}}>
-                <input value={userName} onChange={e=>setUserName(e.target.value)}
-                  style={{flex:1,padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",color:"#0F172A"}}/>
-                <button onClick={saveName} disabled={loading}
-                  style={{padding:"9px 16px",background:nameOk?"#16A34A":"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>
-                  {nameOk ? "✓ Saved" : loading ? "…" : "Save"}
-                </button>
+              {/* Plan badge */}
+              <div style={{marginTop:14,display:"inline-flex",alignItems:"center",gap:6,background:"rgba(255,255,255,0.15)",borderRadius:20,padding:"4px 12px"}}>
+                <span style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.9)",letterSpacing:".06em",textTransform:"uppercase"}}>{planLabel}</span>
+                {(profile?.plan === "trial" || profile?.plan === "starter") && (
+                  <a href="mailto:hello@fingoh.ai?subject=Upgrade enquiry" style={{fontSize:10,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.25)",borderRadius:10,padding:"2px 8px",textDecoration:"none",marginLeft:4}}>Upgrade →</a>
+                )}
               </div>
             </div>
 
-            <div style={{height:1,background:"#F1F5F9",margin:"16px 0"}}/>
+            {/* ── Body ── */}
+            <div style={{flex:1,padding:"0 0 16px"}}>
 
-            {/* Change password toggle */}
-            <button onClick={()=>{setShowPwSection(s=>!s); setErr(""); setOk(false);}}
-              style={{width:"100%",padding:"9px 0",background:"#F8FAFC",border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:600,color:"#475569",cursor:"pointer",fontFamily:F,marginBottom:showPwSection?12:0}}>
-              {showPwSection ? "▲ Hide" : "🔒 Change password"}
-            </button>
+              {activeSection === "main" && (<>
 
-            {showPwSection && (
-              <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <input type="password" placeholder="New password (min 8 chars)" value={pw.n} onChange={e=>setPw(p=>({...p,n:e.target.value}))}
-                  style={{padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
-                <input type="password" placeholder="Confirm new password" value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))}
-                  style={{padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none"}}/>
-                {err && <p style={{color:"#DC2626",fontSize:12,margin:0}}>{err}</p>}
-                {ok  && <p style={{color:"#16A34A",fontSize:12,margin:0,fontWeight:600}}>✓ Password updated!</p>}
-                <button onClick={savePw} disabled={loading}
-                  style={{padding:"9px 0",background:loading?"#CBD5E1":"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
-                  {loading ? "Updating…" : "Update password"}
-                </button>
-              </div>
-            )}
+                {/* Appearance */}
+                <div style={{padding:"16px 20px",borderBottom:`1px solid ${border}`}}>
+                  <p style={{fontSize:11,fontWeight:700,color:textMuted,textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 12px"}}>Appearance</p>
 
-            <div style={{height:1,background:"#F1F5F9",margin:"20px 0"}}/>
+                  {/* Mode */}
+                  <p style={{...lbl,marginBottom:8}}>Mode</p>
+                  <div style={{display:"flex",gap:6,marginBottom:14}}>
+                    {[["auto","Auto"],["light","☀ Day"],["dark","☾ Night"]].map(([m,label])=>(
+                      <button key={m} onClick={()=>setMode(m)}
+                        style={{flex:1,padding:"7px 0",borderRadius:7,border:`1.5px solid ${theme.mode===m?accentColor:border}`,background:theme.mode===m?accentColor:"transparent",color:theme.mode===m?"#fff":textMuted,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F,transition:"all .15s"}}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
 
-            {/* GDPR erasure */}
-            <GdprErasureSection />
+                  {/* Accent colours */}
+                  <p style={{...lbl,marginBottom:8}}>Accent colour</p>
+                  <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                    {ACCENT_COLORS.map(({key,hex})=>(
+                      <button key={key} onClick={()=>setAccent(hex)}
+                        style={{width:28,height:28,borderRadius:"50%",background:hex,border:theme.accent===hex?"3px solid #fff":"3px solid transparent",boxShadow:theme.accent===hex?`0 0 0 2px ${hex}`:null,cursor:"pointer",transition:"box-shadow .15s"}}
+                        title={key}/>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Account */}
+                <div style={{padding:"14px 20px",borderBottom:`1px solid ${border}`}}>
+                  <p style={{fontSize:11,fontWeight:700,color:textMuted,textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 10px"}}>Account</p>
+                  <button onClick={()=>setActiveSection("profile")}
+                    style={{width:"100%",padding:"10px 14px",background:sectionBg,border:`1px solid ${border}`,borderRadius:8,textAlign:"left",fontSize:13,color:textMain,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                    <span>👤 Edit profile & name</span><span style={{color:textMuted}}>›</span>
+                  </button>
+                  <button onClick={()=>setActiveSection("password")}
+                    style={{width:"100%",padding:"10px 14px",background:sectionBg,border:`1px solid ${border}`,borderRadius:8,textAlign:"left",fontSize:13,color:textMain,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <span>🔒 Change password</span><span style={{color:textMuted}}>›</span>
+                  </button>
+                </div>
+
+                {/* Need Help */}
+                <div style={{padding:"14px 20px",borderBottom:`1px solid ${border}`}}>
+                  <p style={{fontSize:11,fontWeight:700,color:textMuted,textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 10px"}}>Need Help?</p>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {[
+                      {icon:"🎧", label:"Talk with us",   href:"mailto:hello@fingoh.ai"},
+                      {icon:"✉️", label:"Write to us",    href:"mailto:hello@fingoh.ai"},
+                      {icon:"📚", label:"Documentation",  href:"https://fingoh.ai"},
+                      {icon:"🚀", label:"What's new",     href:"https://fingoh.ai"},
+                    ].map(({icon,label,href})=>(
+                      <a key={label} href={href} target="_blank" rel="noreferrer"
+                        style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:sectionBg,border:`1px solid ${border}`,borderRadius:8,fontSize:12,color:textMain,textDecoration:"none",fontFamily:F}}>
+                        <span>{icon}</span><span style={{fontWeight:500}}>{label}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sign out */}
+                <div style={{padding:"14px 20px"}}>
+                  <button onClick={()=>supabase.auth.signOut()}
+                    style={{width:"100%",padding:"10px 0",background:"#FEF2F2",border:"1px solid #FECACA",borderRadius:8,color:"#DC2626",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                    ↪ Sign out
+                  </button>
+                </div>
+              </>)}
+
+              {/* ── Edit profile section ── */}
+              {activeSection === "profile" && (
+                <div style={{padding:"16px 20px"}}>
+                  <button onClick={()=>{ setActiveSection("main"); setErr(""); }}
+                    style={{background:"none",border:"none",fontSize:12,color:accentColor,cursor:"pointer",fontFamily:F,fontWeight:600,marginBottom:16,padding:0}}>
+                    ← Back
+                  </button>
+                  <p style={{fontSize:14,fontWeight:700,color:textMain,margin:"0 0 16px"}}>Edit Profile</p>
+                  <div style={{marginBottom:14}}>
+                    <label style={lbl}>Email</label>
+                    <p style={{fontSize:13,color:textMuted,margin:0,padding:"9px 0"}}>{profile?.email || "—"}</p>
+                  </div>
+                  <div style={{marginBottom:14}}>
+                    <label style={lbl}>Company</label>
+                    <p style={{fontSize:13,color:textMuted,margin:0,padding:"9px 0"}}>{profile?.org_name || "—"}</p>
+                  </div>
+                  <div style={{marginBottom:14}}>
+                    <label style={lbl}>Role</label>
+                    <p style={{fontSize:13,color:textMuted,margin:0,padding:"9px 0"}}>{profile?.role || "—"}</p>
+                  </div>
+                  <div style={{marginBottom:6}}>
+                    <label style={lbl}>Display Name</label>
+                    <div style={{display:"flex",gap:8}}>
+                      <input value={userName} onChange={e=>setUserName(e.target.value)} style={iS}/>
+                      <button onClick={saveName} disabled={loading}
+                        style={{padding:"9px 14px",background:nameOk?"#16A34A":accentColor,color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F,whiteSpace:"nowrap"}}>
+                        {nameOk?"✓":"Save"}
+                      </button>
+                    </div>
+                  </div>
+                  {err && <p style={{color:"#DC2626",fontSize:12,margin:"8px 0 0"}}>{err}</p>}
+                  <div style={{marginTop:20}}><GdprErasureSection/></div>
+                </div>
+              )}
+
+              {/* ── Change password section ── */}
+              {activeSection === "password" && (
+                <div style={{padding:"16px 20px"}}>
+                  <button onClick={()=>{ setActiveSection("main"); setErr(""); setPw({n:"",c:""}); }}
+                    style={{background:"none",border:"none",fontSize:12,color:accentColor,cursor:"pointer",fontFamily:F,fontWeight:600,marginBottom:16,padding:0}}>
+                    ← Back
+                  </button>
+                  <p style={{fontSize:14,fontWeight:700,color:textMain,margin:"0 0 16px"}}>Change Password</p>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    <div>
+                      <label style={lbl}>New password</label>
+                      <input type="password" placeholder="Min 8 characters" value={pw.n} onChange={e=>setPw(p=>({...p,n:e.target.value}))} style={iS}/>
+                    </div>
+                    <div>
+                      <label style={lbl}>Confirm password</label>
+                      <input type="password" placeholder="Repeat new password" value={pw.c} onChange={e=>setPw(p=>({...p,c:e.target.value}))} style={iS}/>
+                    </div>
+                    {err && <p style={{color:"#DC2626",fontSize:12,margin:0}}>{err}</p>}
+                    {ok  && <p style={{color:"#16A34A",fontSize:12,margin:0,fontWeight:600}}>✓ Password updated!</p>}
+                    <button onClick={savePw} disabled={loading}
+                      style={{padding:"10px 0",background:loading?"#CBD5E1":accentColor,color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      {loading?"Updating…":"Update password"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
