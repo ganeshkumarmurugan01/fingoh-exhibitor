@@ -797,6 +797,95 @@ const PLAN_LABELS = {
   enterprise:        "Enterprise",
 };
 
+const PLAN_UPGRADE_URL = "mailto:hello@fingoh.ai?subject=Upgrade%20Plan";
+const PLAN_COLORS_EXH = {
+  trial:   {bg:"#F0F9FF", border:"#BAE6FD", badge:"#0369A1", badgeBg:"#E0F2FE"},
+  starter: {bg:"#EFF6FF", border:"#BFDBFE", badge:"#1D4ED8", badgeBg:"#DBEAFE"},
+  growth:  {bg:"#F0FDF4", border:"#86EFAC", badge:"#15803D", badgeBg:"#DCFCE7"},
+  scale:   {bg:"#F5F3FF", border:"#C4B5FD", badge:"#6D28D9", badgeBg:"#EDE9FE"},
+};
+
+function PlanUsageBar({used, max, color="#3B9EE8"}) {
+  const pct = max >= 9999 ? 0 : Math.min(100, Math.round((used / max) * 100));
+  const barColor = pct >= 90 ? "#DC2626" : pct >= 70 ? "#D97706" : color;
+  return (
+    <div style={{marginTop:4}}>
+      <div style={{height:5,borderRadius:99,background:"rgba(0,0,0,0.07)",overflow:"hidden"}}>
+        {max < 9999 && <div style={{height:"100%",width:`${pct}%`,background:barColor,borderRadius:99,transition:"width .4s"}}/>}
+      </div>
+    </div>
+  );
+}
+
+function PlanAccountCard({planInfo, profile}) {
+  const plan = planInfo?.plan || "trial";
+  const pc = PLAN_COLORS_EXH[plan] || PLAN_COLORS_EXH.trial;
+  const planLabel = PLAN_LABELS[plan] || plan;
+  const isTrialOrStarter = ["trial","starter"].includes(plan);
+
+  const maxContacts = profile?.plan_features?.max_contacts_per_event ?? 100;
+  const maxDeepIEI  = profile?.plan_features?.max_deep_iei_per_event  ?? 10;
+
+  const Stat = ({label, used, max, color}) => (
+    <div style={{flex:1,minWidth:120}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:2}}>
+        <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>{label}</span>
+        <span style={{fontSize:11,fontWeight:700,color:C.navy}}>
+          {used ?? "—"}{max >= 9999 ? "" : ` / ${max}`}
+        </span>
+      </div>
+      <PlanUsageBar used={used ?? 0} max={max} color={color}/>
+    </div>
+  );
+
+  return (
+    <div style={{
+      marginBottom:24, padding:"14px 18px", borderRadius:12,
+      background:pc.bg, border:`1px solid ${pc.border}`,
+      display:"flex", alignItems:"center", gap:20, flexWrap:"wrap",
+    }}>
+      {/* Plan badge */}
+      <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+        <div style={{width:36,height:36,borderRadius:10,background:pc.badgeBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
+          {plan==="trial"?"🎁": plan==="starter"?"⚡": plan==="growth"?"🚀":"🏢"}
+        </div>
+        <div>
+          <div style={{fontSize:13,fontWeight:800,color:C.navy,lineHeight:1.2}}>{planLabel}</div>
+          <div style={{fontSize:10,fontWeight:600,color:pc.badge,textTransform:"uppercase",letterSpacing:.06}}>Current plan</div>
+        </div>
+      </div>
+
+      <div style={{width:1,height:36,background:"rgba(0,0,0,0.08)",flexShrink:0}}/>
+
+      {/* Usage stats */}
+      <div style={{display:"flex",gap:20,flex:1,flexWrap:"wrap"}}>
+        <Stat
+          label="Events"
+          used={planInfo.active_events}
+          max={planInfo.max_events >= 999 ? 9999 : planInfo.max_events}
+          color="#3B9EE8"
+        />
+        <Stat label="Contacts / event"  used={null} max={maxContacts} color="#4CAF50"/>
+        <Stat label="Deep IEI / event"  used={null} max={maxDeepIEI}  color="#8B5CF6"/>
+      </div>
+
+      {/* Upgrade CTA */}
+      {isTrialOrStarter && (
+        <>
+          <div style={{width:1,height:36,background:"rgba(0,0,0,0.08)",flexShrink:0}}/>
+          <a href={PLAN_UPGRADE_URL}
+            style={{flexShrink:0,padding:"9px 18px",background:C.navy,color:"#fff",borderRadius:8,fontSize:12,fontWeight:700,textDecoration:"none",whiteSpace:"nowrap",fontFamily:F}}>
+            Upgrade plan →
+          </a>
+        </>
+      )}
+      {planInfo.limit_reached && (
+        <span style={{fontSize:11,color:"#DC2626",fontWeight:700,flexShrink:0}}>⚠ Event limit reached</span>
+      )}
+    </div>
+  );
+}
+
 function EventHome({onLaunch, onCreateEvent, profile}) {
   const [showTeam, setShowTeam] = useState(false);
 
@@ -980,35 +1069,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
         </div>
 
         {/* Plan usage banner */}
-        {planInfo && (
-          <div style={{
-            marginBottom:24, padding:"10px 16px", borderRadius:10,
-            background: planInfo.limit_reached ? "#FEF2F2" : planInfo.active_events >= planInfo.max_events * 0.8 ? "#FFFBEB" : "#F0F9FF",
-            border: `1px solid ${planInfo.limit_reached ? "#FECACA" : planInfo.active_events >= planInfo.max_events * 0.8 ? "#FDE68A" : "#BAE6FD"}`,
-            display:"flex", justifyContent:"space-between", alignItems:"center",
-          }}>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:13}}>
-                {planInfo.limit_reached ? "🔴" : planInfo.active_events >= planInfo.max_events * 0.8 ? "🟡" : "🟢"}
-              </span>
-              <div>
-                <span style={{fontSize:12,fontWeight:700,color:C.navy}}>
-                  {PLAN_LABELS[planInfo.plan] || planInfo.plan} plan
-                </span>
-                <span style={{fontSize:12,color:C.muted,marginLeft:8}}>
-                  {planInfo.max_events >= 999
-                    ? `${planInfo.active_events} active event${planInfo.active_events!==1?"s":""}`
-                    : `${planInfo.active_events} of ${planInfo.max_events} event${planInfo.max_events!==1?"s":""} used`}
-                </span>
-              </div>
-            </div>
-            {planInfo.limit_reached && (
-              <span style={{fontSize:11,color:"#DC2626",fontWeight:600}}>
-                Event limit reached — contact us to upgrade
-              </span>
-            )}
-          </div>
-        )}
+        {planInfo && <PlanAccountCard planInfo={planInfo} profile={profile}/>}
 
         {/* My events — split into Upcoming and Past */}
         {(()=>{
