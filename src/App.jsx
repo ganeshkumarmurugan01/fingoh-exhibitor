@@ -3027,7 +3027,7 @@ function MeetingsScreen({ex}) {
 // SCREEN — IEI Analysis (Pre-event)
 // Cox PH attendance prediction · IEI tier & score · no regProb
 // ═══════════════════════════════════════════════════════════════════
-function IEIAnalysis({ex, planFeatures}) {
+function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits}) {
   const [selId,setSelId]     = useState(null);
   const [tab,setTab]         = useState("layers");
   const [filter,setFilter]   = useState("All");
@@ -3040,7 +3040,6 @@ function IEIAnalysis({ex, planFeatures}) {
   const [dbLoading,setDbLoading]   = useState(true);
   const [researchData,setResearchData] = useState({});
   const [researchLoading,setResearchLoading] = useState(false);
-  const [ieiCredits,setIeiCredits] = useState(null);
   const [prefetchStatus,setPrefetchStatus] = useState("");
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
 
@@ -3134,7 +3133,7 @@ function IEIAnalysis({ex, planFeatures}) {
       })
       .catch(()=>{ setDbLoading(false); if(showRefreshing) setRefreshing(false); });
     });
-  },[ex?.id, setIeiCredits]);
+  },[ex?.id]);
 
   // Load on mount
   React.useEffect(()=>{ loadContacts(); },[loadContacts]);
@@ -8388,7 +8387,7 @@ function GdprErasureSection() {
 // ═══════════════════════════════════════════════════════════════════
 // NAV SHELL
 // ═══════════════════════════════════════════════════════════════════
-function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents, profile, planFeatures}) {
+function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToEvents, profile, planFeatures, ieiCredits}) {
   const isPast = !!ex?.isPast;
   const hasMeetings = planFeatures?.has_meeting_scheduler !== false;
 
@@ -8463,6 +8462,11 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
             {profile?.plan && (
               <span style={{fontSize:9,padding:"2px 8px",borderRadius:99,background:"#F5F3FF",color:"#6D28D9",fontWeight:700,border:"1px solid #DDD6FE",textTransform:"uppercase",letterSpacing:"0.04em"}}>
                 {profile.plan.replace(/_/g," ")}
+              </span>
+            )}
+            {ieiCredits !== null && planFeatures?.has_deep_iei !== false && (
+              <span style={{fontSize:10,padding:"2px 9px",borderRadius:99,background:ieiCredits<10?"#FEF2F2":ieiCredits<50?"#FEF9C3":"#F0FDF4",color:ieiCredits<10?"#DC2626":ieiCredits<50?"#92400E":"#15803D",fontWeight:700,border:`1px solid ${ieiCredits<10?"#FECACA":ieiCredits<50?"#FDE68A":"#86EFAC"}`,display:"flex",alignItems:"center",gap:4}}>
+                <span>💡</span>{ieiCredits} IEI credits
               </span>
             )}
             {activePhase && (
@@ -8721,6 +8725,10 @@ function GdprContent() {
   }, [ex]);
   const [selP, setSelP]         = useState(null);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [ieiCredits, setIeiCredits] = useState(null);
+
+  // Reset credits when switching events
+  React.useEffect(() => { setIeiCredits(null); }, [ex?.id]);
 
   // Real auth state
   const [authUser, setAuthUser]   = useState(null);
@@ -9292,9 +9300,9 @@ function RegistrationPage({ eventId }) {
 
   return (
     <>
-      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features}>
+      <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features} ieiCredits={ieiCredits}>
         {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>}
-        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features}/>}
+        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits}/>}
         {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
         {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
