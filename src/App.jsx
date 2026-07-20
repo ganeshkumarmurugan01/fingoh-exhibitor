@@ -1203,24 +1203,50 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
 
 // ── Login Screen (auth only) ──────────────────────────────────────────────────
 function LoginScreen({onLogin}) {
-  const [email,setEmail]       = useState("test@fingoh.com");
-  const [password,setPassword] = useState("");
-  const [loading,setLoading]   = useState(false);
-  const [error,setError]       = useState(null);
+  const [email,setEmail]           = useState("");
+  const [password,setPassword]     = useState("");
+  const [loading,setLoading]       = useState(false);
+  const [error,setError]           = useState(null);
+  const [unverified,setUnverified] = useState(false);
+  const [resendSent,setResendSent] = useState(false);
+  const [resending,setResending]   = useState(false);
 
   const iD = {width:"100%",background:C.light,border:"1px solid #E2E8F0",borderRadius:8,padding:"10px 13px",color:C.dark,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"};
   const lD = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:.08};
 
   const handleSignIn = async () => {
     if(!email || !password){ setError("Please enter your email and password"); return; }
-    setLoading(true); setError(null);
+    setLoading(true); setError(null); setUnverified(false);
     try {
       const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
       const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
-      const { error: authError } = await sb.auth.signInWithPassword({ email, password });
-      if(authError){ setError(authError.message); setLoading(false); }
-      else { onLogin(); }
+      const { data, error: authError } = await sb.auth.signInWithPassword({ email, password });
+      if (authError) {
+        const msg = authError.message || "";
+        if (msg.toLowerCase().includes("email not confirmed") || msg.toLowerCase().includes("not confirmed")) {
+          setUnverified(true);
+        } else {
+          setError(msg);
+        }
+        setLoading(false);
+      } else if (data?.user && !data.user.email_confirmed_at) {
+        setUnverified(true);
+        setLoading(false);
+      } else {
+        onLogin();
+      }
     } catch(e){ setError("Sign in failed. Please try again."); setLoading(false); }
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm");
+      const sb = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+      await sb.auth.resend({ type: "signup", email });
+      setResendSent(true);
+    } catch(e) { /* best-effort */ }
+    setResending(false);
   };
 
   return (
@@ -1234,16 +1260,54 @@ function LoginScreen({onLogin}) {
             </div>
             <p style={{fontSize:12,color:C.muted,margin:0}}>Intent Intelligence · Exhibitor Edition</p>
           </div>
-          <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:16,padding:36,boxShadow:"0 4px 24px rgba(13,27,62,0.08)"}}>
-            <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:4}}>Sign in</h2>
-            <p style={{fontSize:12,color:C.muted,marginBottom:24}}>Exhibitor platform — know your buyers before they arrive</p>
-            <div style={{marginBottom:14}}><label style={lD}>Work email</label><input value={email} onChange={e=>setEmail(e.target.value)} style={iD}/></div>
-            <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={iD}/></div>
-            {error && <p style={{color:C.red,fontSize:12,marginBottom:12,textAlign:"center"}}>{error}</p>}
-            <button onClick={handleSignIn} disabled={loading} style={{width:"100%",padding:13,background:loading?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:F}}>
-              {loading ? "Signing in..." : "Sign in →"}
-            </button>
-          </div>
+
+          {unverified ? (
+            /* ── Email verification pending screen ── */
+            <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:16,padding:36,boxShadow:"0 4px 24px rgba(13,27,62,0.08)",textAlign:"center"}}>
+              <div style={{fontSize:48,marginBottom:16}}>📧</div>
+              <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:8}}>Verify your email</h2>
+              <p style={{fontSize:13,color:C.muted,lineHeight:1.6,marginBottom:20}}>
+                We sent a verification link to <strong style={{color:C.navy}}>{email}</strong>.<br/>
+                Click the link in that email to activate your account.
+              </p>
+              <div style={{background:"#FFF7ED",border:"1px solid #FED7AA",borderRadius:10,padding:"12px 16px",marginBottom:20,textAlign:"left"}}>
+                <p style={{fontSize:12,color:"#92400E",margin:"0 0 6px",fontWeight:700}}>Steps to complete signup:</p>
+                <ol style={{fontSize:12,color:"#92400E",margin:0,paddingLeft:18,lineHeight:1.9}}>
+                  <li>Check your inbox for an email from Fingoh</li>
+                  <li>Click <strong>"Confirm your email"</strong></li>
+                  <li>Return here and sign in</li>
+                </ol>
+              </div>
+              {resendSent ? (
+                <p style={{fontSize:13,color:"#16A34A",fontWeight:600,marginBottom:16}}>✓ Verification email resent!</p>
+              ) : (
+                <button onClick={handleResend} disabled={resending}
+                  style={{width:"100%",padding:"11px",background:"#F8FAFC",color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F,marginBottom:12}}>
+                  {resending ? "Sending…" : "Resend verification email"}
+                </button>
+              )}
+              <button onClick={()=>{setUnverified(false);setError(null);}}
+                style={{background:"none",border:"none",fontSize:12,color:C.muted,cursor:"pointer",fontFamily:F}}>
+                ← Back to sign in
+              </button>
+            </div>
+          ) : (
+            /* ── Normal sign-in form ── */
+            <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:16,padding:36,boxShadow:"0 4px 24px rgba(13,27,62,0.08)"}}>
+              <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:4}}>Sign in</h2>
+              <p style={{fontSize:12,color:C.muted,marginBottom:24}}>Exhibitor platform — know your buyers before they arrive</p>
+              <div style={{marginBottom:14}}><label style={lD}>Work email</label><input value={email} onChange={e=>setEmail(e.target.value)} style={iD}/></div>
+              <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={iD}/></div>
+              {error && <p style={{color:C.red,fontSize:12,marginBottom:12,textAlign:"center"}}>{error}</p>}
+              <button onClick={handleSignIn} disabled={loading} style={{width:"100%",padding:13,background:loading?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:F}}>
+                {loading ? "Signing in…" : "Sign in →"}
+              </button>
+              <p style={{fontSize:12,color:C.muted,textAlign:"center",margin:"16px 0 0"}}>
+                Don't have an account?{" "}
+                <a href="https://fingoh.ai" style={{color:C.blue,fontWeight:600}}>Start free trial →</a>
+              </p>
+            </div>
+          )}
         </div>
       </div>
       <AppFooter/>
