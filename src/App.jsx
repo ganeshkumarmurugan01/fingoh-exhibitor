@@ -3040,6 +3040,7 @@ function IEIAnalysis({ex, planFeatures}) {
   const [dbLoading,setDbLoading]   = useState(true);
   const [researchData,setResearchData] = useState({});
   const [researchLoading,setResearchLoading] = useState(false);
+  const [ieiCredits,setIeiCredits] = useState(null);
   const [prefetchStatus,setPrefetchStatus] = useState("");
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
 
@@ -3058,9 +3059,11 @@ function IEIAnalysis({ex, planFeatures}) {
       })
       .then(r=>r.json())
       .then(data=>{
-        if (Array.isArray(data)) {
+        const contactsArr = Array.isArray(data) ? data : (data?.contacts || []);
+        if (data?.iei_credits !== undefined) setIeiCredits(data.iei_credits);
+        if (Array.isArray(contactsArr) && contactsArr.length >= 0) {
           // Map audience_contacts shape → VISITORS shape
-          const mapped = data.map((c,i)=>({
+          const mapped = contactsArr.map((c,i)=>({
             id:          1000+i,
             contactId:   c.id,
             iei_research:      c.iei_research || null,
@@ -3131,7 +3134,7 @@ function IEIAnalysis({ex, planFeatures}) {
       })
       .catch(()=>{ setDbLoading(false); if(showRefreshing) setRefreshing(false); });
     });
-  },[ex?.id]);
+  },[ex?.id, setIeiCredits]);
 
   // Load on mount
   React.useEffect(()=>{ loadContacts(); },[loadContacts]);
@@ -3259,40 +3262,34 @@ function IEIAnalysis({ex, planFeatures}) {
     } catch(e) { console.error("save research failed", e); }
   };
 
+  const [researchError, setResearchError] = useState("");
   const fetchResearch = async (contactId, visitor) => {
     if (!contactId) return;
     if (researchData[contactId]) return;
+    if (ieiCredits !== null && ieiCredits < 10) {
+      setResearchError("No IEI credits remaining for this event. Please contact hello@fingoh.ai to top up.");
+      return;
+    }
     setResearchLoading(true);
+    setResearchError("");
     try {
-      const res = await fetch(`${WORKER_URL}/api/research`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/audience/research/${contactId}`, {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-          visitor: {
-            name:     visitor.name || "",
-            title:    visitor.title || "",
-            company:  visitor.company || "",
-            industry: visitor.cats?.join(", ") || "",
-            goals:    visitor.reason || "",
-            location: visitor.country || "",
-          },
-          exhibition: {
-            name:        ex?.name || "",
-            industry:    ex?.cats?.join(", ") || "",
-            description: ex?.product || "",
-            date:        ex?.dateFrom || "",
-            jobFunctions: [],
-            companyTypes: [],
-            customCriteria: `Exhibitor: ${ex?.company || ""}. Products: ${ex?.product || ""}`,
-          }
-        })
+        headers: {"x-fingoh-auth": `Bearer ${token}`, "Content-Type": "application/json"},
       });
-      if (res.ok) {
-        const data = await res.json();
-        setResearchData(prev => ({...prev, [contactId]: data}));
-        saveResearch(contactId, data);
+      if (res.status === 402) {
+        const err = await res.json();
+        setResearchError(err.detail || "Insufficient IEI credits.");
+        return;
       }
-    } catch(e) { console.error("research fetch failed", e); }
+      if (!res.ok) { setResearchError("Research failed — please try again."); return; }
+      const data = await res.json();
+      setResearchData(prev => ({...prev, [contactId]: data}));
+      if (data.iei_credits_remaining !== undefined) setIeiCredits(data.iei_credits_remaining);
+      saveResearch(contactId, data);
+    } catch(e) { setResearchError("Research failed — please try again."); }
     finally { setResearchLoading(false); }
   };
 
@@ -3361,24 +3358,41 @@ function IEIAnalysis({ex, planFeatures}) {
         </div>
         {/* Deep IEI Analysis button */}
         {!rd && p?.contactId && (
-          <div style={{padding:"10px 18px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFF",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div>
-              <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0}}>Basic IEI score shown</p>
-              <p style={{fontSize:10,color:C.muted,margin:0}}>Run deep research for full intelligence layers, agent inference and exhibitor brief</p>
-            </div>
-            {planFeatures?.has_deep_iei === false ? (
-              <div style={{textAlign:"right"}}>
-                <p style={{fontSize:11,fontWeight:700,color:"#92400E",margin:"0 0 2px 0"}}>🔒 Deep IEI not included</p>
-                <p style={{fontSize:10,color:C.muted,margin:0}}>Upgrade to Event Bundle or higher</p>
+          <div style={{padding:"10px 18px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFF"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div>
+                <p style={{fontSize:11,fontWeight:600,color:C.navy,margin:0}}>Basic IEI score shown</p>
+                <p style={{fontSize:10,color:C.muted,margin:"1px 0 0"}}>Run deep research for full intelligence layers, agent inference and exhibitor brief</p>
               </div>
-            ) : (
-              <button onClick={()=>fetchResearch(p.contactId, p)} disabled={researchLoading}
-                style={{padding:"7px 16px",background:researchLoading?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:researchLoading?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
-                {researchLoading ? <>
-                  <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-                  Researching…
-                </> : "⚡ Deep IEI Analysis"}
-              </button>
+              {planFeatures?.has_deep_iei === false ? (
+                <div style={{textAlign:"right"}}>
+                  <p style={{fontSize:11,fontWeight:700,color:"#92400E",margin:"0 0 2px 0"}}>🔒 Deep IEI not included</p>
+                  <p style={{fontSize:10,color:C.muted,margin:0}}>Upgrade to access deep research</p>
+                </div>
+              ) : ieiCredits !== null && ieiCredits < 10 ? (
+                <div style={{textAlign:"right"}}>
+                  <p style={{fontSize:11,fontWeight:700,color:"#DC2626",margin:"0 0 2px 0"}}>⚠ No credits remaining</p>
+                  <p style={{fontSize:10,color:C.muted,margin:0}}>Contact hello@fingoh.ai to top up</p>
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
+                  {ieiCredits !== null && (
+                    <span style={{fontSize:10,fontWeight:600,color:C.muted,background:"#F1F5F9",borderRadius:10,padding:"2px 8px"}}>
+                      💡 {ieiCredits} credits left
+                    </span>
+                  )}
+                  <button onClick={()=>fetchResearch(p.contactId, p)} disabled={researchLoading}
+                    style={{padding:"7px 16px",background:researchLoading?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:researchLoading?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
+                    {researchLoading ? <>
+                      <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                      Researching…
+                    </> : "⚡ Deep IEI Analysis"}
+                  </button>
+                </div>
+              )}
+            </div>
+            {researchError && (
+              <p style={{fontSize:11,color:"#DC2626",margin:"6px 0 0",fontWeight:500}}>{researchError}</p>
             )}
           </div>
         )}
