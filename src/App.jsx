@@ -782,13 +782,17 @@ function CreateEventWizard({onBack, onCreated}) {
 
 // ── Post-login Event Home ─────────────────────────────────────────────────────
 const PLAN_LABELS = {
-  trial:             "Trial",
+  // Current plans
+  trial:             "Free Trial",
+  starter:           "Starter",
+  growth:            "Growth",
+  scale:             "Scale",
+  // Legacy — backward compat for existing orgs
   single_event:      "Single Event",
   event_bundle:      "Event Bundle",
   event_portfolio:   "Event Portfolio",
   annual_self_serve: "Annual · Self-serve",
   annual_enterprise: "Annual · Enterprise",
-  starter:           "Starter",
   pro:               "Pro",
   enterprise:        "Enterprise",
 };
