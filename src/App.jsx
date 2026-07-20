@@ -3024,7 +3024,7 @@ function MeetingsScreen({ex}) {
 // SCREEN — IEI Analysis (Pre-event)
 // Cox PH attendance prediction · IEI tier & score · no regProb
 // ═══════════════════════════════════════════════════════════════════
-function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits}) {
+function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData, setResearchData, researchLoading, researchError, fetchResearch}) {
   const [selId,setSelId]     = useState(null);
   const [tab,setTab]         = useState("layers");
   const [filter,setFilter]   = useState("All");
@@ -3035,8 +3035,6 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits}) {
   const [extras,setExtras]   = useState([]);
   const [dbContacts,setDbContacts] = useState([]);
   const [dbLoading,setDbLoading]   = useState(true);
-  const [researchData,setResearchData] = useState({});
-  const [researchLoading,setResearchLoading] = useState(false);
   const [prefetchStatus,setPrefetchStatus] = useState("");
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
 
@@ -3245,49 +3243,6 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits}) {
     if (Object.keys(persisted).length) setResearchData(prev => ({...prev, ...persisted}));
   }, [dbContacts]);
 
-  // Save research result back to audience_contacts
-  const saveResearch = async (contactId, data) => {
-    try {
-      const {data:{session}} = await supabase.auth.getSession();
-      const token = session?.access_token || "";
-      await fetch(`/api/v1/audience/save-research/${contactId}`, {
-        method: "POST",
-        headers: {"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"},
-        body: JSON.stringify({iei_research: data}),
-      });
-    } catch(e) { console.error("save research failed", e); }
-  };
-
-  const [researchError, setResearchError] = useState("");
-  const fetchResearch = async (contactId, visitor) => {
-    if (!contactId) return;
-    if (researchData[contactId]) return;
-    if (ieiCredits !== null && ieiCredits < 10) {
-      setResearchError("No IEI credits remaining for this event. Please contact hello@fingoh.ai to top up.");
-      return;
-    }
-    setResearchLoading(true);
-    setResearchError("");
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token || "";
-      const res = await fetch(`/api/proxy?slug=v1/audience/research/${contactId}`, {
-        method: "POST",
-        headers: {"x-fingoh-auth": `Bearer ${token}`, "Content-Type": "application/json"},
-      });
-      if (res.status === 402) {
-        const err = await res.json();
-        setResearchError(err.detail || "Insufficient IEI credits.");
-        return;
-      }
-      if (!res.ok) { setResearchError("Research failed — please try again."); return; }
-      const data = await res.json();
-      setResearchData(prev => ({...prev, [contactId]: data}));
-      if (data.iei_credits_remaining !== undefined) setIeiCredits(data.iei_credits_remaining);
-      saveResearch(contactId, data);
-    } catch(e) { setResearchError("Research failed — please try again."); }
-    finally { setResearchLoading(false); }
-  };
 
   // Use real DB contacts only — no demo fallback
   const baseList = dbContacts;
@@ -8724,6 +8679,56 @@ function GdprContent() {
   const [agentOpen, setAgentOpen] = useState(false);
   const [ieiCredits, setIeiCredits] = useState(null);
 
+  // ── Research state — lives at App level so tab switches don't kill in-flight fetches ──
+  const [researchData, setResearchData]     = useState({});
+  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchError, setResearchError]   = useState("");
+
+  // Reset research state when switching events
+  React.useEffect(() => { setResearchData({}); setResearchError(""); }, [ex?.id]);
+
+  const saveResearch = async (contactId, data) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      await fetch(`/api/v1/audience/save-research/${contactId}`, {
+        method: "POST",
+        headers: { "x-fingoh-auth": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ iei_research: data }),
+      });
+    } catch(e) { console.error("save research failed", e); }
+  };
+
+  const fetchResearch = async (contactId, visitor) => {
+    if (!contactId) return;
+    if (researchData[contactId]) return;
+    if (ieiCredits !== null && ieiCredits < 10) {
+      setResearchError("No IEI credits remaining for this event. Please contact hello@fingoh.ai to top up.");
+      return;
+    }
+    setResearchLoading(true);
+    setResearchError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/audience/research/${contactId}`, {
+        method: "POST",
+        headers: { "x-fingoh-auth": `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      if (res.status === 402) {
+        const err = await res.json();
+        setResearchError(err.detail || "Insufficient IEI credits.");
+        return;
+      }
+      if (!res.ok) { setResearchError("Research failed — please try again."); return; }
+      const data = await res.json();
+      setResearchData(prev => ({ ...prev, [contactId]: data }));
+      if (data.iei_credits_remaining !== undefined) setIeiCredits(data.iei_credits_remaining);
+      saveResearch(contactId, data);
+    } catch(e) { setResearchError("Research failed — please try again."); }
+    finally { setResearchLoading(false); }
+  };
+
   // Fetch iei_credits for the active event whenever the event changes
   React.useEffect(() => {
     setIeiCredits(null);
@@ -9311,7 +9316,7 @@ function RegistrationPage({ eventId }) {
     <>
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features} ieiCredits={ieiCredits}>
         {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>}
-        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits}/>}
+        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchError={researchError} fetchResearch={fetchResearch}/>}
         {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
         {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
