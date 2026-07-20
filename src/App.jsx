@@ -3858,7 +3858,7 @@ function LiveDashboard({ex, onParticipant, onStaff}) {
       fetch(`/api/proxy?slug=v1/audience/contacts/${ex.id}`, {
         headers:{"x-fingoh-auth":`Bearer ${token}`}
       }).then(r=>r.json()).then(data=>{
-        if(Array.isArray(data)) setContacts(data);
+        setContacts(Array.isArray(data) ? data : (data?.contacts || []));
         setLoading(false);
         setLastRefresh(new Date());
       }).catch(()=>setLoading(false));
@@ -5142,11 +5142,7 @@ function LeadExport({ex}) {
       })
       .then(r => r.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setContacts(data);
-        } else {
-          setContacts([]);
-        }
+        setContacts(Array.isArray(data) ? data : (data?.contacts || []));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -5363,7 +5359,7 @@ function PredictedFunnel({ex}) {
       })
       .then(r => r.json())
       .then(data => {
-        setContacts(Array.isArray(data) ? data : []);
+        setContacts(Array.isArray(data) ? data : (data?.contacts || []));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -5679,7 +5675,7 @@ function OutcomesDashboard({ex}) {
         headers: { "x-fingoh-auth": `Bearer ${token}` }
       })
       .then(r => r.json())
-      .then(data => { setContacts(Array.isArray(data) ? data : []); setLoadingContacts(false); })
+      .then(data => { setContacts(Array.isArray(data) ? data : (data?.contacts || [])); setLoadingContacts(false); })
       .catch(() => setLoadingContacts(false));
     });
   }, [ex?.id]);
