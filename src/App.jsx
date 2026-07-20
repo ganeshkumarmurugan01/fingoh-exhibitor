@@ -8062,14 +8062,7 @@ function saveTheme(t) {
   try { localStorage.setItem("fingoh_theme", JSON.stringify(t)); } catch {}
 }
 function applyTheme(t) {
-  const root = document.documentElement;
-  const dark = t.mode === "dark" || (t.mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-  root.style.setProperty("--theme-bg",      dark ? "#0F172A" : "#F4F6FA");
-  root.style.setProperty("--theme-surface",  dark ? "#1E293B" : "#FFFFFF");
-  root.style.setProperty("--theme-text",     dark ? "#F1F5F9" : "#0F172A");
-  root.style.setProperty("--theme-muted",    dark ? "#94A3B8" : "#64748B");
-  root.style.setProperty("--theme-border",   dark ? "#334155" : "#E2E8F0");
-  root.style.setProperty("--theme-accent",   t.accent || "#0D1B3E");
+  document.documentElement.style.setProperty("--theme-accent", t.accent || "#0D1B3E");
 }
 
 function UserMenu({ profile } = {}) {
@@ -8082,7 +8075,7 @@ function UserMenu({ profile } = {}) {
   const [ok, setOk]                   = useState(false);
   const [nameOk, setNameOk]           = useState(false);
   const [loading, setLoading]         = useState(false);
-  const [theme, setTheme]             = useState(() => ({ mode:"auto", accent:"#0D1B3E", ...getTheme() }));
+  const [theme, setTheme]             = useState(() => ({ accent:"#0D1B3E", ...getTheme() }));
 
   React.useEffect(() => { if (profile?.name) setUserName(profile.name); }, [profile?.name]);
 
@@ -8091,7 +8084,6 @@ function UserMenu({ profile } = {}) {
     saveTheme(theme);
   }, [theme]);
 
-  const setMode   = (mode)   => setTheme(t => ({ ...t, mode }));
   const setAccent = (accent) => setTheme(t => ({ ...t, accent }));
 
   const saveName = async () => {
@@ -8192,17 +8184,6 @@ function UserMenu({ profile } = {}) {
                 {/* Appearance */}
                 <div style={{padding:"16px 20px",borderBottom:`1px solid ${border}`}}>
                   <p style={{fontSize:11,fontWeight:700,color:textMuted,textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 12px"}}>Appearance</p>
-
-                  {/* Mode */}
-                  <p style={{...lbl,marginBottom:8}}>Mode</p>
-                  <div style={{display:"flex",gap:6,marginBottom:14}}>
-                    {[["auto","Auto"],["light","☀ Day"],["dark","☾ Night"]].map(([m,label])=>(
-                      <button key={m} onClick={()=>setMode(m)}
-                        style={{flex:1,padding:"7px 0",borderRadius:7,border:`1.5px solid ${theme.mode===m?accentColor:border}`,background:theme.mode===m?accentColor:"transparent",color:theme.mode===m?"#fff":textMuted,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F,transition:"all .15s"}}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
 
                   {/* Accent colours */}
                   <p style={{...lbl,marginBottom:8}}>Accent colour</p>
