@@ -409,7 +409,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
     apiCreateEvent({
       name: evName, type: evType, type_label: selType.label,
       date_from: dateFrom, date_to: dateTo, venue, country,
-      company: coName, product, website, booth_size: boothSize,
+      company: coName, website, booth_size: boothSize,
       categories: selCats.length ? selCats : selType.cats,
       icp_roles: icpRole, icp_company_sizes: icpSize, icp_visit_reasons: icpReason,
       intent_why: intentWhy, intent_buyers: intentBuyers,
@@ -418,9 +418,12 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
     .then(async newEvent => {
       // Save offerings if any
       if (offerings.length > 0) {
-        await Promise.all(offerings.map((o, i) => 
-          createOffering(newEvent.id, {...o, display_order: i})
-        ));
+        try {
+          await Promise.all(offerings.map((o, i) => {
+            const {id, ...rest} = o;
+            return createOffering(newEvent.id, {...rest, display_order: i});
+          }));
+        } catch(e) { console.warn("Offerings save failed:", e.message); }
       }
       setCreating(false);
       setCreated(true);
