@@ -8716,7 +8716,11 @@ function GdprContent() {
         setResearchError(err.detail || "Insufficient IEI credits.");
         return;
       }
-      if (!res.ok) { setResearchError("Research failed — please try again."); return; }
+      if (!res.ok) {
+        try { const e = await res.json(); setResearchError(e.detail || "Research failed — please try again."); }
+        catch { setResearchError("Research failed — please try again."); }
+        return;
+      }
       const data = await res.json();
       setResearchData(prev => ({ ...prev, [contactId]: data }));
       if (data.iei_credits_remaining !== undefined) setIeiCredits(data.iei_credits_remaining);
