@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     
     // Forward remaining query params
     const qString = new URLSearchParams(restQuery).toString()
-    const target = 'https://web-production-93e78d.up.railway.app' + path + (qString ? '?' + qString : '')
+    const target = process.env.BACKEND_URL || 'https://web-production-93e78d.up.railway.app' + path + (qString ? '?' + qString : '')
 
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
     const headers = { 'content-type': 'application/json', 'x-fingoh-auth': auth }

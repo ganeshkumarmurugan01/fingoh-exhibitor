@@ -4,10 +4,13 @@ async function apiFetch(path, options = {}) {
   const { data: { session } } = await supabase.auth.getSession()
   const token = session?.access_token
 
-  const res = await fetch(path, {
+  const slug = path.replace(/^\/api\//, '')
+  const proxyUrl = `/api/proxy?slug=${encodeURIComponent(slug)}`
+
+  const res = await fetch(proxyUrl, {
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(token ? { 'x-fingoh-auth': `Bearer ${token}` } : {}),
     },
     ...options,
   })
