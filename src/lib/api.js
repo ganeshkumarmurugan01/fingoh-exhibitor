@@ -36,3 +36,10 @@ export const addStaff       = (payload) => apiFetch('/api/v1/staff', { method: '
 export const updateStaff    = (id, d)   => apiFetch(`/api/v1/staff/${id}`, { method: 'PATCH', body: JSON.stringify(d) })
 export const removeStaff    = (id)      => apiFetch(`/api/v1/staff/${id}`, { method: 'DELETE' })
 export const verifyStaff    = (payload) => apiFetch('/api/v1/staff/verify-login', { method: 'POST', body: JSON.stringify(payload) })
+
+// Offerings
+export const getOfferings     = (eventId)           => apiFetch(`/api/v1/offerings/event/${eventId}`)
+export const createOffering   = (eventId, payload)  => apiFetch(`/api/v1/offerings/event/${eventId}`, { method: 'POST', body: JSON.stringify(payload) })
+export const updateOffering   = (id, payload)       => apiFetch(`/api/v1/offerings/${id}`, { method: 'PATCH', body: JSON.stringify(payload) })
+export const deleteOffering   = (id)                => apiFetch(`/api/v1/offerings/${id}`, { method: 'DELETE' })
+export const getOfferingsPublic = (eventId)         => apiFetch(`/api/v1/offerings/event/${eventId}/public`)

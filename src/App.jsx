@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
-import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
+import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff, getOfferings, createOffering, updateOffering, deleteOffering } from "./lib/api.js";
 import { V, validateForm, SCHEMAS, validateCSVRow } from "./lib/validators.js";
 
 
@@ -6945,6 +6945,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   const SECTIONS = [
     {id:"overview",  icon:"🎪", label:"Event overview"},
     {id:"company",   icon:"🏢", label:"Company & booth"},
+    {id:"offerings", icon:"📦", label:"Products & Services"},
     {id:"categories",icon:"🗂", label:"Visitor categories"},
     {id:"icp",       icon:"🎯", label:"Ideal customer profile"},
     {id:"intent",    icon:"✦",  label:"Exhibitor intent"},
@@ -7408,6 +7409,227 @@ function EventSetup({ex, onUpdate, onDelete}) {
     );
   };
 
+
+  // ── Offerings state ──────────────────────────────────────────────
+  const [offerings, setOfferings] = React.useState([]);
+  const [offeringsLoading, setOfferingsLoading] = React.useState(false);
+  const [showAddOffering, setShowAddOffering] = React.useState(false);
+  const [editingOffering, setEditingOffering] = React.useState(null);
+  const [offeringForm, setOfferingForm] = React.useState({
+    type: 'product', name: '', category: '', short_description: '', 
+    key_specifications: [], target_industries: []
+  });
+  const [newSpec, setNewSpec] = React.useState('');
+  const [newIndustry, setNewIndustry] = React.useState('');
+  const [offeringSaving, setOfferingSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!ex?.id || activeSection !== 'offerings') return;
+    setOfferingsLoading(true);
+    getOfferings(ex.id).then(data => {
+      setOfferings(data || []);
+      setOfferingsLoading(false);
+    }).catch(() => setOfferingsLoading(false));
+  }, [ex?.id, activeSection]);
+
+  const resetOfferingForm = () => {
+    setOfferingForm({ type: 'product', name: '', category: '', short_description: '', key_specifications: [], target_industries: [] });
+    setNewSpec('');
+    setNewIndustry('');
+    setEditingOffering(null);
+    setShowAddOffering(false);
+  };
+
+  const saveOffering = async () => {
+    if (!offeringForm.name.trim()) return;
+    setOfferingSaving(true);
+    try {
+      if (editingOffering) {
+        const updated = await updateOffering(editingOffering.id, offeringForm);
+        setOfferings(prev => prev.map(o => o.id === editingOffering.id ? updated : o));
+      } else {
+        const created = await createOffering(ex.id, { ...offeringForm, display_order: offerings.length });
+        setOfferings(prev => [...prev, created]);
+      }
+      resetOfferingForm();
+    } catch(e) {
+      alert(e.message);
+    }
+    setOfferingSaving(false);
+  };
+
+  const handleDeleteOffering = async (id) => {
+    if (!window.confirm('Delete this offering?')) return;
+    await deleteOffering(id);
+    setOfferings(prev => prev.filter(o => o.id !== id));
+  };
+
+  const startEditOffering = (o) => {
+    setOfferingForm({
+      type: o.type, name: o.name, category: o.category || '',
+      short_description: o.short_description || '',
+      key_specifications: o.key_specifications || [],
+      target_industries: o.target_industries || []
+    });
+    setEditingOffering(o);
+    setShowAddOffering(true);
+  };
+
+  const OFFERING_TYPES = [
+    { value: 'product',  label: '📦 Product' },
+    { value: 'service',  label: '🔧 Service' },
+    { value: 'solution', label: '💡 Solution' },
+    { value: 'spare',    label: '🔩 Spare & Consumable' },
+  ];
+
+  const renderOfferings = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>📦 Products & Services</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 24px"}}>What you are showcasing at this event. Visitors will see these during registration.</p>
+
+      {offeringsLoading ? (
+        <p style={{fontSize:13,color:C.muted}}>Loading...</p>
+      ) : (
+        <>
+          {/* Existing offerings list */}
+          {offerings.length > 0 && (
+            <div style={{marginBottom:24}}>
+              {offerings.map(o => (
+                <div key={o.id} style={{border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:10,background:"#FAFAFA"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:11,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"2px 8px",borderRadius:99}}>
+                        {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
+                      </span>
+                      <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>startEditOffering(o)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #E2E8F0",background:"white",cursor:"pointer",color:C.navy}}>Edit</button>
+                      <button onClick={()=>handleDeleteOffering(o.id)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>Delete</button>
+                    </div>
+                  </div>
+                  {o.category && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Category: {o.category}</p>}
+                  {o.short_description && <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{o.short_description}</p>}
+                  {o.key_specifications?.length > 0 && (
+                    <ul style={{margin:"4px 0 0",paddingLeft:16}}>
+                      {o.key_specifications.map((s,i) => <li key={i} style={{fontSize:11,color:C.muted,marginBottom:2}}>{s}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add/Edit form */}
+          {showAddOffering ? (
+            <div style={{border:"1px solid #BFDBFE",borderRadius:10,padding:20,background:"#EFF6FF"}}>
+              <h3 style={{fontSize:13,fontWeight:700,color:C.navy,margin:"0 0 16px"}}>{editingOffering ? "Edit offering" : "Add new offering"}</h3>
+              
+              {/* Type */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>TYPE</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {OFFERING_TYPES.map(t => (
+                    <button key={t.value} onClick={()=>setOfferingForm(f=>({...f,type:t.value}))}
+                      style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                        borderColor:offeringForm.type===t.value?C.navy:"#E2E8F0",
+                        background:offeringForm.type===t.value?C.navy:"white",
+                        color:offeringForm.type===t.value?"white":C.muted,fontWeight:600}}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>NAME *</label>
+                <input value={offeringForm.name} onChange={e=>setOfferingForm(f=>({...f,name:e.target.value}))}
+                  placeholder="e.g. CT Scanner X200" style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box"}}/>
+              </div>
+
+              {/* Category */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
+                <input value={offeringForm.category} onChange={e=>setOfferingForm(f=>({...f,category:e.target.value}))}
+                  placeholder="e.g. Diagnostic Imaging" style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box"}}/>
+              </div>
+
+              {/* Short description */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>SHORT DESCRIPTION</label>
+                <textarea value={offeringForm.short_description} onChange={e=>setOfferingForm(f=>({...f,short_description:e.target.value}))}
+                  placeholder="Brief description shown to visitors during registration..."
+                  rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box",resize:"vertical"}}/>
+              </div>
+
+              {/* Key specifications */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>KEY SPECIFICATIONS</label>
+                {offeringForm.key_specifications.map((s,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:12,flex:1,background:"white",padding:"5px 10px",borderRadius:6,border:"1px solid #E2E8F0"}}>{s}</span>
+                    <button onClick={()=>setOfferingForm(f=>({...f,key_specifications:f.key_specifications.filter((_,j)=>j!==i)}))}
+                      style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                  </div>
+                ))}
+                <div style={{display:"flex",gap:6,marginTop:4}}>
+                  <input value={newSpec} onChange={e=>setNewSpec(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                    placeholder="Add a spec and press Enter..." style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12}}/>
+                  <button onClick={()=>{if(newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                    style={{padding:"7px 12px",borderRadius:6,border:"none",background:C.navy,color:"white",fontSize:12,cursor:"pointer"}}>Add</button>
+                </div>
+              </div>
+
+              {/* Target industries */}
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>TARGET INDUSTRIES</label>
+                {offeringForm.target_industries.map((s,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:12,flex:1,background:"white",padding:"5px 10px",borderRadius:6,border:"1px solid #E2E8F0"}}>{s}</span>
+                    <button onClick={()=>setOfferingForm(f=>({...f,target_industries:f.target_industries.filter((_,j)=>j!==i)}))}
+                      style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                  </div>
+                ))}
+                <div style={{display:"flex",gap:6,marginTop:4}}>
+                  <input value={newIndustry} onChange={e=>setNewIndustry(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&newIndustry.trim()){setOfferingForm(f=>({...f,target_industries:[...f.target_industries,newIndustry.trim()]}));setNewIndustry('');}}}
+                    placeholder="Add an industry and press Enter..." style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12}}/>
+                  <button onClick={()=>{if(newIndustry.trim()){setOfferingForm(f=>({...f,target_industries:[...f.target_industries,newIndustry.trim()]}));setNewIndustry('');}}}
+                    style={{padding:"7px 12px",borderRadius:6,border:"none",background:C.navy,color:"white",fontSize:12,cursor:"pointer"}}>Add</button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={saveOffering} disabled={offeringSaving||!offeringForm.name.trim()}
+                  style={{padding:"9px 20px",borderRadius:8,border:"none",background:C.navy,color:"white",fontSize:13,fontWeight:600,cursor:"pointer",opacity:offeringSaving?0.6:1}}>
+                  {offeringSaving ? "Saving..." : editingOffering ? "Update" : "Add offering"}
+                </button>
+                <button onClick={resetOfferingForm}
+                  style={{padding:"9px 20px",borderRadius:8,border:"1px solid #E2E8F0",background:"white",fontSize:13,cursor:"pointer",color:C.muted}}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            offerings.length < 5 && (
+              <button onClick={()=>setShowAddOffering(true)}
+                style={{padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy,width:"100%"}}>
+                + Add {offerings.length === 0 ? "your first offering" : "another offering"} ({offerings.length}/5)
+              </button>
+            )
+          )}
+
+          {offerings.length >= 5 && !showAddOffering && (
+            <p style={{fontSize:12,color:C.muted,textAlign:"center",padding:"12px 0"}}>Maximum 5 offerings reached.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   const renderDanger = () => (
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:"#991B1B",margin:"0 0 4px"}}>⚠ Danger zone</h2>
@@ -7861,6 +8083,7 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
     intent:     renderIntent,
     finetune:   renderFinetune,
     email:      renderEmail,
+    offerings:  renderOfferings,
     danger:     renderDanger,
   };
 
