@@ -265,7 +265,7 @@ const Tab       = ({id,label,active,onClick})=><button onClick={()=>onClick(id)}
 // ── Create Event Wizard ───────────────────────────────────────────────────────
 function CreateEventWizard({onBack, onCreated, orgName=""}) {
   const [step, setStep] = useState(1);
-  const TOTAL = 5;
+  const TOTAL = 6;
 
   // Step 1 — Basic details
   const [evName,  setEvName]  = useState("");
@@ -393,7 +393,13 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
       intent_why: intentWhy, intent_buyers: intentBuyers,
       intent_signals: intentSignals, buyer_signals: buyerSignals,
     })
-    .then(newEvent => {
+    .then(async newEvent => {
+      // Save offerings if any
+      if (offerings.length > 0) {
+        await Promise.all(offerings.map((o, i) => 
+          createOffering(newEvent.id, {...o, display_order: i})
+        ));
+      }
       setCreating(false);
       setCreated(true);
       setCreatedEvent(newEvent);
@@ -414,7 +420,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
     });
   };
 
-  const steps = ["Event details","Your company","Target categories","ICP setup","Your intent"];
+  const steps = ["Event details","Your company","Target categories","Products & Services","ICP setup","Your intent"];
 
   return (
     <div style={{minHeight:"100vh",background:C.light,fontFamily:F}}>
@@ -606,8 +612,139 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
               </div>
             )}
 
-            {/* ── STEP 4: ICP setup ── */}
+            {/* ── STEP 4: Products & Services ── */}
             {step===4 && (
+              <div>
+                <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>📦 Products & Services</h2>
+                <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Add what you are showcasing. Visitors will see these during registration (max 5).</p>
+
+                {/* Existing offerings */}
+                {offerings.length > 0 && (
+                  <div style={{marginBottom:16}}>
+                    {offerings.map(o => (
+                      <div key={o.id} style={{border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 14px",marginBottom:8,background:"#FAFAFA",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                        <div>
+                          <span style={{fontSize:11,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"2px 8px",borderRadius:99,marginRight:8}}>
+                            {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
+                          </span>
+                          <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
+                          {o.category && <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{o.category}</span>}
+                        </div>
+                        <button onClick={()=>setOfferings(prev=>prev.filter(o2=>o2.id!==o.id))}
+                          style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add offering form */}
+                {showAddOffering ? (
+                  <div style={{border:"1px solid #BFDBFE",borderRadius:10,padding:16,background:"#EFF6FF",marginBottom:16}}>
+                    <h3 style={{fontSize:13,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>Add offering</h3>
+
+                    {/* Type */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>TYPE</label>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {OFFERING_TYPES.map(t => (
+                          <button key={t.value} onClick={()=>setOfferingForm(f=>({...f,type:t.value}))}
+                            style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                              borderColor:offeringForm.type===t.value?C.navy:"#E2E8F0",
+                              background:offeringForm.type===t.value?C.navy:"white",
+                              color:offeringForm.type===t.value?"white":C.muted,fontWeight:600}}>
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Name */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>NAME *</label>
+                      <input value={offeringForm.name} onChange={e=>setOfferingForm(f=>({...f,name:e.target.value}))}
+                        placeholder="e.g. CT Scanner X200" style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box"}}/>
+                    </div>
+
+                    {/* Category from event cats */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {(selCats||[]).map(cat => (
+                          <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:f.category===cat?"":cat}))}
+                            style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                              borderColor:offeringForm.category===cat?C.navy:"#E2E8F0",
+                              background:offeringForm.category===cat?C.navy:"white",
+                              color:offeringForm.category===cat?"white":C.muted,fontWeight:600}}>
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Short description */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>SHORT DESCRIPTION</label>
+                      <textarea value={offeringForm.short_description} onChange={e=>setOfferingForm(f=>({...f,short_description:e.target.value}))}
+                        placeholder="Brief description shown to visitors..." rows={2}
+                        style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box",resize:"vertical"}}/>
+                    </div>
+
+                    {/* Key specs */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>KEY SPECIFICATIONS</label>
+                      {offeringForm.key_specifications.map((s,i) => (
+                        <div key={i} style={{display:"flex",gap:6,marginBottom:4}}>
+                          <span style={{fontSize:12,flex:1,background:"white",padding:"5px 10px",borderRadius:6,border:"1px solid #E2E8F0"}}>{s}</span>
+                          <button onClick={()=>setOfferingForm(f=>({...f,key_specifications:f.key_specifications.filter((_,j)=>j!==i)}))}
+                            style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                        </div>
+                      ))}
+                      <div style={{display:"flex",gap:6,marginTop:4}}>
+                        <input value={newSpec} onChange={e=>setNewSpec(e.target.value)}
+                          onKeyDown={e=>{if(e.key==="Enter"&&newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                          placeholder="Add spec and press Enter..." style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12}}/>
+                        <button onClick={()=>{if(newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                          style={{padding:"7px 12px",borderRadius:6,border:"none",background:C.navy,color:"white",fontSize:12,cursor:"pointer"}}>Add</button>
+                      </div>
+                    </div>
+
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={async()=>{
+                        if(!offeringForm.name.trim()||!wizardEventId) return;
+                        setOfferingSaving(true);
+                        try {
+                          const created = await createOffering(wizardEventId, {...offeringForm, display_order: offerings.length});
+                          setOfferings(prev=>[...prev, created]);
+                          resetOfferingForm();
+                        } catch(e){ alert(e.message); }
+                        setOfferingSaving(false);
+                      }} disabled={offeringSaving||!offeringForm.name.trim()}
+                        style={{padding:"8px 18px",borderRadius:8,border:"none",background:C.navy,color:"white",fontSize:13,fontWeight:600,cursor:"pointer",opacity:offeringSaving?0.6:1}}>
+                        {offeringSaving?"Saving...":"Add offering"}
+                      </button>
+                      <button onClick={resetOfferingForm}
+                        style={{padding:"8px 18px",borderRadius:8,border:"1px solid #E2E8F0",background:"white",fontSize:13,cursor:"pointer",color:C.muted}}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  offerings.length < 5 && (
+                    <button onClick={()=>setShowAddOffering(true)}
+                      style={{padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy,width:"100%",marginBottom:16}}>
+                      + Add {offerings.length===0?"your first offering":"another offering"} ({offerings.length}/5)
+                    </button>
+                  )
+                )}
+
+                {offerings.length >= 5 && !showAddOffering && (
+                  <p style={{fontSize:12,color:C.muted,textAlign:"center"}}>Maximum 5 offerings reached.</p>
+                )}
+              </div>
+            )}
+
+            {/* ── STEP 5: ICP setup ── */}
+            {step===5 && (
               <div style={{display:"flex",flexDirection:"column",gap:22}}>
                 <div>
                   <p style={{fontSize:12,fontWeight:600,color:C.navy,marginBottom:10}}>Target visitor roles <span style={{fontSize:11,fontWeight:400,color:C.muted}}>(select all that apply)</span></p>
@@ -655,8 +792,8 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
               </div>
             )}
 
-            {/* ── STEP 5: Exhibitor intent ── */}
-            {step===5 && (
+            {/* ── STEP 6: Exhibitor intent ── */}
+            {step===6 && (
               <div style={{display:"flex",flexDirection:"column",gap:20}}>
                 <div style={{background:`linear-gradient(135deg,${C.ltnavy},#EEF2FF)`,border:"1px solid #C7D0E8",borderRadius:12,padding:"14px 18px",display:"flex",gap:12,alignItems:"flex-start"}}>
                   <span style={{fontSize:20,flexShrink:0}}>✦</span>
@@ -7551,8 +7688,17 @@ function EventSetup({ex, onUpdate, onDelete}) {
               {/* Category */}
               <div style={{marginBottom:12}}>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
-                <input value={offeringForm.category} onChange={e=>setOfferingForm(f=>({...f,category:e.target.value}))}
-                  placeholder="e.g. Diagnostic Imaging" style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box"}}/>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {(ex.cats||[]).map(cat => (
+                    <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:f.category===cat?"":cat}))}
+                      style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                        borderColor:offeringForm.category===cat?C.navy:"#E2E8F0",
+                        background:offeringForm.category===cat?C.navy:"white",
+                        color:offeringForm.category===cat?"white":C.muted,fontWeight:600}}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Short description */}
