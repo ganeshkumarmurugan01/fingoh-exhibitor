@@ -276,7 +276,7 @@ function CreateEventWizard({onBack, onCreated}) {
   const [country, setCountry] = useState("Singapore");
 
   // Step 2 — Company & product
-  const [coName,   setCoName]  = useState("Siemens Healthineers");
+  const [coName,   setCoName]  = useState("");
   const [product,  setProduct] = useState("");
   const [website,  setWebsite] = useState("");
   const [boothSize,setBoothSize]=useState("9");
@@ -8755,7 +8755,7 @@ function GdprContent() {
       setAuthUser(session?.user ?? null)
       setAuthLoading(false)
       if (session?.user) {
-        getMyProfile().then(setProfile).catch(() => {})
+        getMyProfile().then(p => { setProfile(p); setCoName(p?.org_name || ""); }).catch(() => {})
         // Only go to events if currently on login screen — preserve current screen
         setScreen(prev => prev === "login" ? "events" : prev)
       } else {
@@ -8766,7 +8766,7 @@ function GdprContent() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user ?? null)
       if (session?.user) {
-        getMyProfile().then(setProfile).catch(() => {})
+        getMyProfile().then(p => { setProfile(p); setCoName(p?.org_name || ""); }).catch(() => {})
         // Only redirect to events on actual sign-in, not on token refresh
         setScreen(prev => prev === "login" ? "events" : prev)
       } else {
