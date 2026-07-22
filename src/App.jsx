@@ -263,7 +263,7 @@ const Tab       = ({id,label,active,onClick})=><button onClick={()=>onClick(id)}
 // ═══════════════════════════════════════════════════════════════════
 // ── Sample event catalogue data ───────────────────────────────────────────────
 // ── Create Event Wizard ───────────────────────────────────────────────────────
-function CreateEventWizard({onBack, onCreated}) {
+function CreateEventWizard({onBack, onCreated, orgName=""}) {
   const [step, setStep] = useState(1);
   const TOTAL = 5;
 
@@ -276,7 +276,7 @@ function CreateEventWizard({onBack, onCreated}) {
   const [country, setCountry] = useState("Singapore");
 
   // Step 2 — Company & product
-  const [coName,   setCoName]  = useState("");
+  const [coName,   setCoName]  = useState(orgName);
   const [product,  setProduct] = useState("");
   const [website,  setWebsite] = useState("");
   const [boothSize,setBoothSize]=useState("9");
@@ -9305,7 +9305,7 @@ function RegistrationPage({ eventId }) {
       onCreateEvent={()=>setScreen("create-event")}/>;
 
   if(screen==="create-event")
-    return <CreateEventWizard
+    return <CreateEventWizard orgName={profile?.org_name || ""}
       onBack={()=>setScreen("events")}
       onCreated={cfg=>{
       setEx(cfg);
