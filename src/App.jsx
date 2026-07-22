@@ -607,7 +607,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                 )}
 
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {[...new Set([...selType.cats, ...dynamicCats])].map(cat=>{
+                  {[...new Set([...(icpLoading ? [] : selType.cats), ...dynamicCats])].map(cat=>{
                     const on = selCats.includes(cat);
                     return (
                       <div key={cat} onClick={()=>toggle(selCats,setSelCats,cat)}
@@ -730,16 +730,11 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                     </div>
 
                     <div style={{display:"flex",gap:8}}>
-                      <button onClick={async()=>{
-                        if(!offeringForm.name.trim()||!wizardEventId) return;
-                        setOfferingSaving(true);
-                        try {
-                          const created = await createOffering(wizardEventId, {...offeringForm, display_order: offerings.length});
-                          setOfferings(prev=>[...prev, created]);
-                          resetOfferingForm();
-                        } catch(e){ alert(e.message); }
-                        setOfferingSaving(false);
-                      }} disabled={offeringSaving||!offeringForm.name.trim()}
+                      <button onClick={()=>{
+                        if(!offeringForm.name.trim()) return;
+                        setOfferings(prev=>[...prev, {id:Date.now().toString(),...offeringForm,display_order:prev.length}]);
+                        resetOfferingForm();
+                      }} disabled={!offeringForm.name.trim()}
                         style={{padding:"8px 18px",borderRadius:8,border:"none",background:C.navy,color:"white",fontSize:13,fontWeight:600,cursor:"pointer",opacity:offeringSaving?0.6:1}}>
                         {offeringSaving?"Saving...":"Add offering"}
                       </button>
