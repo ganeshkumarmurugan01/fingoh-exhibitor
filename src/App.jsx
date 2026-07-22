@@ -284,7 +284,28 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
   // Step 3 — Target categories
   const [selCats, setSelCats] = useState([]);
 
-  // Step 4 — ICP setup
+  // Step 4 — Products & Services
+  const OFFERING_TYPES = [
+    { value: 'product',  label: '📦 Product' },
+    { value: 'service',  label: '🔧 Service' },
+    { value: 'solution', label: '💡 Solution' },
+    { value: 'spare',    label: '🔩 Spare & Consumable' },
+  ];
+  const [offerings, setOfferings] = useState([]);
+  const [showAddOffering, setShowAddOffering] = useState(false);
+  const [offeringForm, setOfferingForm] = useState({
+    type: 'product', name: '', category: '', short_description: '',
+    key_specifications: [], target_industries: []
+  });
+  const [newSpec, setNewSpec] = useState('');
+  const [offeringSaving, setOfferingSaving] = useState(false);
+  const resetOfferingForm = () => {
+    setOfferingForm({ type: 'product', name: '', category: '', short_description: '', key_specifications: [], target_industries: [] });
+    setNewSpec('');
+    setShowAddOffering(false);
+  };
+
+  // Step 5 — ICP setup
   const [icpRole,   setIcpRole]  = useState([]);
   const [icpSize,   setIcpSize]  = useState([]);
   const [icpReason, setIcpReason]= useState([]);
