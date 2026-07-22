@@ -357,7 +357,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
     } catch(e) { console.error("ICP research failed:", e); }
     finally { setIcpLoading(false); }
   };
-  const step2OK = coName && product;
+  const step2OK = coName.trim().length > 0;
   const step3OK = selCats.length > 0;
   const step4OK = true;
   const step5OK = intentWhy.trim().length > 10;
@@ -547,7 +547,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                     <input value={coName} onChange={e=>setCoName(e.target.value)} style={{...iS, borderColor: coName && coNameErr ? "#DC2626" : "#E2E8F0"}}/>
                     {coName && coNameErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{coNameErr}</p>}
                   </div>
-                  <div><label style={lS}>Product / solution *</label><input value={product} onChange={e=>setProduct(e.target.value)} placeholder="e.g. Diagnostic imaging & AI-powered radiology" style={iS}/></div>
+
                   <div>
                     <label style={lS}>Company website</label>
                     <input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://www.company.com" style={{...iS, borderColor: website && websiteErr ? "#DC2626" : "#E2E8F0"}}/>
@@ -607,7 +607,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                 )}
 
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {(dynamicCats.length > 0 ? dynamicCats : selType.cats).map(cat=>{
+                  {[...new Set([...selType.cats, ...dynamicCats])].map(cat=>{
                     const on = selCats.includes(cat);
                     return (
                       <div key={cat} onClick={()=>toggle(selCats,setSelCats,cat)}
