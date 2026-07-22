@@ -277,6 +277,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
 
   // Step 2 — Company & product
   const [coName,   setCoName]  = useState(orgName);
+  React.useEffect(() => { if(orgName) setCoName(orgName); }, [orgName]);
   const [product,  setProduct] = useState("");
   const [website,  setWebsite] = useState("");
   const [boothSize,setBoothSize]=useState("9");
