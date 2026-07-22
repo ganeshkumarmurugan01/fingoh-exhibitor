@@ -362,7 +362,8 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
   const step4OK = true;
   const step5OK = intentWhy.trim().length > 10;
 
-  const canNext = [null, step1OK, step2OK, step3OK, step4OK, step5OK][step];
+  const step6OK = intentWhy.trim().length > 10;
+  const canNext = [null, step1OK, step2OK, step3OK, true, step4OK, step6OK][step];
 
   // Parse intent signals from free text
   const parseIntentSignals = (text) => {
