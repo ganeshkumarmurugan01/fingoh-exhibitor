@@ -5,7 +5,7 @@ async function apiFetch(path, options = {}) {
   const token = session?.access_token
 
   const slug = path.replace(/^\/api\//, '')
-  const proxyUrl = `/api/proxy?slug=${encodeURIComponent(slug)}`
+  const proxyUrl = `/api/proxy?slug=${slug}`
 
   const res = await fetch(proxyUrl, {
     headers: {
