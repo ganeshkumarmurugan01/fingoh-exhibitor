@@ -1076,7 +1076,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
       .catch(() => setStaffLoading(false));
     supabase.auth.getSession().then(({data:{session}})=>{
       const token = session?.access_token||"";
-      fetch("/api/v1/events/plan-info", { headers:{"x-fingoh-auth":`Bearer ${token}`} })
+      fetch("/api/proxy?slug=v1/events/plan-info", { headers:{"x-fingoh-auth":`Bearer ${token}`} })
         .then(r=>r.json()).then(setPlanInfo).catch(()=>{});
     });
   }, []);
