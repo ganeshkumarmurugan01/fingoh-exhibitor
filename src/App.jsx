@@ -964,12 +964,12 @@ const PLAN_COLORS_EXH = {
 };
 
 function PlanUsageBar({used, max, color="#3B9EE8"}) {
-  const pct = max >= 9999 ? 0 : Math.min(100, Math.round((used / max) * 100));
+  const pct = max >= 99999 ? 0 : Math.min(100, Math.round((used / max) * 100));
   const barColor = pct >= 90 ? "#DC2626" : pct >= 70 ? "#D97706" : color;
   return (
     <div style={{marginTop:4}}>
       <div style={{height:5,borderRadius:99,background:"rgba(0,0,0,0.07)",overflow:"hidden"}}>
-        {max < 9999 && <div style={{height:"100%",width:`${pct}%`,background:barColor,borderRadius:99,transition:"width .4s"}}/>}
+        {max < 99999 && <div style={{height:"100%",width:`${pct}%`,background:barColor,borderRadius:99,transition:"width .4s"}}/>}
       </div>
     </div>
   );
@@ -989,7 +989,7 @@ function PlanAccountCard({planInfo, profile}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:2}}>
         <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>{label}</span>
         <span style={{fontSize:11,fontWeight:700,color:C.navy}}>
-          {used ?? "—"}{max >= 9999 ? "" : ` / ${max}`}
+          {used ?? "—"}{max >= 99999 ? "" : ` / ${max}`}
         </span>
       </div>
       <PlanUsageBar used={used ?? 0} max={max} color={color}/>
