@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
-import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff } from "./lib/api.js";
+import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff, getOfferings, createOffering, updateOffering, deleteOffering } from "./lib/api.js";
 import { V, validateForm, SCHEMAS, validateCSVRow } from "./lib/validators.js";
 
 
@@ -263,9 +263,9 @@ const Tab       = ({id,label,active,onClick})=><button onClick={()=>onClick(id)}
 // ═══════════════════════════════════════════════════════════════════
 // ── Sample event catalogue data ───────────────────────────────────────────────
 // ── Create Event Wizard ───────────────────────────────────────────────────────
-function CreateEventWizard({onBack, onCreated}) {
+function CreateEventWizard({onBack, onCreated, orgName=""}) {
   const [step, setStep] = useState(1);
-  const TOTAL = 5;
+  const TOTAL = 6;
 
   // Step 1 — Basic details
   const [evName,  setEvName]  = useState("");
@@ -276,7 +276,8 @@ function CreateEventWizard({onBack, onCreated}) {
   const [country, setCountry] = useState("Singapore");
 
   // Step 2 — Company & product
-  const [coName,   setCoName]  = useState("Siemens Healthineers");
+  const [coName,   setCoName]  = useState(orgName);
+  React.useEffect(() => { if(orgName) setCoName(orgName); }, [orgName]);
   const [product,  setProduct] = useState("");
   const [website,  setWebsite] = useState("");
   const [boothSize,setBoothSize]=useState("9");
@@ -284,7 +285,28 @@ function CreateEventWizard({onBack, onCreated}) {
   // Step 3 — Target categories
   const [selCats, setSelCats] = useState([]);
 
-  // Step 4 — ICP setup
+  // Step 4 — Products & Services
+  const OFFERING_TYPES = [
+    { value: 'product',  label: '📦 Product' },
+    { value: 'service',  label: '🔧 Service' },
+    { value: 'solution', label: '💡 Solution' },
+    { value: 'spare',    label: '🔩 Spare & Consumable' },
+  ];
+  const [offerings, setOfferings] = useState([]);
+  const [showAddOffering, setShowAddOffering] = useState(false);
+  const [offeringForm, setOfferingForm] = useState({
+    type: 'product', name: '', category: '', short_description: '',
+    key_specifications: [], target_industries: []
+  });
+  const [newSpec, setNewSpec] = useState('');
+  const [offeringSaving, setOfferingSaving] = useState(false);
+  const resetOfferingForm = () => {
+    setOfferingForm({ type: 'product', name: '', category: [], short_description: '', key_specifications: [], target_industries: [] });
+    setNewSpec('');
+    setShowAddOffering(false);
+  };
+
+  // Step 5 — ICP setup
   const [icpRole,   setIcpRole]  = useState([]);
   const [icpSize,   setIcpSize]  = useState([]);
   const [icpReason, setIcpReason]= useState([]);
@@ -336,12 +358,13 @@ function CreateEventWizard({onBack, onCreated}) {
     } catch(e) { console.error("ICP research failed:", e); }
     finally { setIcpLoading(false); }
   };
-  const step2OK = coName && product;
+  const step2OK = coName.trim().length > 0;
   const step3OK = selCats.length > 0;
   const step4OK = true;
   const step5OK = intentWhy.trim().length > 10;
 
-  const canNext = [null, step1OK, step2OK, step3OK, step4OK, step5OK][step];
+  const step6OK = intentWhy.trim().length > 10;
+  const canNext = [null, step1OK, step2OK, step3OK, true, step4OK, step6OK][step];
 
   // Parse intent signals from free text
   const parseIntentSignals = (text) => {
@@ -387,13 +410,22 @@ function CreateEventWizard({onBack, onCreated}) {
     apiCreateEvent({
       name: evName, type: evType, type_label: selType.label,
       date_from: dateFrom, date_to: dateTo, venue, country,
-      company: coName, product, website, booth_size: boothSize,
+      company: coName, website, booth_size: boothSize,
       categories: selCats.length ? selCats : selType.cats,
       icp_roles: icpRole, icp_company_sizes: icpSize, icp_visit_reasons: icpReason,
       intent_why: intentWhy, intent_buyers: intentBuyers,
       intent_signals: intentSignals, buyer_signals: buyerSignals,
     })
-    .then(newEvent => {
+    .then(async newEvent => {
+      // Save offerings if any
+      if (offerings.length > 0) {
+        try {
+          await Promise.all(offerings.map((o, i) => {
+            const {id, ...rest} = o;
+            return createOffering(newEvent.id, {...rest, display_order: i});
+          }));
+        } catch(e) { console.warn("Offerings save failed:", e.message); }
+      }
       setCreating(false);
       setCreated(true);
       setCreatedEvent(newEvent);
@@ -414,7 +446,7 @@ function CreateEventWizard({onBack, onCreated}) {
     });
   };
 
-  const steps = ["Event details","Your company","Target categories","ICP setup","Your intent"];
+  const steps = ["Event details","Your company","Target categories","Products & Services","ICP setup","Your intent"];
 
   return (
     <div style={{minHeight:"100vh",background:C.light,fontFamily:F}}>
@@ -520,7 +552,7 @@ function CreateEventWizard({onBack, onCreated}) {
                     <input value={coName} onChange={e=>setCoName(e.target.value)} style={{...iS, borderColor: coName && coNameErr ? "#DC2626" : "#E2E8F0"}}/>
                     {coName && coNameErr && <p style={{color:"#DC2626",fontSize:11,margin:"3px 0 0"}}>{coNameErr}</p>}
                   </div>
-                  <div><label style={lS}>Product / solution *</label><input value={product} onChange={e=>setProduct(e.target.value)} placeholder="e.g. Diagnostic imaging & AI-powered radiology" style={iS}/></div>
+
                   <div>
                     <label style={lS}>Company website</label>
                     <input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://www.company.com" style={{...iS, borderColor: website && websiteErr ? "#DC2626" : "#E2E8F0"}}/>
@@ -580,7 +612,7 @@ function CreateEventWizard({onBack, onCreated}) {
                 )}
 
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                  {(dynamicCats.length > 0 ? dynamicCats : selType.cats).map(cat=>{
+                  {[...new Set([...(icpLoading ? [] : selType.cats), ...dynamicCats])].map(cat=>{
                     const on = selCats.includes(cat);
                     return (
                       <div key={cat} onClick={()=>toggle(selCats,setSelCats,cat)}
@@ -606,8 +638,134 @@ function CreateEventWizard({onBack, onCreated}) {
               </div>
             )}
 
-            {/* ── STEP 4: ICP setup ── */}
+            {/* ── STEP 4: Products & Services ── */}
             {step===4 && (
+              <div>
+                <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>📦 Products & Services</h2>
+                <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Add what you are showcasing. Visitors will see these during registration (max 5).</p>
+
+                {/* Existing offerings */}
+                {offerings.length > 0 && (
+                  <div style={{marginBottom:16}}>
+                    {offerings.map(o => (
+                      <div key={o.id} style={{border:"1px solid #E2E8F0",borderRadius:10,padding:"12px 14px",marginBottom:8,background:"#FAFAFA",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                        <div>
+                          <span style={{fontSize:11,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"2px 8px",borderRadius:99,marginRight:8}}>
+                            {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
+                          </span>
+                          <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
+                          {o.category?.length > 0 && <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</span>}
+                        </div>
+                        <button onClick={()=>setOfferings(prev=>prev.filter(o2=>o2.id!==o.id))}
+                          style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add offering form */}
+                {showAddOffering ? (
+                  <div style={{border:"1px solid #BFDBFE",borderRadius:10,padding:16,background:"#EFF6FF",marginBottom:16}}>
+                    <h3 style={{fontSize:13,fontWeight:700,color:C.navy,margin:"0 0 12px"}}>Add offering</h3>
+
+                    {/* Type */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>TYPE</label>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {OFFERING_TYPES.map(t => (
+                          <button key={t.value} onClick={()=>setOfferingForm(f=>({...f,type:t.value}))}
+                            style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                              borderColor:offeringForm.type===t.value?C.navy:"#E2E8F0",
+                              background:offeringForm.type===t.value?C.navy:"white",
+                              color:offeringForm.type===t.value?"white":C.muted,fontWeight:600}}>
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Name */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>NAME *</label>
+                      <input value={offeringForm.name} onChange={e=>setOfferingForm(f=>({...f,name:e.target.value}))}
+                        placeholder="e.g. CT Scanner X200" style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box"}}/>
+                    </div>
+
+                    {/* Category from event cats */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
+                      <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                        {(selCats||[]).map(cat => (
+                          <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:f.category.includes(cat)?f.category.filter(c=>c!==cat):[...f.category,cat]}))}
+                            style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                              borderColor:offeringForm.category.includes(cat)?C.navy:"#E2E8F0",
+                              background:offeringForm.category.includes(cat)?C.navy:"white",
+                              color:offeringForm.category.includes(cat)?"white":C.muted,fontWeight:600}}>
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Short description */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>SHORT DESCRIPTION</label>
+                      <textarea value={offeringForm.short_description} onChange={e=>setOfferingForm(f=>({...f,short_description:e.target.value}))}
+                        placeholder="Brief description shown to visitors..." rows={2}
+                        style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box",resize:"vertical"}}/>
+                    </div>
+
+                    {/* Key specs */}
+                    <div style={{marginBottom:10}}>
+                      <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>KEY SPECIFICATIONS</label>
+                      {offeringForm.key_specifications.map((s,i) => (
+                        <div key={i} style={{display:"flex",gap:6,marginBottom:4}}>
+                          <span style={{fontSize:12,flex:1,background:"white",padding:"5px 10px",borderRadius:6,border:"1px solid #E2E8F0"}}>{s}</span>
+                          <button onClick={()=>setOfferingForm(f=>({...f,key_specifications:f.key_specifications.filter((_,j)=>j!==i)}))}
+                            style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                        </div>
+                      ))}
+                      <div style={{display:"flex",gap:6,marginTop:4}}>
+                        <input value={newSpec} onChange={e=>setNewSpec(e.target.value)}
+                          onKeyDown={e=>{if(e.key==="Enter"&&newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                          placeholder="Add spec and press Enter..." style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12}}/>
+                        <button onClick={()=>{if(newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                          style={{padding:"7px 12px",borderRadius:6,border:"none",background:C.navy,color:"white",fontSize:12,cursor:"pointer"}}>Add</button>
+                      </div>
+                    </div>
+
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>{
+                        if(!offeringForm.name.trim()) return;
+                        setOfferings(prev=>[...prev, {id:Date.now().toString(),...offeringForm,display_order:prev.length}]);
+                        resetOfferingForm();
+                      }} disabled={!offeringForm.name.trim()}
+                        style={{padding:"8px 18px",borderRadius:8,border:"none",background:C.navy,color:"white",fontSize:13,fontWeight:600,cursor:"pointer",opacity:offeringSaving?0.6:1}}>
+                        {offeringSaving?"Saving...":"Add offering"}
+                      </button>
+                      <button onClick={resetOfferingForm}
+                        style={{padding:"8px 18px",borderRadius:8,border:"1px solid #E2E8F0",background:"white",fontSize:13,cursor:"pointer",color:C.muted}}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  offerings.length < 5 && (
+                    <button onClick={()=>setShowAddOffering(true)}
+                      style={{padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy,width:"100%",marginBottom:16}}>
+                      + Add {offerings.length===0?"your first offering":"another offering"} ({offerings.length}/5)
+                    </button>
+                  )
+                )}
+
+                {offerings.length >= 5 && !showAddOffering && (
+                  <p style={{fontSize:12,color:C.muted,textAlign:"center"}}>Maximum 5 offerings reached.</p>
+                )}
+              </div>
+            )}
+
+            {/* ── STEP 5: ICP setup ── */}
+            {step===5 && (
               <div style={{display:"flex",flexDirection:"column",gap:22}}>
                 <div>
                   <p style={{fontSize:12,fontWeight:600,color:C.navy,marginBottom:10}}>Target visitor roles <span style={{fontSize:11,fontWeight:400,color:C.muted}}>(select all that apply)</span></p>
@@ -655,8 +813,8 @@ function CreateEventWizard({onBack, onCreated}) {
               </div>
             )}
 
-            {/* ── STEP 5: Exhibitor intent ── */}
-            {step===5 && (
+            {/* ── STEP 6: Exhibitor intent ── */}
+            {step===6 && (
               <div style={{display:"flex",flexDirection:"column",gap:20}}>
                 <div style={{background:`linear-gradient(135deg,${C.ltnavy},#EEF2FF)`,border:"1px solid #C7D0E8",borderRadius:12,padding:"14px 18px",display:"flex",gap:12,alignItems:"flex-start"}}>
                   <span style={{fontSize:20,flexShrink:0}}>✦</span>
@@ -806,12 +964,12 @@ const PLAN_COLORS_EXH = {
 };
 
 function PlanUsageBar({used, max, color="#3B9EE8"}) {
-  const pct = max >= 9999 ? 0 : Math.min(100, Math.round((used / max) * 100));
+  const pct = max >= 99999 ? 0 : Math.min(100, Math.round((used / max) * 100));
   const barColor = pct >= 90 ? "#DC2626" : pct >= 70 ? "#D97706" : color;
   return (
     <div style={{marginTop:4}}>
       <div style={{height:5,borderRadius:99,background:"rgba(0,0,0,0.07)",overflow:"hidden"}}>
-        {max < 9999 && <div style={{height:"100%",width:`${pct}%`,background:barColor,borderRadius:99,transition:"width .4s"}}/>}
+        {max < 99999 && <div style={{height:"100%",width:`${pct}%`,background:barColor,borderRadius:99,transition:"width .4s"}}/>}
       </div>
     </div>
   );
@@ -831,7 +989,7 @@ function PlanAccountCard({planInfo, profile}) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:2}}>
         <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>{label}</span>
         <span style={{fontSize:11,fontWeight:700,color:C.navy}}>
-          {used ?? "—"}{max >= 9999 ? "" : ` / ${max}`}
+          {used ?? "—"}{max >= 99999 ? "" : ` / ${max}`}
         </span>
       </div>
       <PlanUsageBar used={used ?? 0} max={max} color={color}/>
@@ -865,7 +1023,7 @@ function PlanAccountCard({planInfo, profile}) {
           max={planInfo.max_events >= 999 ? 9999 : planInfo.max_events}
           color="#3B9EE8"
         />
-        <Stat label="Contacts / event"  used={null} max={maxContacts} color="#4CAF50"/>
+        <Stat label="Contacts / event"  used={planInfo.total_contacts ?? null} max={maxContacts} color="#4CAF50"/>
         <Stat label="Deep IEI / event"  used={null} max={maxDeepIEI}  color="#8B5CF6"/>
       </div>
 
@@ -918,7 +1076,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
       .catch(() => setStaffLoading(false));
     supabase.auth.getSession().then(({data:{session}})=>{
       const token = session?.access_token||"";
-      fetch("/api/v1/events/plan-info", { headers:{"x-fingoh-auth":`Bearer ${token}`} })
+      fetch("/api/proxy?slug=v1/events/plan-info", { headers:{"x-fingoh-auth":`Bearer ${token}`} })
         .then(r=>r.json()).then(setPlanInfo).catch(()=>{});
     });
   }, []);
@@ -6945,6 +7103,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   const SECTIONS = [
     {id:"overview",  icon:"🎪", label:"Event overview"},
     {id:"company",   icon:"🏢", label:"Company & booth"},
+    {id:"offerings", icon:"📦", label:"Products & Services"},
     {id:"categories",icon:"🗂", label:"Visitor categories"},
     {id:"icp",       icon:"🎯", label:"Ideal customer profile"},
     {id:"intent",    icon:"✦",  label:"Exhibitor intent"},
@@ -7408,6 +7567,236 @@ function EventSetup({ex, onUpdate, onDelete}) {
     );
   };
 
+
+  // ── Offerings state ──────────────────────────────────────────────
+  const [offerings, setOfferings] = React.useState([]);
+  const [offeringsLoading, setOfferingsLoading] = React.useState(false);
+  const [showAddOffering, setShowAddOffering] = React.useState(false);
+  const [editingOffering, setEditingOffering] = React.useState(null);
+  const [offeringForm, setOfferingForm] = React.useState({
+    type: 'product', name: '', category: '', short_description: '', 
+    key_specifications: [], target_industries: []
+  });
+  const [newSpec, setNewSpec] = React.useState('');
+  const [newIndustry, setNewIndustry] = React.useState('');
+  const [offeringSaving, setOfferingSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!ex?.id || activeSection !== 'offerings') return;
+    setOfferingsLoading(true);
+    getOfferings(ex.id).then(data => {
+      setOfferings(data || []);
+      setOfferingsLoading(false);
+    }).catch(() => setOfferingsLoading(false));
+  }, [ex?.id, activeSection]);
+
+  const resetOfferingForm = () => {
+    setOfferingForm({ type: 'product', name: '', category: [], short_description: '', key_specifications: [], target_industries: [] });
+    setNewSpec('');
+    setNewIndustry('');
+    setEditingOffering(null);
+    setShowAddOffering(false);
+  };
+
+  const saveOffering = async () => {
+    if (!offeringForm.name.trim()) return;
+    setOfferingSaving(true);
+    try {
+      if (editingOffering) {
+        const updated = await updateOffering(editingOffering.id, offeringForm);
+        setOfferings(prev => prev.map(o => o.id === editingOffering.id ? updated : o));
+      } else {
+        const created = await createOffering(ex.id, { ...offeringForm, display_order: offerings.length });
+        setOfferings(prev => [...prev, created]);
+      }
+      resetOfferingForm();
+    } catch(e) {
+      alert(e.message);
+    }
+    setOfferingSaving(false);
+  };
+
+  const handleDeleteOffering = async (id) => {
+    if (!window.confirm('Delete this offering?')) return;
+    await deleteOffering(id);
+    setOfferings(prev => prev.filter(o => o.id !== id));
+  };
+
+  const startEditOffering = (o) => {
+    setOfferingForm({
+      type: o.type, name: o.name, category: o.category || '',
+      short_description: o.short_description || '',
+      key_specifications: o.key_specifications || [],
+      target_industries: o.target_industries || []
+    });
+    setEditingOffering(o);
+    setShowAddOffering(true);
+  };
+
+  const OFFERING_TYPES = [
+    { value: 'product',  label: '📦 Product' },
+    { value: 'service',  label: '🔧 Service' },
+    { value: 'solution', label: '💡 Solution' },
+    { value: 'spare',    label: '🔩 Spare & Consumable' },
+  ];
+
+  const renderOfferings = () => (
+    <div>
+      <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>📦 Products & Services</h2>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 24px"}}>What you are showcasing at this event. Visitors will see these during registration.</p>
+
+      {offeringsLoading ? (
+        <p style={{fontSize:13,color:C.muted}}>Loading...</p>
+      ) : (
+        <>
+          {/* Existing offerings list */}
+          {offerings.length > 0 && (
+            <div style={{marginBottom:24}}>
+              {offerings.map(o => (
+                <div key={o.id} style={{border:"1px solid #E2E8F0",borderRadius:10,padding:"14px 16px",marginBottom:10,background:"#FAFAFA"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:11,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"2px 8px",borderRadius:99}}>
+                        {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
+                      </span>
+                      <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>startEditOffering(o)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #E2E8F0",background:"white",cursor:"pointer",color:C.navy}}>Edit</button>
+                      <button onClick={()=>handleDeleteOffering(o.id)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>Delete</button>
+                    </div>
+                  </div>
+                  {o.category?.length > 0 && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Categories: {(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</p>}
+                  {o.short_description && <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{o.short_description}</p>}
+                  {o.key_specifications?.length > 0 && (
+                    <ul style={{margin:"4px 0 0",paddingLeft:16}}>
+                      {o.key_specifications.map((s,i) => <li key={i} style={{fontSize:11,color:C.muted,marginBottom:2}}>{s}</li>)}
+                    </ul>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Add/Edit form */}
+          {showAddOffering ? (
+            <div style={{border:"1px solid #BFDBFE",borderRadius:10,padding:20,background:"#EFF6FF"}}>
+              <h3 style={{fontSize:13,fontWeight:700,color:C.navy,margin:"0 0 16px"}}>{editingOffering ? "Edit offering" : "Add new offering"}</h3>
+              
+              {/* Type */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>TYPE</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {OFFERING_TYPES.map(t => (
+                    <button key={t.value} onClick={()=>setOfferingForm(f=>({...f,type:t.value}))}
+                      style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                        borderColor:offeringForm.type===t.value?C.navy:"#E2E8F0",
+                        background:offeringForm.type===t.value?C.navy:"white",
+                        color:offeringForm.type===t.value?"white":C.muted,fontWeight:600}}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Name */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>NAME *</label>
+                <input value={offeringForm.name} onChange={e=>setOfferingForm(f=>({...f,name:e.target.value}))}
+                  placeholder="e.g. CT Scanner X200" style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box"}}/>
+              </div>
+
+              {/* Category */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {(ex.cats||[]).map(cat => (
+                    <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:(f.category||[]).includes(cat)?(f.category||[]).filter(c=>c!==cat):[...(f.category||[]),cat]}))}
+                      style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
+                        borderColor:(offeringForm.category||[]).includes(cat)?C.navy:"#E2E8F0",
+                        background:(offeringForm.category||[]).includes(cat)?C.navy:"white",
+                        color:(offeringForm.category||[]).includes(cat)?"white":C.muted,fontWeight:600}}>
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Short description */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>SHORT DESCRIPTION</label>
+                <textarea value={offeringForm.short_description} onChange={e=>setOfferingForm(f=>({...f,short_description:e.target.value}))}
+                  placeholder="Brief description shown to visitors during registration..."
+                  rows={3} style={{width:"100%",padding:"8px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:13,boxSizing:"border-box",resize:"vertical"}}/>
+              </div>
+
+              {/* Key specifications */}
+              <div style={{marginBottom:12}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>KEY SPECIFICATIONS</label>
+                {offeringForm.key_specifications.map((s,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:12,flex:1,background:"white",padding:"5px 10px",borderRadius:6,border:"1px solid #E2E8F0"}}>{s}</span>
+                    <button onClick={()=>setOfferingForm(f=>({...f,key_specifications:f.key_specifications.filter((_,j)=>j!==i)}))}
+                      style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                  </div>
+                ))}
+                <div style={{display:"flex",gap:6,marginTop:4}}>
+                  <input value={newSpec} onChange={e=>setNewSpec(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                    placeholder="Add a spec and press Enter..." style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12}}/>
+                  <button onClick={()=>{if(newSpec.trim()){setOfferingForm(f=>({...f,key_specifications:[...f.key_specifications,newSpec.trim()]}));setNewSpec('');}}}
+                    style={{padding:"7px 12px",borderRadius:6,border:"none",background:C.navy,color:"white",fontSize:12,cursor:"pointer"}}>Add</button>
+                </div>
+              </div>
+
+              {/* Target industries */}
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>TARGET INDUSTRIES</label>
+                {offeringForm.target_industries.map((s,i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                    <span style={{fontSize:12,flex:1,background:"white",padding:"5px 10px",borderRadius:6,border:"1px solid #E2E8F0"}}>{s}</span>
+                    <button onClick={()=>setOfferingForm(f=>({...f,target_industries:f.target_industries.filter((_,j)=>j!==i)}))}
+                      style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
+                  </div>
+                ))}
+                <div style={{display:"flex",gap:6,marginTop:4}}>
+                  <input value={newIndustry} onChange={e=>setNewIndustry(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&newIndustry.trim()){setOfferingForm(f=>({...f,target_industries:[...f.target_industries,newIndustry.trim()]}));setNewIndustry('');}}}
+                    placeholder="Add an industry and press Enter..." style={{flex:1,padding:"7px 10px",borderRadius:6,border:"1px solid #E2E8F0",fontSize:12}}/>
+                  <button onClick={()=>{if(newIndustry.trim()){setOfferingForm(f=>({...f,target_industries:[...f.target_industries,newIndustry.trim()]}));setNewIndustry('');}}}
+                    style={{padding:"7px 12px",borderRadius:6,border:"none",background:C.navy,color:"white",fontSize:12,cursor:"pointer"}}>Add</button>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={saveOffering} disabled={offeringSaving||!offeringForm.name.trim()}
+                  style={{padding:"9px 20px",borderRadius:8,border:"none",background:C.navy,color:"white",fontSize:13,fontWeight:600,cursor:"pointer",opacity:offeringSaving?0.6:1}}>
+                  {offeringSaving ? "Saving..." : editingOffering ? "Update" : "Add offering"}
+                </button>
+                <button onClick={resetOfferingForm}
+                  style={{padding:"9px 20px",borderRadius:8,border:"1px solid #E2E8F0",background:"white",fontSize:13,cursor:"pointer",color:C.muted}}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            offerings.length < 5 && (
+              <button onClick={()=>setShowAddOffering(true)}
+                style={{padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy,width:"100%"}}>
+                + Add {offerings.length === 0 ? "your first offering" : "another offering"} ({offerings.length}/5)
+              </button>
+            )
+          )}
+
+          {offerings.length >= 5 && !showAddOffering && (
+            <p style={{fontSize:12,color:C.muted,textAlign:"center",padding:"12px 0"}}>Maximum 5 offerings reached.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   const renderDanger = () => (
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:"#991B1B",margin:"0 0 4px"}}>⚠ Danger zone</h2>
@@ -7861,6 +8250,7 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
     intent:     renderIntent,
     finetune:   renderFinetune,
     email:      renderEmail,
+    offerings:  renderOfferings,
     danger:     renderDanger,
   };
 
@@ -8755,7 +9145,7 @@ function GdprContent() {
       setAuthUser(session?.user ?? null)
       setAuthLoading(false)
       if (session?.user) {
-        getMyProfile().then(setProfile).catch(() => {})
+        getMyProfile().then(p => { setProfile(p); setCoName(p?.org_name || ""); }).catch(() => {})
         // Only go to events if currently on login screen — preserve current screen
         setScreen(prev => prev === "login" ? "events" : prev)
       } else {
@@ -8766,7 +9156,7 @@ function GdprContent() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setAuthUser(session?.user ?? null)
       if (session?.user) {
-        getMyProfile().then(setProfile).catch(() => {})
+        getMyProfile().then(p => { setProfile(p); setCoName(p?.org_name || ""); }).catch(() => {})
         // Only redirect to events on actual sign-in, not on token refresh
         setScreen(prev => prev === "login" ? "events" : prev)
       } else {
@@ -8798,6 +9188,7 @@ function RegistrationPage({ eventId }) {
 
   const [eventInfo, setEventInfo] = React.useState(null);
   const [loading,   setLoading]   = React.useState(true);
+  const [offerings, setOfferings] = React.useState([]);
   const [step,      setStep]      = React.useState(1); // 1=details, 2=intent, 3=success
   const [saving,      setSaving]      = React.useState(false);
   const [error,       setError]       = React.useState("");
@@ -8810,7 +9201,7 @@ function RegistrationPage({ eventId }) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return;
     setEmailChecking(true);
     try {
-      const res = await fetch(`/api/v1/audience/register/${eventId}/check-email?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/proxy?slug=v1/audience/register/${eventId}/check-email&email=${encodeURIComponent(email)}`);
       const data = await res.json();
       if (data.already_registered) {
         setEmailStatus("registered");
@@ -8835,7 +9226,7 @@ function RegistrationPage({ eventId }) {
       return saved ? JSON.parse(saved) : {
         name: "", email: "", company: "", job_title: "",
         country: "", phone: "", city: "",
-        primary_reason: "", categories_interest: "", specific_product_interest: "",
+        primary_reason: "", categories_interest: "", specific_product_interest: "", offerings_interest: [],
         visited_booth_last_year: null, had_meeting_last_year: null,
         is_existing_customer: null, actively_sourcing: null,
         purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
@@ -8876,10 +9267,12 @@ function RegistrationPage({ eventId }) {
     if (cached) {
       try { setEventInfo(JSON.parse(cached)); setLoading(false); return; } catch {}
     }
-    fetch(`/api/v1/audience/register/${eventId}/info`)
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      fetch(`/api/proxy?slug=v1/audience/register/${eventId}/info`).then(r => r.json()),
+      fetch(`/api/proxy?slug=v1/offerings/event/${eventId}/public`).then(r => r.json()).catch(() => [])
+    ]).then(([data, offs]) => {
         setEventInfo(data);
+        setOfferings(Array.isArray(offs) ? offs : []);
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
         setLoading(false);
       })
@@ -8919,7 +9312,7 @@ function RegistrationPage({ eventId }) {
   const handleSubmit = async () => {
     setSaving(true); setError("");
     try {
-      const res = await fetch(`/api/v1/audience/register/${eventId}`, {
+      const res = await fetch(`/api/proxy?slug=v1/audience/register/${eventId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -9211,13 +9604,51 @@ function RegistrationPage({ eventId }) {
               </div>
             )}
 
-            {/* Specific product interest */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={lS}>Specific product or solution you're interested in</label>
-              <input value={form.specific_product_interest || ""} onChange={e => upd("specific_product_interest", e.target.value)}
-                placeholder={`e.g. ${eventInfo.product || "specific product area"}`}
-                style={iS}/>
-            </div>
+            {/* Offerings interest */}
+            {offerings.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <label style={lS}>Which products or services are you interested in exploring?</label>
+                <p style={{fontSize:11,color:"#64748B",margin:"0 0 10px"}}>Select all that apply</p>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {offerings.map(o => {
+                    const selected = (form.offerings_interest||[]).includes(o.id);
+                    return (
+                      <div key={o.id} onClick={()=>{
+                        const curr = form.offerings_interest||[];
+                        upd("offerings_interest", selected ? curr.filter(id=>id!==o.id) : [...curr, o.id]);
+                      }} style={{padding:"12px 14px",borderRadius:10,border:`2px solid ${selected?"#0D1B3E":"#E2E8F0"}`,background:selected?"#EFF6FF":"#FAFAFA",cursor:"pointer",transition:"all 0.15s"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${selected?"#0D1B3E":"#CBD5E1"}`,background:selected?"#0D1B3E":"white",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            {selected && <span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
+                          </div>
+                          <div>
+                            <p style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:0}}>{o.name}</p>
+                            {o.short_description && <p style={{fontSize:11,color:"#64748B",margin:"2px 0 0",lineHeight:1.4}}>{o.short_description}</p>}
+                            {o.category?.length > 0 && (
+                              <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}}>
+                                {(Array.isArray(o.category)?o.category:[o.category]).map((c,i)=>(
+                                  <span key={i} style={{fontSize:10,padding:"1px 7px",borderRadius:99,background:"rgba(41,171,226,0.12)",color:"#1D4ED8"}}>{c}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Specific product interest - fallback when no offerings configured */}
+            {offerings.length === 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <label style={lS}>Specific product or solution you're interested in</label>
+                <input value={form.specific_product_interest || ""} onChange={e => upd("specific_product_interest", e.target.value)}
+                  placeholder={`e.g. ${eventInfo.product || "specific product area"}`}
+                  style={iS}/>
+              </div>
+            )}
 
             <YesNo label={`Would you like to schedule a dedicated meeting with ${eventInfo.company}?`} field="wants_meeting"/>
 
@@ -9268,7 +9699,7 @@ function RegistrationPage({ eventId }) {
               setForm({
                 name: "", email: "", company: "", job_title: "",
                 country: "", phone: "", city: "",
-                primary_reason: "", categories_interest: "", specific_product_interest: "",
+                primary_reason: "", categories_interest: "", specific_product_interest: "", offerings_interest: [],
                 visited_booth_last_year: null, had_meeting_last_year: null,
                 is_existing_customer: null, actively_sourcing: null,
                 purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
@@ -9305,7 +9736,7 @@ function RegistrationPage({ eventId }) {
       onCreateEvent={()=>setScreen("create-event")}/>;
 
   if(screen==="create-event")
-    return <CreateEventWizard
+    return <CreateEventWizard orgName={profile?.org_name || ""}
       onBack={()=>setScreen("events")}
       onCreated={cfg=>{
       setEx(cfg);
