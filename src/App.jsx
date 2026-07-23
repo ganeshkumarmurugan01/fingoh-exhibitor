@@ -9188,6 +9188,7 @@ function RegistrationPage({ eventId }) {
 
   const [eventInfo, setEventInfo] = React.useState(null);
   const [loading,   setLoading]   = React.useState(true);
+  const [offerings, setOfferings] = React.useState([]);
   const [step,      setStep]      = React.useState(1); // 1=details, 2=intent, 3=success
   const [saving,      setSaving]      = React.useState(false);
   const [error,       setError]       = React.useState("");
@@ -9225,7 +9226,7 @@ function RegistrationPage({ eventId }) {
       return saved ? JSON.parse(saved) : {
         name: "", email: "", company: "", job_title: "",
         country: "", phone: "", city: "",
-        primary_reason: "", categories_interest: "", specific_product_interest: "",
+        primary_reason: "", categories_interest: "", specific_product_interest: "", offerings_interest: [],
         visited_booth_last_year: null, had_meeting_last_year: null,
         is_existing_customer: null, actively_sourcing: null,
         purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
@@ -9266,10 +9267,12 @@ function RegistrationPage({ eventId }) {
     if (cached) {
       try { setEventInfo(JSON.parse(cached)); setLoading(false); return; } catch {}
     }
-    fetch(`/api/v1/audience/register/${eventId}/info`)
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      fetch(`/api/v1/audience/register/${eventId}/info`).then(r => r.json()),
+      fetch(`/api/v1/offerings/event/${eventId}/public`).then(r => r.json()).catch(() => [])
+    ]).then(([data, offs]) => {
         setEventInfo(data);
+        setOfferings(Array.isArray(offs) ? offs : []);
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
         setLoading(false);
       })
@@ -9601,13 +9604,51 @@ function RegistrationPage({ eventId }) {
               </div>
             )}
 
-            {/* Specific product interest */}
-            <div style={{ marginBottom: 18 }}>
-              <label style={lS}>Specific product or solution you're interested in</label>
-              <input value={form.specific_product_interest || ""} onChange={e => upd("specific_product_interest", e.target.value)}
-                placeholder={`e.g. ${eventInfo.product || "specific product area"}`}
-                style={iS}/>
-            </div>
+            {/* Offerings interest */}
+            {offerings.length > 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <label style={lS}>Which products or services are you interested in exploring?</label>
+                <p style={{fontSize:11,color:"#64748B",margin:"0 0 10px"}}>Select all that apply</p>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {offerings.map(o => {
+                    const selected = (form.offerings_interest||[]).includes(o.id);
+                    return (
+                      <div key={o.id} onClick={()=>{
+                        const curr = form.offerings_interest||[];
+                        upd("offerings_interest", selected ? curr.filter(id=>id!==o.id) : [...curr, o.id]);
+                      }} style={{padding:"12px 14px",borderRadius:10,border:`2px solid ${selected?"#0D1B3E":"#E2E8F0"}`,background:selected?"#EFF6FF":"#FAFAFA",cursor:"pointer",transition:"all 0.15s"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:10}}>
+                          <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${selected?"#0D1B3E":"#CBD5E1"}`,background:selected?"#0D1B3E":"white",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            {selected && <span style={{color:"white",fontSize:11,fontWeight:700}}>✓</span>}
+                          </div>
+                          <div>
+                            <p style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:0}}>{o.name}</p>
+                            {o.short_description && <p style={{fontSize:11,color:"#64748B",margin:"2px 0 0",lineHeight:1.4}}>{o.short_description}</p>}
+                            {o.category?.length > 0 && (
+                              <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:4}}>
+                                {(Array.isArray(o.category)?o.category:[o.category]).map((c,i)=>(
+                                  <span key={i} style={{fontSize:10,padding:"1px 7px",borderRadius:99,background:"rgba(41,171,226,0.12)",color:"#1D4ED8"}}>{c}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Specific product interest - fallback when no offerings configured */}
+            {offerings.length === 0 && (
+              <div style={{ marginBottom: 18 }}>
+                <label style={lS}>Specific product or solution you're interested in</label>
+                <input value={form.specific_product_interest || ""} onChange={e => upd("specific_product_interest", e.target.value)}
+                  placeholder={`e.g. ${eventInfo.product || "specific product area"}`}
+                  style={iS}/>
+              </div>
+            )}
 
             <YesNo label={`Would you like to schedule a dedicated meeting with ${eventInfo.company}?`} field="wants_meeting"/>
 
@@ -9658,7 +9699,7 @@ function RegistrationPage({ eventId }) {
               setForm({
                 name: "", email: "", company: "", job_title: "",
                 country: "", phone: "", city: "",
-                primary_reason: "", categories_interest: "", specific_product_interest: "",
+                primary_reason: "", categories_interest: "", specific_product_interest: "", offerings_interest: [],
                 visited_booth_last_year: null, had_meeting_last_year: null,
                 is_existing_customer: null, actively_sourcing: null,
                 purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
