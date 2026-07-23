@@ -346,7 +346,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
       const params = new URLSearchParams({ event_name: evName, venue: venue || "" });
-      const res = await fetch(`/api/v1/events/research-icp?${params}`, {
+      const res = await fetch(`/api/proxy?slug=v1/events/research-icp&${params}`, {
         headers: { "x-fingoh-auth": `Bearer ${token}` },
       });
       if (res.ok) {
@@ -2209,7 +2209,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
     if (!ex?.id) return;
     supabase.auth.getSession().then(({data:{session}})=>{
       const token = session?.access_token || "";
-      fetch(`/api/v1/crm/status?event_id=${ex.id}`, {
+      fetch(`/api/proxy?slug=v1/crm/status&event_id=${ex.id}`, {
         headers: {"x-fingoh-auth": `Bearer ${token}`}
       })
       .then(r=>r.json())
@@ -2377,7 +2377,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                         setCrmLoading(true);
                         const {data:{session}} = await supabase.auth.getSession();
                         const token = session?.access_token||"";
-                        const r = await fetch(`/api/v1/crm/zoho/auth-url?event_id=${ex.id}`,{
+                        const r = await fetch(`/api/proxy?slug=v1/crm/zoho/auth-url&event_id=${ex.id}`,{
                           headers:{"x-fingoh-auth":`Bearer ${token}`}
                         });
                         setCrmLoading(false);
@@ -2425,7 +2425,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                             setCrmSyncing(true);
                             const {data:{session}} = await supabase.auth.getSession();
                             const token = session?.access_token||"";
-                            const r = await fetch(`/api/v1/crm/zoho/sync?event_id=${ex.id}`,{
+                            const r = await fetch(`/api/proxy?slug=v1/crm/zoho/sync&event_id=${ex.id}`,{
                               method:"POST",
                               headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"}
                             });
@@ -2444,7 +2444,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                           onClick={async()=>{
                             const {data:{session}} = await supabase.auth.getSession();
                             const token = session?.access_token||"";
-                            await fetch(`/api/v1/crm/zoho/disconnect?event_id=${ex.id}`,{
+                            await fetch(`/api/proxy?slug=v1/crm/zoho/disconnect&event_id=${ex.id}`,{
                               method:"DELETE",
                               headers:{"x-fingoh-auth":`Bearer ${token}`}
                             });
@@ -5311,7 +5311,7 @@ function LeadExport({ex}) {
     if (!ex?.id) return;
     supabase.auth.getSession().then(({data:{session}})=>{
       const token = session?.access_token||"";
-      fetch(`/api/v1/crm/status?event_id=${ex.id}`,{
+      fetch(`/api/proxy?slug=v1/crm/status&event_id=${ex.id}`,{
         headers:{"x-fingoh-auth":`Bearer ${token}`}
       }).then(r=>r.json()).then(data=>{
         const zoho = (data.connections||[]).find(c=>c.provider==="zoho");
@@ -5348,7 +5348,7 @@ function LeadExport({ex}) {
     try {
       const {data:{session}} = await supabase.auth.getSession();
       const token = session?.access_token||"";
-      const r = await fetch(`/api/v1/crm/zoho/push-leads?event_id=${ex.id}&tiers=${encodeURIComponent(tiers)}`,{
+      const r = await fetch(`/api/proxy?slug=v1/crm/zoho/push-leads&event_id=${ex.id}&tiers=${encodeURIComponent(tiers)}`,{
         method:"POST",
         headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"}
       });
@@ -6313,7 +6313,7 @@ function AgentPanel({ex, onClose, onQueueLoaded}) {
       const prompt = buildAgentPrompt(item.agentId, item, ex);
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      const res = await fetch("/api/v1/agent/generate", {
+      const res = await fetch("/api/proxy?slug=v1/agent/generate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -6405,7 +6405,7 @@ Be specific and actionable. Missing signals should be questions that, if asked, 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      const res = await fetch("/api/v1/agent/send", {
+      const res = await fetch("/api/proxy?slug=v1/agent/send", {
         method: "POST",
         headers: {
           "Content-Type":  "application/json",
@@ -8444,7 +8444,7 @@ function UserMenu({ profile } = {}) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      const res = await fetch("/api/v1/onboarding/me", {
+      const res = await fetch("/api/proxy?slug=v1/onboarding/me", {
         method:"PATCH",
         headers:{"Content-Type":"application/json","x-fingoh-auth":`Bearer ${token}`},
         body:JSON.stringify({ name: userName.trim() }),
@@ -9077,7 +9077,7 @@ function GdprContent() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || "";
-      await fetch(`/api/v1/audience/save-research/${contactId}`, {
+      await fetch(`/api/proxy?slug=v1/audience/save-research/${contactId}`, {
         method: "POST",
         headers: { "x-fingoh-auth": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ iei_research: data }),
