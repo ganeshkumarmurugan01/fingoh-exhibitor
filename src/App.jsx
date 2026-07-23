@@ -1023,7 +1023,7 @@ function PlanAccountCard({planInfo, profile}) {
           max={planInfo.max_events >= 999 ? 9999 : planInfo.max_events}
           color="#3B9EE8"
         />
-        <Stat label="Contacts / event"  used={null} max={maxContacts} color="#4CAF50"/>
+        <Stat label="Contacts / event"  used={planInfo.total_contacts ?? null} max={maxContacts} color="#4CAF50"/>
         <Stat label="Deep IEI / event"  used={null} max={maxDeepIEI}  color="#8B5CF6"/>
       </div>
 
