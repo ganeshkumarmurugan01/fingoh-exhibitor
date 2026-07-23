@@ -9201,7 +9201,7 @@ function RegistrationPage({ eventId }) {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return;
     setEmailChecking(true);
     try {
-      const res = await fetch(`/api/v1/audience/register/${eventId}/check-email?email=${encodeURIComponent(email)}`);
+      const res = await fetch(`/api/proxy?slug=v1/audience/register/${eventId}/check-email&email=${encodeURIComponent(email)}`);
       const data = await res.json();
       if (data.already_registered) {
         setEmailStatus("registered");
@@ -9268,8 +9268,8 @@ function RegistrationPage({ eventId }) {
       try { setEventInfo(JSON.parse(cached)); setLoading(false); return; } catch {}
     }
     Promise.all([
-      fetch(`/api/v1/audience/register/${eventId}/info`).then(r => r.json()),
-      fetch(`/api/v1/offerings/event/${eventId}/public`).then(r => r.json()).catch(() => [])
+      fetch(`/api/proxy?slug=v1/audience/register/${eventId}/info`).then(r => r.json()),
+      fetch(`/api/proxy?slug=v1/offerings/event/${eventId}/public`).then(r => r.json()).catch(() => [])
     ]).then(([data, offs]) => {
         setEventInfo(data);
         setOfferings(Array.isArray(offs) ? offs : []);
@@ -9312,7 +9312,7 @@ function RegistrationPage({ eventId }) {
   const handleSubmit = async () => {
     setSaving(true); setError("");
     try {
-      const res = await fetch(`/api/v1/audience/register/${eventId}`, {
+      const res = await fetch(`/api/proxy?slug=v1/audience/register/${eventId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
