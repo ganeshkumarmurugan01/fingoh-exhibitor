@@ -301,7 +301,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
   const [newSpec, setNewSpec] = useState('');
   const [offeringSaving, setOfferingSaving] = useState(false);
   const resetOfferingForm = () => {
-    setOfferingForm({ type: 'product', name: '', category: '', short_description: '', key_specifications: [], target_industries: [] });
+    setOfferingForm({ type: 'product', name: '', category: [], short_description: '', key_specifications: [], target_industries: [] });
     setNewSpec('');
     setShowAddOffering(false);
   };
@@ -654,7 +654,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                             {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
                           </span>
                           <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
-                          {o.category && <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{o.category}</span>}
+                          {o.category?.length > 0 && <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</span>}
                         </div>
                         <button onClick={()=>setOfferings(prev=>prev.filter(o2=>o2.id!==o.id))}
                           style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
@@ -696,11 +696,11 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                       <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
                       <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                         {(selCats||[]).map(cat => (
-                          <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:f.category===cat?"":cat}))}
+                          <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:f.category.includes(cat)?f.category.filter(c=>c!==cat):[...f.category,cat]}))}
                             style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
-                              borderColor:offeringForm.category===cat?C.navy:"#E2E8F0",
-                              background:offeringForm.category===cat?C.navy:"white",
-                              color:offeringForm.category===cat?"white":C.muted,fontWeight:600}}>
+                              borderColor:offeringForm.category.includes(cat)?C.navy:"#E2E8F0",
+                              background:offeringForm.category.includes(cat)?C.navy:"white",
+                              color:offeringForm.category.includes(cat)?"white":C.muted,fontWeight:600}}>
                             {cat}
                           </button>
                         ))}
@@ -7591,7 +7591,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   }, [ex?.id, activeSection]);
 
   const resetOfferingForm = () => {
-    setOfferingForm({ type: 'product', name: '', category: '', short_description: '', key_specifications: [], target_industries: [] });
+    setOfferingForm({ type: 'product', name: '', category: [], short_description: '', key_specifications: [], target_industries: [] });
     setNewSpec('');
     setNewIndustry('');
     setEditingOffering(null);
@@ -7666,7 +7666,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
                       <button onClick={()=>handleDeleteOffering(o.id)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>Delete</button>
                     </div>
                   </div>
-                  {o.category && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Category: {o.category}</p>}
+                  {o.category?.length > 0 && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Categories: {(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</p>}
                   {o.short_description && <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{o.short_description}</p>}
                   {o.key_specifications?.length > 0 && (
                     <ul style={{margin:"4px 0 0",paddingLeft:16}}>
@@ -7711,11 +7711,11 @@ function EventSetup({ex, onUpdate, onDelete}) {
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {(ex.cats||[]).map(cat => (
-                    <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:f.category===cat?"":cat}))}
+                    <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:(f.category||[]).includes(cat)?(f.category||[]).filter(c=>c!==cat):[...(f.category||[]),cat]}))}
                       style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
-                        borderColor:offeringForm.category===cat?C.navy:"#E2E8F0",
-                        background:offeringForm.category===cat?C.navy:"white",
-                        color:offeringForm.category===cat?"white":C.muted,fontWeight:600}}>
+                        borderColor:(offeringForm.category||[]).includes(cat)?C.navy:"#E2E8F0",
+                        background:(offeringForm.category||[]).includes(cat)?C.navy:"white",
+                        color:(offeringForm.category||[]).includes(cat)?"white":C.muted,fontWeight:600}}>
                       {cat}
                     </button>
                   ))}
