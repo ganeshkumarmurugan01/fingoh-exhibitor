@@ -3147,7 +3147,31 @@ function MeetingsScreen({ex}) {
 
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div><label style={lS}>Date *</label><input type="date" value={form.date} min={ex?.date_from || undefined} max={ex?.date_to || undefined} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={iS}/></div>
+                <div>
+                  <label style={lS}>Date *</label>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                    {(()=>{
+                      if (!ex?.date_from || !ex?.date_to) return null;
+                      const dates = [];
+                      const cur = new Date(ex.date_from);
+                      const end = new Date(ex.date_to);
+                      while (cur <= end) {
+                        const d = cur.toISOString().slice(0,10);
+                        const label = cur.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+                        const sel = form.date === d;
+                        dates.push(
+                          <button key={d} type="button"
+                            onClick={()=>setForm(p=>({...p,date:d}))}
+                            style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${sel?"#0D1B3E":"#E2E8F0"}`,background:sel?"#0D1B3E":"white",color:sel?"white":"#374151",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                            {label}
+                          </button>
+                        );
+                        cur.setDate(cur.getDate()+1);
+                      }
+                      return dates;
+                    })()}
+                  </div>
+                </div>
                 <div><label style={lS}>Time *</label><input type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} style={iS}/></div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
