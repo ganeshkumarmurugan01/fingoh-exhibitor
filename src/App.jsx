@@ -3147,7 +3147,7 @@ function MeetingsScreen({ex}) {
 
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div><label style={lS}>Date *</label><input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={iS}/></div>
+                <div><label style={lS}>Date *</label><input type="date" value={form.date} min={ex?.date_from || undefined} max={ex?.date_to || undefined} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={iS}/></div>
                 <div><label style={lS}>Time *</label><input type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} style={iS}/></div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
