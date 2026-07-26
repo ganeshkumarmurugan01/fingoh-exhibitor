@@ -3149,28 +3149,22 @@ function MeetingsScreen({ex}) {
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 <div>
                   <label style={lS}>Date *</label>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                  <select value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={{...iS,appearance:"auto"}}>
+                    <option value="">Select a date</option>
                     {(()=>{
                       if (!ex?.dateFrom || !ex?.dateTo) return null;
-                      const dates = [];
+                      const opts = [];
                       const cur = new Date(ex.dateFrom);
                       const end = new Date(ex.dateTo);
                       while (cur <= end) {
                         const d = cur.toISOString().slice(0,10);
-                        const label = cur.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
-                        const sel = form.date === d;
-                        dates.push(
-                          <button key={d} type="button"
-                            onClick={()=>setForm(p=>({...p,date:d}))}
-                            style={{padding:"7px 12px",borderRadius:8,border:`1.5px solid ${sel?"#0D1B3E":"#E2E8F0"}`,background:sel?"#0D1B3E":"white",color:sel?"white":"#374151",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
-                            {label}
-                          </button>
-                        );
+                        const label = cur.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+                        opts.push(<option key={d} value={d}>{label}</option>);
                         cur.setDate(cur.getDate()+1);
                       }
-                      return dates;
+                      return opts;
                     })()}
-                  </div>
+                  </select>
                 </div>
                 <div><label style={lS}>Time *</label><input type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} style={iS}/></div>
               </div>
