@@ -3151,10 +3151,10 @@ function MeetingsScreen({ex}) {
                   <label style={lS}>Date *</label>
                   <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
                     {(()=>{
-                      if (!ex?.date_from || !ex?.date_to) return null;
+                      if (!ex?.dateFrom || !ex?.dateTo) return null;
                       const dates = [];
-                      const cur = new Date(ex.date_from);
-                      const end = new Date(ex.date_to);
+                      const cur = new Date(ex.dateFrom);
+                      const end = new Date(ex.dateTo);
                       while (cur <= end) {
                         const d = cur.toISOString().slice(0,10);
                         const label = cur.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
