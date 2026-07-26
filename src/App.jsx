@@ -3147,7 +3147,25 @@ function MeetingsScreen({ex}) {
 
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div><label style={lS}>Date *</label><input type="date" value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={iS}/></div>
+                <div>
+                  <label style={lS}>Date *</label>
+                  <select value={form.date} onChange={e=>setForm(p=>({...p,date:e.target.value}))} style={{...iS,appearance:"auto"}}>
+                    <option value="">Select a date</option>
+                    {(()=>{
+                      if (!ex?.dateFrom || !ex?.dateTo) return null;
+                      const opts = [];
+                      const cur = new Date(ex.dateFrom);
+                      const end = new Date(ex.dateTo);
+                      while (cur <= end) {
+                        const d = cur.toISOString().slice(0,10);
+                        const label = cur.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});
+                        opts.push(<option key={d} value={d}>{label}</option>);
+                        cur.setDate(cur.getDate()+1);
+                      }
+                      return opts;
+                    })()}
+                  </select>
+                </div>
                 <div><label style={lS}>Time *</label><input type="time" value={form.time} onChange={e=>setForm(p=>({...p,time:e.target.value}))} style={iS}/></div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
