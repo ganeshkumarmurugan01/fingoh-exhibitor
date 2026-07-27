@@ -17,8 +17,10 @@ export default async function handler(req, res) {
     const eventId = req.query.event_id
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
 
+    const backendUrl = process.env.BACKEND_URL || 'https://api.fingoh.ai'
+
     const upstream = await fetch(
-      `https://web-production-93e78d.up.railway.app/api/v1/audience/upload/${eventId}`,
+      `${backendUrl}/api/v1/audience/upload/${eventId}`,
       {
         method: 'POST',
         headers: { 'x-fingoh-auth': auth, 'content-type': contentType },
