@@ -1,4 +1,10 @@
-export const config = { api: { bodyParser: false } }
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+  maxDuration: 120,
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -25,6 +31,7 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'x-fingoh-auth': auth, 'content-type': contentType },
         body: buffer,
+        signal: AbortSignal.timeout(115000),
       }
     )
 

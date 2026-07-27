@@ -2330,7 +2330,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
                         <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.blue}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
                         <p style={{fontSize:12,color:C.blue,fontWeight:600,margin:0}}>Analysing visitors with IEI framework…</p>
-                        <p style={{fontSize:11,color:C.muted,margin:0}}>Claude is enriching profiles · XGBoost scoring 41 signals · This may take 20–30 seconds</p>
+                        <p style={{fontSize:11,color:C.muted,margin:0}}>Fingoh is enriching profiles · XGBoost scoring 41 signals · This may take 20–30 seconds</p>
                       </div>
                     ) : (
                       <label htmlFor="csv-upload"
