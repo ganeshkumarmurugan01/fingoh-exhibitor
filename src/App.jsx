@@ -3200,7 +3200,7 @@ function MeetingsScreen({ex}) {
 // SCREEN — IEI Analysis (Pre-event)
 // Cox PH attendance prediction · IEI tier & score · no regProb
 // ═══════════════════════════════════════════════════════════════════
-function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData, setResearchData, researchLoading, researchError, fetchResearch}) {
+function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData, setResearchData, researchLoading, researchLoadingIds, researchError, fetchResearch}) {
   const [selId,setSelId]     = useState(null);
   const [tab,setTab]         = useState("layers");
   const [filter,setFilter]   = useState("All");
@@ -3443,7 +3443,7 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
         <p style={{fontSize:12,color:C.muted2}}>Or click "+ Add visitor" to profile anyone</p>
       </div>
     );
-    if(researchLoading && !rd) return (
+    if(researchLoadingIds.has(p?.contactId) && !rd) return (
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:400}}>
         <div style={{width:44,height:44,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
         <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research — {p?.name}…</p>
@@ -9097,7 +9097,8 @@ function GdprContent() {
 
   // ── Research state — lives at App level so tab switches don't kill in-flight fetches ──
   const [researchData, setResearchData]     = useState({});
-  const [researchLoading, setResearchLoading] = useState(false);
+  const [researchLoadingIds, setResearchLoadingIds] = useState(new Set());
+  const researchLoading = researchLoadingIds.size > 0;
   const [researchError, setResearchError]   = useState("");
 
   // Reset research state when switching events
@@ -9122,7 +9123,7 @@ function GdprContent() {
       setResearchError("No IEI credits remaining for this event. Please contact hello@fingoh.ai to top up.");
       return;
     }
-    setResearchLoading(true);
+    setResearchLoadingIds(prev => new Set([...prev, contactId]));
     setResearchError("");
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -9146,7 +9147,7 @@ function GdprContent() {
       if (data.iei_credits_remaining !== undefined) setIeiCredits(data.iei_credits_remaining);
       saveResearch(contactId, data);
     } catch(e) { setResearchError("Research failed — please try again."); }
-    finally { setResearchLoading(false); }
+    finally { setResearchLoadingIds(prev => { const n = new Set(prev); n.delete(contactId); return n; }); }
   };
 
   // Fetch iei_credits for the active event whenever the event changes
@@ -9777,7 +9778,7 @@ function RegistrationPage({ eventId }) {
     <>
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features} ieiCredits={ieiCredits}>
         {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>}
-        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchError={researchError} fetchResearch={fetchResearch}/>}
+        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchLoadingIds={researchLoadingIds} researchError={researchError} fetchResearch={fetchResearch}/>}
         {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
         {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
