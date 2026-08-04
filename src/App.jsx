@@ -3523,13 +3523,6 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
             <Tab key={id} id={id} label={lbl} active={tab===id} onClick={setTab}/>
           ))}
         </div>
-        {researchLoadingIds.has(p?.contactId) && !rd ? (
-          <div style={{display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14,minHeight:280,background:C.white}}>
-            <div style={{width:40,height:40,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-            <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running Deep IEI research — {p?.name}…</p>
-            <p style={{fontSize:11,color:C.muted,margin:0}}>This may take 30–60 seconds</p>
-          </div>
-        ) : (
         <div style={{padding:18,overflowY:"auto",maxHeight:450}}>
           {/* PREDICTIONS TAB */}
           {tab==="predict" && (()=>{
@@ -3756,7 +3749,6 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
             </div>
           )}
         </div>
-        )}
       </div>
     );
   };
