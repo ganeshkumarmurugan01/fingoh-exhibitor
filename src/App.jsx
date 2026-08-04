@@ -8585,7 +8585,7 @@ function UserMenu({ profile } = {}) {
                     {[
                       {icon:"🎧", label:"Talk with us",   href:"mailto:hello@fingoh.ai"},
                       {icon:"✉️", label:"Write to us",    href:"mailto:hello@fingoh.ai"},
-                      {icon:"📚", label:"Documentation",  href:"https://fingoh.ai"},
+                      {icon:"📚", label:"Documentation",  href:"https://docs.fingoh.ai"},
                       {icon:"🚀", label:"What's new",     href:"https://fingoh.ai"},
                     ].map(({icon,label,href})=>(
                       <a key={label} href={href} target="_blank" rel="noreferrer"
