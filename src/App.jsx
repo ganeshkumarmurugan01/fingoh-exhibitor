@@ -3444,8 +3444,14 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
       </div>
     );
     if(researchLoadingIds.has(p?.contactId) && !rd) return (
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:400}}>
+        <div style={{width:44,height:44,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+        <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research — {p?.name}…</p>
+      </div>
+    );
+    return (
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
-        {/* Profile header — stays visible during research */}
+        {/* Profile header */}
         <div style={{background:"linear-gradient(135deg,#0D1B3E,#1E2A4A)",padding:"18px 22px",display:"flex",alignItems:"center",gap:14}}>
           <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:C.white,border:"1.5px solid rgba(255,255,255,0.2)",flexShrink:0}}>
             {p.name.split(" ").map(n=>n[0]).join("")}
