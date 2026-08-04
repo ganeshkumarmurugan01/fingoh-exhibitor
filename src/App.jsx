@@ -5760,9 +5760,7 @@ function PredictedFunnel({ex}) {
                       <span>{r}</span>
                     </div>
                   ))}
-                  <button style={{marginTop:6,padding:"6px 14px",background:C.red,color:C.white,border:"none",borderRadius:7,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-                    Generate interventions
-                  </button>
+
                 </div>
               )}
             </div>
