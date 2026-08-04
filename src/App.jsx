@@ -5842,6 +5842,8 @@ function OutcomesDashboard({ex}) {
   const [contacts, setContacts] = React.useState([]);
   const [loadingContacts, setLoadingContacts] = React.useState(true);
 
+  const [meetings, setMeetings] = React.useState([]);
+
   React.useEffect(() => {
     if (!ex?.id) return;
     setLoadingContacts(true);
@@ -5853,13 +5855,21 @@ function OutcomesDashboard({ex}) {
       .then(r => r.json())
       .then(data => { setContacts(Array.isArray(data) ? data : (data?.contacts || [])); setLoadingContacts(false); })
       .catch(() => setLoadingContacts(false));
+
+      // Also fetch actual meeting requests
+      fetch(`/api/proxy?slug=v1/meetings/${ex.id}`, {
+        headers: { "x-fingoh-auth": `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => { setMeetings(Array.isArray(data) ? data : []); })
+      .catch(() => {});
     });
   }, [ex?.id]);
 
   // Real actuals from on-site data
   const totalUploaded   = contacts.length;
   const visitedBooth    = contacts.filter(c => c.onsite_iei_score).length;
-  const meetingsBooked  = contacts.filter(c => c.onsite_signals?.meeting_booked).length;
+  const meetingsBooked  = meetings.filter(m => ["accepted","completed"].includes(m.status)).length;
   const hotTier         = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T1").length;
   const warmTier        = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T2").length;
   const avgIEI          = totalUploaded > 0 ? (contacts.reduce((s,c)=>s+(c.iei_score||0),0)/totalUploaded).toFixed(1) : 0;
