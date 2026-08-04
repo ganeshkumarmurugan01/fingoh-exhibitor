@@ -8781,10 +8781,10 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
       border:"#99F6E4",
       items: isPast ? [
         {id:"live",        label:"Live Dashboard",   icon:"◉"},
-        {id:"agent",       label:"Fingoh Agent",     icon:"✦"},
+        // {id:"agent",       label:"Fingoh Agent",     icon:"✦"},
       ] : [
         {id:"live",        label:"Live Dashboard",   icon:"◉"},
-        {id:"agent",       label:"Fingoh Agent",     icon:"✦"},
+        // {id:"agent",       label:"Fingoh Agent",     icon:"✦"},
       ]
     },
     {
