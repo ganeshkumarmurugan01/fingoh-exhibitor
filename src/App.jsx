@@ -2377,7 +2377,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
                 {[
                   ["Zoho CRM","🟥","zoho",true],
-                  ["Salesforce CRM","☁️","sfdc",true],
+                  ["Salesforce CRM","☁️","sfdc",import.meta.env.VITE_SF_ENABLED==="true"],
                   ["HubSpot","🟠","hs",false],
                   ["Microsoft Dynamics","🔵","ms",false],
                   ["Pipedrive","🟢","pd",false],
