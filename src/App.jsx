@@ -2198,12 +2198,15 @@ function AudienceUpload({ex, onNext, planFeatures}) {
   // Check CRM connection status on mount + handle OAuth callback return
   React.useEffect(()=>{
     const params = new URLSearchParams(window.location.search);
-    const connected = params.get("crm_connected");
-    const crmErr    = params.get("crm_error");
-    if (connected || crmErr) {
+    const connected   = params.get("crm_connected");
+    const sfConnected = params.get("sf_connected");
+    const crmErr      = params.get("crm_error");
+    const sfErr       = params.get("sf_error");
+    if (connected || crmErr || sfConnected || sfErr) {
       // Clean URL
       window.history.replaceState({}, "", window.location.pathname);
-      if (connected) setSource("database");
+      if (connected || sfConnected) setSource("database");
+      if (sfConnected) setSfCrmConnected(true);
     }
     // Fetch current CRM status for this event
     if (!ex?.id) return;
@@ -2223,6 +2226,16 @@ function AudienceUpload({ex, onNext, planFeatures}) {
       })
       .catch(()=>{});
     });
+    // Check Salesforce connection
+    if (!ex?.org_id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token||"";
+      fetch(`/api/proxy?slug=v1/integrations/salesforce/status&org_id=${ex.org_id}`,{
+        headers:{"x-fingoh-auth":`Bearer ${token}`}
+      }).then(r=>r.json()).then(data=>{
+        if (data.connected) setSfCrmConnected(true);
+      }).catch(()=>{});
+    });
   },[ex?.id]);
   const [source, setSource] = useState("upload");
   const [uploadDone, setUploadDone]   = useState(false);
@@ -2230,6 +2243,8 @@ function AudienceUpload({ex, onNext, planFeatures}) {
   const [crmStatus, setCrmStatus]     = useState(null); // {provider, status, record_count, last_synced_at}
   const [crmLoading, setCrmLoading]   = useState(false);
   const [crmSyncing, setCrmSyncing]   = useState(false);
+  const [sfCrmConnected, setSfCrmConnected] = useState(false);
+  const [sfCrmLoading, setSfCrmLoading]     = useState(false);
   const [regLive, setRegLive]         = useState(false);
   const [uploading, setUploading]     = useState(false);
   const [totalRecords, setTotalRecords] = useState(0);
@@ -2362,28 +2377,41 @@ function AudienceUpload({ex, onNext, planFeatures}) {
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:24}}>
                 {[
                   ["Zoho CRM","🟥","zoho",true],
-                  ["Salesforce CRM","🟦","sfdc",false],
+                  ["Salesforce CRM","☁️","sfdc",import.meta.env.VITE_SF_ENABLED==="true"],
                   ["HubSpot","🟠","hs",false],
                   ["Microsoft Dynamics","🔵","ms",false],
                   ["Pipedrive","🟢","pd",false],
                   ["Custom / REST API","⚙️","api",false],
                 ].map(([name,icon,id,supported])=>{
-                  const isConnected = crmStatus?.provider===id || (crmStatus?.provider==="zoho"&&id==="zoho");
+                  const isConnected = (id==="zoho" && crmStatus?.provider==="zoho") || (id==="sfdc" && sfCrmConnected);
                   return (
                     <div key={id}
                       onClick={async()=>{
                         if (!supported) return;
                         if (isConnected) return;
-                        setCrmLoading(true);
-                        const {data:{session}} = await supabase.auth.getSession();
-                        const token = session?.access_token||"";
-                        const r = await fetch(`/api/proxy?slug=v1/crm/zoho/auth-url&event_id=${ex.id}`,{
-                          headers:{"x-fingoh-auth":`Bearer ${token}`}
-                        });
-                        setCrmLoading(false);
-                        if (!r.ok) { alert(`CRM error: ${r.status} ${await r.text()}`); return; }
-                        const data = await r.json();
-                        if (data.url) window.location.href = data.url;
+                        if (id==="zoho") {
+                          setCrmLoading(true);
+                          const {data:{session}} = await supabase.auth.getSession();
+                          const token = session?.access_token||"";
+                          const r = await fetch(`/api/proxy?slug=v1/crm/zoho/auth-url&event_id=${ex.id}`,{
+                            headers:{"x-fingoh-auth":`Bearer ${token}`}
+                          });
+                          setCrmLoading(false);
+                          if (!r.ok) { alert(`CRM error: ${r.status} ${await r.text()}`); return; }
+                          const data = await r.json();
+                          if (data.url) window.location.href = data.url;
+                        } else if (id==="sfdc") {
+                          setSfCrmLoading(true);
+                          const {data:{session}} = await supabase.auth.getSession();
+                          const token = session?.access_token||"";
+                          const r = await fetch(`/api/proxy?slug=v1/integrations/salesforce/auth-url&org_id=${ex.org_id}`,{
+                            headers:{"x-fingoh-auth":`Bearer ${token}`}
+                          });
+                          setSfCrmLoading(false);
+                          if (!r.ok) { alert(`Salesforce error: ${r.status} ${await r.text()}`); return; }
+                          const data = await r.json();
+                          if (data.url) window.location.href = data.url;
+                        }
                       }}
                       style={{
                         padding:"14px 18px",
@@ -2401,9 +2429,9 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                         <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:0}}>{name}</p>
                         {isConnected && <p style={{fontSize:10,color:C.green,margin:0,fontWeight:600}}>✓ Connected · {crmStatus?.record_count||0} contacts synced</p>}
                         {!supported && <p style={{fontSize:10,color:C.muted,margin:0}}>Coming soon</p>}
-                        {supported&&!isConnected&&id==="zoho" && <p style={{fontSize:10,color:C.blue,margin:0}}>Click to connect</p>}
+                        {supported&&!isConnected && <p style={{fontSize:10,color:C.blue,margin:0}}>Click to connect</p>}
                       </div>
-                      {crmLoading&&id==="zoho"&&!isConnected && (
+                      {((crmLoading&&id==="zoho")||(sfCrmLoading&&id==="sfdc"))&&!isConnected && (
                         <div style={{width:14,height:14,border:"2px solid #E2E8F0",borderTop:`2px solid ${C.navy}`,borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
                       )}
                     </div>
@@ -5308,6 +5336,9 @@ function LeadExport({ex}) {
   const [pushingCRM, setPushingCRM]   = useState(false);
   const [pushedCRM, setPushedCRM]     = useState(null); // {pushed, total, errors}
   const [crmConnected, setCrmConnected] = useState(false);
+  const [pushingSF, setPushingSF]     = useState(false);
+  const [pushedSF, setPushedSF]       = useState(null); // {pushed, total, errors}
+  const [sfConnected, setSfConnected] = useState(false);
 
   useEffect(() => {
     if (!ex?.id) return;
@@ -5337,6 +5368,18 @@ function LeadExport({ex}) {
       }).catch(()=>{});
     });
   },[ex?.id]);
+
+  useEffect(()=>{
+    if (!ex?.org_id) return;
+    supabase.auth.getSession().then(({data:{session}})=>{
+      const token = session?.access_token||"";
+      fetch(`/api/proxy?slug=v1/integrations/salesforce/status&org_id=${ex.org_id}`,{
+        headers:{"x-fingoh-auth":`Bearer ${token}`}
+      }).then(r=>r.json()).then(data=>{
+        if (data.connected) setSfConnected(true);
+      }).catch(()=>{});
+    });
+  },[ex?.org_id]);
 
   // Use onsite tier/score if available, fall back to pre-event
   const hot  = contacts.filter(c => (c.onsite_iei_tier||c.iei_tier) === "T1")
@@ -5379,6 +5422,25 @@ function LeadExport({ex}) {
       setPushingCRM(false);
     }
   };
+  const pushToSalesforce = async (tiers="Hot,Warm") => {
+    setPushingSF(true);
+    try {
+      const {data:{session}} = await supabase.auth.getSession();
+      const token = session?.access_token||"";
+      const r = await fetch(`/api/proxy?slug=v1/integrations/salesforce/push-leads&event_id=${ex.id}&org_id=${ex.org_id}&tiers=${encodeURIComponent(tiers)}`,{
+        method:"POST",
+        headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"}
+      });
+      if (!r.ok) { alert(`Salesforce push failed: ${r.status} ${await r.text()}`); return; }
+      const data = await r.json();
+      setPushedSF(data);
+    } catch(e) {
+      alert("Failed to push to Salesforce");
+    } finally {
+      setPushingSF(false);
+    }
+  };
+
   const LeadRow = ({c, i, accent, textColor, bgLight}) => {
     const score    = c.onsite_iei_score || c.iei_score || 0;
     const tier     = c.onsite_iei_tier  || c.iei_tier  || "";
@@ -5462,6 +5524,36 @@ function LeadExport({ex}) {
             {pushingCRM
               ? <><div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .8s linear infinite"}}/> Pushing…</>
               : pushedCRM ? `✓ ${pushedCRM.pushed} leads pushed` : "🟥 Push to Zoho CRM"}
+          </button>
+        )}
+      </div>
+
+      {/* Salesforce Push banner */}
+      <div style={{background:sfConnected?"#F0FDF4":"#F8FAFC",border:`1px solid ${sfConnected?"#86EFAC":"#E2E8F0"}`,borderRadius:12,padding:"14px 18px",marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <p style={{fontSize:13,fontWeight:600,color:sfConnected?C.navy:C.muted,margin:0}}>
+            {sfConnected ? "☁️ Salesforce connected — push leads directly" : "Connect Salesforce to push leads directly"}
+          </p>
+          <p style={{fontSize:11,color:C.muted,margin:"2px 0 0 0"}}>
+            {sfConnected
+              ? "Pushes Hot + Warm leads with full IEI research, meeting notes and signals as Salesforce Leads"
+              : "Go to Event Setup → Integrations to connect Salesforce"}
+          </p>
+          {pushedSF && (
+            <p style={{fontSize:11,color:C.green,margin:"4px 0 0 0",fontWeight:600}}>
+              ✓ {pushedSF.pushed} of {pushedSF.total} leads pushed to Salesforce
+              {pushedSF.errors?.length>0 && ` · ${pushedSF.errors.length} errors`}
+            </p>
+          )}
+        </div>
+        {sfConnected && (
+          <button
+            disabled={pushingSF}
+            onClick={()=>pushToSalesforce("Hot,Warm")}
+            style={{padding:"9px 18px",background:pushingSF?"#CBD5E1":pushedSF?"#16A34A":"#0EA5E9",color:"#fff",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:pushingSF?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6,flexShrink:0,marginLeft:16}}>
+            {pushingSF
+              ? <><div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin .8s linear infinite"}}/> Pushing…</>
+              : pushedSF ? `✓ ${pushedSF.pushed} leads pushed` : "☁️ Push to Salesforce"}
           </button>
         )}
       </div>
