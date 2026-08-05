@@ -2402,7 +2402,6 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                           if (data.url) window.location.href = data.url;
                         } else if (id==="sfdc") {
                           setSfCrmLoading(true);
-                          console.log("SF connect: ex.org_id=", ex?.org_id, "ex=", ex);
                           const {data:{session}} = await supabase.auth.getSession();
                           const token = session?.access_token||"";
                           const r = await fetch(`/api/proxy?slug=v1/integrations/salesforce/auth-url&org_id=${ex.org_id}`,{
