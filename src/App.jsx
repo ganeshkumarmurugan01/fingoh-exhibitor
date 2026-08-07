@@ -7214,6 +7214,16 @@ function BrandSaveBtn({emailConfig, ex, setEmailSaved}) {
   );
 }
 
+function EventSetupInput({label, value, onChange, type="text", placeholder}) {
+  return (
+    <div style={{marginBottom:14}}>
+      <label style={{fontSize:11,fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>{label}</label>
+      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||label}
+        style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:"Inter,system-ui,sans-serif",outline:"none",boxSizing:"border-box"}}/>
+    </div>
+  );
+}
+
 function EventSetup({ex, onUpdate, onDelete}) {
   if (!ex) return null;
 
@@ -7357,13 +7367,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
       <div style={{fontSize:13,color:C.dark,lineHeight:1.5}}>{value || <span style={{color:C.muted2,fontStyle:"italic"}}>Not set</span>}</div>
     </div>
   );
-  const Input = ({label, value, onChange, type="text", placeholder}) => (
-    <div style={{marginBottom:14}}>
-      <label style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,display:"block",marginBottom:5}}>{label}</label>
-      <input type={type} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder||label}
-        style={{width:"100%",padding:"8px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,outline:"none",boxSizing:"border-box"}}/>
-    </div>
-  );
+  // Input defined outside component to prevent focus loss
   const SaveBar = () => (
     <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:10,marginTop:20,paddingTop:16,borderTop:"1px solid #F1F5F9"}}>
       {error && <p style={{fontSize:11,color:"#DC2626",margin:0}}>⚠ {error}</p>}
@@ -7495,10 +7499,10 @@ function EventSetup({ex, onUpdate, onDelete}) {
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Company & booth</h2>
       <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Your company details and booth configuration for this event.</p>
-      <Input label="Company name"       value={form.company}   onChange={v=>upd("company",v)}/>
-      <Input label="Product / solution" value={form.product}   onChange={v=>upd("product",v)}  placeholder="What are you showcasing?"/>
-      <Input label="Website"            value={form.website}   onChange={v=>upd("website",v)}   placeholder="https://"/>
-      <Input label="Booth size (m²)"    value={form.boothSize} onChange={v=>upd("boothSize",v)} placeholder="e.g. 36"/>
+      <EventSetupInput label="Company name"       value={form.company}   onChange={v=>upd("company",v)}/>
+      <EventSetupInput label="Product / solution" value={form.product}   onChange={v=>upd("product",v)}  placeholder="What are you showcasing?"/>
+      <EventSetupInput label="Website"            value={form.website}   onChange={v=>upd("website",v)}   placeholder="https://"/>
+      <EventSetupInput label="Booth size (m²)"    value={form.boothSize} onChange={v=>upd("boothSize",v)} placeholder="e.g. 36"/>
       <SaveBar/>
     </div>
   );
