@@ -407,6 +407,11 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
 
   const handleCreate = () => {
     setCreating(true); setCreateError(null);
+    const VERTICAL_MAP = {
+      "pharma": "pharma",
+      "electronics": "electronics",
+      "logistics": "logistics",
+    };
     apiCreateEvent({
       name: evName, type: evType, type_label: selType.label,
       date_from: dateFrom, date_to: dateTo, venue, country,
@@ -415,6 +420,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
       icp_roles: icpRole, icp_company_sizes: icpSize, icp_visit_reasons: icpReason,
       intent_why: intentWhy, intent_buyers: intentBuyers,
       intent_signals: intentSignals, buyer_signals: buyerSignals,
+      industry_vertical: VERTICAL_MAP[evType] || "general",
     })
     .then(async newEvent => {
       // Save offerings if any
@@ -1268,7 +1274,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
-                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product});
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,industry_vertical:ev.industry_vertical||"general"});
                 }
               }}
                 style={{width:"100%",padding:"9px 0",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
@@ -1307,7 +1313,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
-                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,isPast:true});
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,isPast:true,industry_vertical:ev.industry_vertical||"general"});
                 }
               }}
                 style={{width:"100%",padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
@@ -7284,6 +7290,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   // Editable form state
   const [form, setForm] = useState({
     company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
+    industryVertical: ex.industry_vertical || ex.industryVertical || "general",
     dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
     venue: ex.venue || "", country: ex.country || "",
     cats:      ex.cats      || [],
@@ -7311,6 +7318,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
           company: form.company, product: form.product, website: form.website, booth_size: form.boothSize,
           date_from: form.dateFrom, date_to: form.dateTo,
           venue: form.venue, country: form.country,
+          industry_vertical: form.industryVertical,
           ...extraFields,
         })
       });
@@ -7390,6 +7398,29 @@ function EventSetup({ex, onUpdate, onDelete}) {
         <Field label="Event name"  value={ex.name}/>
         <Field label="Event type"  value={ex.type}/>
         <Field label="Event ID"    value={ex.id}/>
+      </div>
+
+      {/* Industry Vertical */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>🏭 Industry vertical</p>
+          <SaveBar/>
+        </div>
+        <p style={{fontSize:11,color:C.muted,margin:"0 0 12px"}}>Select the industry this event belongs to. Fingoh uses a specialised AI scoring model for each vertical.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
+          {[
+            ["general",      "🌐 General",       "Default model — suitable for mixed industry events"],
+            ["pharma",       "💊 Pharma & Life Sciences", "Pharmaceutical, biotech, API, medical devices, pharma manufacturing"],
+            ["electronics",  "⚡ Electronics & Deep Tech", "Semiconductors, VLSI, PCB, IoT, embedded systems, defence electronics"],
+            ["logistics",    "🚚 Logistics & Supply Chain", "Warehousing, 3PL, freight, cold chain, last-mile delivery"],
+          ].map(([val, label, desc])=>(
+            <div key={val} onClick={()=>upd("industryVertical", val)}
+              style={{padding:"12px 14px",border:`2px solid ${form.industryVertical===val?C.navy:"#E2E8F0"}`,borderRadius:10,cursor:"pointer",background:form.industryVertical===val?C.ltnavy:C.white,transition:"all .15s"}}>
+              <p style={{fontSize:12,fontWeight:700,color:form.industryVertical===val?C.navy:C.dark,margin:"0 0 3px"}}>{form.industryVertical===val?"✓ ":""}{label}</p>
+              <p style={{fontSize:10,color:C.muted,margin:0,lineHeight:1.4}}>{desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Editable dates section */}
