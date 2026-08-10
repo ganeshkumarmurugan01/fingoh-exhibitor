@@ -1492,8 +1492,9 @@ function ManualEntryForm({eventId, onSaved}) {
   const [saving, setSaving]         = React.useState(false);
   const [error, setError]           = React.useState("");
   const [fErrors, setFErrors]       = React.useState({});
-  const [emailExists, setEmailExists] = React.useState(null); // null | {name, company}
+  const [emailExists, setEmailExists] = React.useState(null); // null | false | {name, company}
   const [checkingEmail, setCheckingEmail] = React.useState(false);
+  const [emailChecked, setEmailChecked] = React.useState(false);
 
   const iS = {width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none",background:"#fff"};
   const lS = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.06};
@@ -1578,6 +1579,7 @@ function ManualEntryForm({eventId, onSaved}) {
                 // Real-time duplicate email check
                 if (k==="email" && val.includes("@") && !V.email(val)) {
                   setCheckingEmail(true);
+                  setEmailChecked(false);
                   setEmailExists(null);
                   try {
                     const {data:{session}} = await supabase.auth.getSession();
@@ -1589,16 +1591,17 @@ function ManualEntryForm({eventId, onSaved}) {
                     const dup = contacts.find(c=>(c.email||"").toLowerCase()===val.toLowerCase());
                     setEmailExists(dup ? {name:dup.name, company:dup.company} : false);
                   } catch(e) {}
-                  finally { setCheckingEmail(false); }
+                  finally { setCheckingEmail(false); setEmailChecked(true); }
                 } else if (k==="email") {
                   setEmailExists(null);
                   setCheckingEmail(false);
+                  setEmailChecked(false);
                 }
               }}/>
             {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
             {k==="email" && checkingEmail && <p style={{fontSize:11,color:C.muted,margin:"3px 0 0"}}>⏳ Checking...</p>}
             {k==="email" && !checkingEmail && emailExists && <p style={{fontSize:11,color:"#DC2626",margin:"3px 0 0",fontWeight:600}}>⚠ {emailExists.name} ({emailExists.company}) is already in your visitor list with this email.</p>}
-            {k==="email" && !checkingEmail && emailExists===false && !fErrors[k] && form.email.includes("@") && <p style={{fontSize:11,color:C.green,margin:"3px 0 0"}}>✓ Email is available</p>}
+            {k==="email" && !checkingEmail && emailChecked && emailExists===false && !fErrors[k] && <p style={{fontSize:11,color:C.green,margin:"3px 0 0"}}>✓ Email is available</p>}
           </div>
         ))}
         <div style={{gridColumn:"span 2"}}>
