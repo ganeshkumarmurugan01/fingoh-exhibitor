@@ -3466,7 +3466,8 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
     return true;
   });
   const p = selId!==null ? all.find(x=>x.id===selId) : null;
-  const rd = p?.contactId && researchData[p.contactId] ? researchData[p.contactId] : null;
+  const rdKey = p?.contactId || p?.id;
+  const rd = rdKey && researchData[rdKey] ? researchData[rdKey] : null;
   const intel = rd || p?.iei || null;
 
   const renderIntelPanel = ()=>{
@@ -3477,7 +3478,7 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
         <p style={{fontSize:12,color:C.muted2}}>Or click "+ Add visitor" to profile anyone</p>
       </div>
     );
-    if(researchLoadingIds.has(p?.contactId) && !rd) return (
+    if(researchLoadingIds.has(p?.contactId||p?.id) && !rd) return (
       <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16,minHeight:400}}>
         <div style={{width:44,height:44,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.navy}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
         <p style={{fontSize:13,fontWeight:600,color:C.navy,margin:0}}>Running IEI Framework research — {p?.name}…</p>
@@ -3518,7 +3519,7 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
           </div>
         </div>
         {/* Deep IEI Analysis button */}
-        {!rd && p?.contactId && (
+        {!rd && (p?.contactId||p?.id) && (
           <div style={{padding:"10px 18px",borderBottom:"1px solid #F1F5F9",background:"#FAFBFF"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
               <div>
@@ -3542,7 +3543,7 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
                       💡 {ieiCredits} credits left
                     </span>
                   )}
-                  <button onClick={()=>fetchResearch(p.contactId, p)} disabled={researchLoading}
+                  <button onClick={()=>fetchResearch(p.contactId||p.id, p)} disabled={researchLoading}
                     style={{padding:"7px 16px",background:researchLoading?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:11,fontWeight:700,cursor:researchLoading?"not-allowed":"pointer",fontFamily:F,whiteSpace:"nowrap",display:"flex",alignItems:"center",gap:6}}>
                     {researchLoading ? <>
                       <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.3)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
