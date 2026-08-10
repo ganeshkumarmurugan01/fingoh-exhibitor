@@ -1599,9 +1599,7 @@ function ManualEntryForm({eventId, onSaved}) {
                 }
               }}/>
             {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
-            {k==="email" && checkingEmail && <p style={{fontSize:11,color:C.muted,margin:"3px 0 0"}}>⏳ Checking...</p>}
             {k==="email" && !checkingEmail && emailExists && <p style={{fontSize:11,color:"#DC2626",margin:"3px 0 0",fontWeight:600}}>⚠ {emailExists.name} ({emailExists.company}) is already in your visitor list with this email.</p>}
-            {k==="email" && !checkingEmail && emailChecked && emailExists===false && !fErrors[k] && <p style={{fontSize:11,color:C.green,margin:"3px 0 0"}}>✓ Email is available</p>}
           </div>
         ))}
         <div style={{gridColumn:"span 2"}}>
