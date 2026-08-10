@@ -1489,9 +1489,12 @@ function ManualEntryForm({eventId, onSaved}) {
     country:"", phone:"", city:"", categories_interest:"", primary_reason:"",
     meeting_interest:"",
   });
-  const [saving, setSaving]   = React.useState(false);
-  const [error, setError]     = React.useState("");
-  const [fErrors, setFErrors] = React.useState({});
+  const [saving, setSaving]         = React.useState(false);
+  const [error, setError]           = React.useState("");
+  const [fErrors, setFErrors]       = React.useState({});
+  const [emailExists, setEmailExists] = React.useState(null); // null | false | {name, company}
+  const [checkingEmail, setCheckingEmail] = React.useState(false);
+  const [emailChecked, setEmailChecked] = React.useState(false);
 
   const iS = {width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:F,boxSizing:"border-box",outline:"none",background:"#fff"};
   const lS = {display:"block",fontSize:10,fontWeight:600,color:C.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.06};
@@ -1515,6 +1518,11 @@ function ManualEntryForm({eventId, onSaved}) {
     setFErrors(errs);
     if (Object.keys(errs).length > 0) {
       setError("Please fix the errors below."); return;
+    }
+    // Block save if duplicate email detected
+    if (emailExists) {
+      setError(`${emailExists.name} (${emailExists.company}) already exists with this email. Please use a different email.`);
+      return;
     }
     setSaving(true); setError("");
     try {
@@ -1563,13 +1571,35 @@ function ManualEntryForm({eventId, onSaved}) {
           <div key={k}>
             <label style={lS}>{l}</label>
             <input style={{...iS, borderColor: fErrors[k] ? "#DC2626" : "#E2E8F0"}} placeholder={p} value={form[k]}
-              onChange={e=>{
+              onChange={async e=>{
                 const val = e.target.value;
                 setForm(f=>({...f,[k]:val}));
                 const validator = k==="email" ? V.email : k==="job_title" ? V.jobTitle : k==="company" ? V.companyName : k==="phone" ? V.phone : null;
                 if (validator) setFErrors(fe=>({...fe,[k]: validator(val)}));
+                // Real-time duplicate email check
+                if (k==="email" && val.includes("@") && !V.email(val)) {
+                  setCheckingEmail(true);
+                  setEmailChecked(false);
+                  setEmailExists(null);
+                  try {
+                    const {data:{session}} = await supabase.auth.getSession();
+                    const token = session?.access_token||"";
+                    const res = await fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}`,{
+                      headers:{"x-fingoh-auth":`Bearer ${token}`}
+                    }).then(r=>r.json()).catch(()=>[]);
+                    const contacts = Array.isArray(res) ? res : (res?.contacts||[]);
+                    const dup = contacts.find(c=>(c.email||"").toLowerCase()===val.toLowerCase());
+                    setEmailExists(dup ? {name:dup.name, company:dup.company} : false);
+                  } catch(e) {}
+                  finally { setCheckingEmail(false); setEmailChecked(true); }
+                } else if (k==="email") {
+                  setEmailExists(null);
+                  setCheckingEmail(false);
+                  setEmailChecked(false);
+                }
               }}/>
             {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
+            {k==="email" && !checkingEmail && emailExists && <p style={{fontSize:11,color:"#DC2626",margin:"3px 0 0",fontWeight:600}}>⚠ {emailExists.name} ({emailExists.company}) is already in your visitor list with this email.</p>}
           </div>
         ))}
         <div style={{gridColumn:"span 2"}}>
