@@ -7284,6 +7284,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   // Editable form state
   const [form, setForm] = useState({
     company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
+    industryVertical: ex.industry_vertical || ex.industryVertical || "general",
     dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
     venue: ex.venue || "", country: ex.country || "",
     cats:      ex.cats      || [],
@@ -7311,6 +7312,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
           company: form.company, product: form.product, website: form.website, booth_size: form.boothSize,
           date_from: form.dateFrom, date_to: form.dateTo,
           venue: form.venue, country: form.country,
+          industry_vertical: form.industryVertical,
           ...extraFields,
         })
       });
@@ -7390,6 +7392,29 @@ function EventSetup({ex, onUpdate, onDelete}) {
         <Field label="Event name"  value={ex.name}/>
         <Field label="Event type"  value={ex.type}/>
         <Field label="Event ID"    value={ex.id}/>
+      </div>
+
+      {/* Industry Vertical */}
+      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:12,padding:"16px 20px",marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <p style={{fontSize:12,fontWeight:700,color:C.navy,margin:0}}>🏭 Industry vertical</p>
+          <SaveBar/>
+        </div>
+        <p style={{fontSize:11,color:C.muted,margin:"0 0 12px"}}>Select the industry this event belongs to. Fingoh uses a specialised AI scoring model for each vertical.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
+          {[
+            ["general",      "🌐 General",       "Default model — suitable for mixed industry events"],
+            ["pharma",       "💊 Pharma & Life Sciences", "Pharmaceutical, biotech, API, medical devices, pharma manufacturing"],
+            ["electronics",  "⚡ Electronics & Deep Tech", "Semiconductors, VLSI, PCB, IoT, embedded systems, defence electronics"],
+            ["logistics",    "🚚 Logistics & Supply Chain", "Warehousing, 3PL, freight, cold chain, last-mile delivery"],
+          ].map(([val, label, desc])=>(
+            <div key={val} onClick={()=>upd("industryVertical", val)}
+              style={{padding:"12px 14px",border:`2px solid ${form.industryVertical===val?C.navy:"#E2E8F0"}`,borderRadius:10,cursor:"pointer",background:form.industryVertical===val?C.ltnavy:C.white,transition:"all .15s"}}>
+              <p style={{fontSize:12,fontWeight:700,color:form.industryVertical===val?C.navy:C.dark,margin:"0 0 3px"}}>{form.industryVertical===val?"✓ ":""}{label}</p>
+              <p style={{fontSize:10,color:C.muted,margin:0,lineHeight:1.4}}>{desc}</p>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Editable dates section */}
