@@ -2356,7 +2356,25 @@ function AudienceUpload({ex, onNext, planFeatures}) {
             <div style={{padding:28}}>
               {!uploadDone ? (
                 <div>
-                  <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>Upload your pre-registered buyers list</p>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                    <p style={{fontSize:14,fontWeight:700,color:C.navy,margin:0}}>Upload your pre-registered buyers list</p>
+                    <button onClick={()=>{
+                      const headers = ["first_name","last_name","email","job_title","company","country","city","phone","primary_reason","categories_interest","meeting_interest","company_type","regulatory_market","specific_product_interest","visit_timeline","company_size","incumbent_vendor","previous_edition","linkedin_url","annual_procurement_value","export_markets"];
+                      const notes =   ["First name","Last name","Work email *","Full job title *","Company name *","Country *","City *","Phone","Why attending","Comma-separated interests","yes / no","Manufacturer/API Producer/CMO-CDMO/Packaging/Distributor","FDA/EMA/WHO PQ/CDSCO/NMPA/ANVISA","Specific product they are sourcing","Within 3 months/3-6 months/6-12 months/Just exploring","1-50/51-200/201-500/501-1000/1000+","Current supplier","Yes/No","LinkedIn URL","e.g. USD 2M","Markets they export to e.g. USA,EU"];
+                      const example = ["Ganesh","Kumar","ganesh@akiraas.com","Head of Procurement","Aurobindo Pharma","India","Hyderabad","+91 98765 43210","Sourcing new suppliers","Packaging, Serialisation","yes","Manufacturer","USFDA, EU GMP","Blister foil for oral solids","Within 3 months","201-500","Huhtamaki","Yes","linkedin.com/in/ganeshkumar","USD 2M","USA, EU, Africa"];
+                      const rows = [headers, notes, example];
+                      const csv = rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("
+");
+                      const blob = new Blob([csv], {type:"text/csv"});
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url; a.download = "fingoh_visitor_upload_template.csv";
+                      a.click(); URL.revokeObjectURL(url);
+                    }}
+                      style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:7,fontSize:11,fontWeight:600,color:"#1D4ED8",cursor:"pointer",fontFamily:F,whiteSpace:"nowrap",flexShrink:0}}>
+                      ⬇ Download template
+                    </button>
+                  </div>
                   <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:18}}>Import a CSV or Excel export from your CRM, event platform, or organiser backend. Fingoh enriches each contact, scores against your ICP, and queues them for IEI analysis automatically.</p>
                   <p style={{fontSize:11,fontWeight:600,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:.06}}>Required & optional columns</p>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:20}}>
