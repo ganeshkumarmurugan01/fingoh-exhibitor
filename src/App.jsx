@@ -1515,6 +1515,8 @@ function ManualEntryForm({eventId, onSaved}) {
     if (compErr) errs.company = compErr;
     const phoneErr = V.phone(form.phone);
     if (phoneErr) errs.phone = phoneErr;
+    if (!form.country.trim()) errs.country = "Country is required";
+    if (!form.city.trim()) errs.city = "City is required";
     setFErrors(errs);
     if (Object.keys(errs).length > 0) {
       setError("Please fix the errors below."); return;
@@ -1567,7 +1569,7 @@ function ManualEntryForm({eventId, onSaved}) {
             {fErrors[k] && <p style={errStyle}>{fErrors[k]}</p>}
           </div>
         ))}
-        {[["email","Email *","e.g. wei@foxconn.com"],["job_title","Job title *","e.g. VP Procurement"],["company","Company *","e.g. Foxconn Technology"],["country","Country","e.g. Taiwan"],["city","City","e.g. Taipei"],["phone","Phone","e.g. +886 2 1234 5678"]].map(([k,l,p])=>(
+        {[["email","Email *","e.g. wei@foxconn.com"],["job_title","Job title *","e.g. VP Procurement"],["company","Company *","e.g. Foxconn Technology"],["country","Country *","e.g. Taiwan"],["city","City *","e.g. Taipei"],["phone","Phone","e.g. +886 2 1234 5678"]].map(([k,l,p])=>(
           <div key={k}>
             <label style={lS}>{l}</label>
             <input style={{...iS, borderColor: fErrors[k] ? "#DC2626" : "#E2E8F0"}} placeholder={p} value={form[k]}
@@ -1629,7 +1631,7 @@ function ManualEntryForm({eventId, onSaved}) {
         </div>
       </div>
       <div style={{background:"#F0F7FF",border:"1px solid #BFDBFE",borderRadius:8,padding:"10px 14px",fontSize:11,color:"#1E40AF",marginBottom:16}}>
-        ✦ Claude will enrich this contact and score against your IEI framework automatically
+        ✦ Fingoh will enrich this contact and score against your IEI framework automatically
       </div>
       <button onClick={handleSave} disabled={saving}
         style={{padding:"10px 24px",background:saving?"#CBD5E1":C.navy,color:"#fff",border:"none",borderRadius:8,fontSize:13,fontWeight:700,cursor:saving?"not-allowed":"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:8}}>
@@ -2609,7 +2611,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
           {source==="manual" && (
             <div style={{padding:28}}>
               <p style={{fontSize:14,fontWeight:700,color:C.navy,marginBottom:6}}>Add a contact manually</p>
-              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>Enter a single visitor's details. Fingoh will enrich the profile with Claude and score against your IEI framework automatically.</p>
+              <p style={{fontSize:12,color:C.muted,lineHeight:1.65,marginBottom:20}}>Enter a single visitor's details. Fingoh will enrich the profile and score against your IEI framework automatically.</p>
               <ManualEntryForm eventId={ex?.id} onSaved={()=>setSource("visitors")}/>
             </div>
           )}
