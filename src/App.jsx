@@ -1369,6 +1369,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
 function LoginScreen({onLogin}) {
   const [email,setEmail]           = useState("");
   const [password,setPassword]     = useState("");
+  const [showPw,setShowPw]         = useState(false);
   const [loading,setLoading]       = useState(false);
   const [error,setError]           = useState(null);
   const [unverified,setUnverified] = useState(false);
@@ -1461,7 +1462,7 @@ function LoginScreen({onLogin}) {
               <h2 style={{fontSize:20,fontWeight:700,color:C.navy,marginBottom:4}}>Sign in</h2>
               <p style={{fontSize:12,color:C.muted,marginBottom:24}}>Exhibitor platform — know your buyers before they arrive</p>
               <div style={{marginBottom:14}}><label style={lD}>Work email</label><input value={email} onChange={e=>setEmail(e.target.value)} style={iD}/></div>
-              <div style={{marginBottom:24}}><label style={lD}>Password</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={iD}/></div>
+              <div style={{marginBottom:24}}><label style={lD}>Password</label><div style={{position:"relative"}}><input type={showPw?"text":"password"} value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSignIn()} style={{...iD,paddingRight:40}}/><button type="button" onClick={()=>setShowPw(p=>!p)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",fontSize:16,color:"#94A3B8",padding:0}}>{showPw?"🙈":"👁"}</button></div></div>
               {error && <p style={{color:C.red,fontSize:12,marginBottom:12,textAlign:"center"}}>{error}</p>}
               <button onClick={handleSignIn} disabled={loading} style={{width:"100%",padding:13,background:loading?"#CBD5E1":C.blue,color:C.white,border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",fontFamily:F}}>
                 {loading ? "Signing in…" : "Sign in →"}
