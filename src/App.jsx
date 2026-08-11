@@ -2566,44 +2566,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                   <li>Preferred visit day added to your schedule view</li>
                 </ul>
               </div>
-              <p style={{fontSize:11,color:C.muted,marginBottom:20}}>You can also connect third-party registration platforms below:</p>
-              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24}}>
-                {[
-                  {name:"Eventbrite",     icon:"🎟️", tag:"Webhook"},
-                  {name:"Cvent",          icon:"📅", tag:"API"},
-                  {name:"RegFox",         icon:"🦊", tag:"Webhook"},
-                  {name:"A2Z Events",     icon:"🔷", tag:"API"},
-                  {name:"Custom webhook", icon:"⚙️", tag:"Webhook"},
-                ].map((r,i)=>(
-                  <div key={r.name} onClick={()=>{if(!regLive){setRegLive(true);setTotalRecords(p=>p+340);}}}
-                    style={{padding:"12px 16px",border:`1.5px solid ${regLive&&i===0?C.green:"#E2E8F0"}`,borderRadius:10,cursor:"pointer",display:"flex",alignItems:"center",gap:12,background:regLive&&i===0?C.ltgrn:C.white,transition:"all .12s"}}
-                    onMouseOver={e=>{if(!regLive)e.currentTarget.style.borderColor=C.blue;}}
-                    onMouseOut={e=>{if(!regLive)e.currentTarget.style.borderColor="#E2E8F0";}}>
-                    <span style={{fontSize:20}}>{r.icon}</span>
-                    <div style={{flex:1}}>
-                      <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:0}}>{r.name}</p>
-                      {regLive&&i===0 && <p style={{fontSize:10,color:C.green,margin:0,fontWeight:600}}>✓ Live · 340 registrations received · updating every 30s</p>}
-                    </div>
-                    <span style={{fontSize:9,padding:"2px 7px",background:C.ltnavy,color:C.navy,borderRadius:4,fontWeight:700}}>{r.tag}</span>
-                  </div>
-                ))}
-              </div>
-              {regLive && (
-                <div>
-                  <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"12px 16px",marginBottom:12}}>
-                    <p style={{fontSize:12,fontWeight:600,color:"#14532D",marginBottom:4}}>✓ Live registration feed active — Eventbrite</p>
-                    <p style={{fontSize:11,color:"#166534",margin:0}}>340 registrations received · Fingoh scoring each in real time · 12 Hot-tier registrants already identified · 3 high-value interventions recommended</p>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-                    {[["340","Registered",C.navy],["28","Hot intent",C.red],["84","Warm intent",C.yellow]].map(([v,l,c])=>(
-                      <div key={l} style={{background:C.light,borderRadius:8,padding:"10px 0",textAlign:"center"}}>
-                        <div style={{fontSize:20,fontWeight:800,color:c}}>{v}</div>
-                        <div style={{fontSize:10,color:C.muted}}>{l}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Third-party registration platforms — hidden until implemented */}
             </div>
           )}
 
