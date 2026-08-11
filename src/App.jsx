@@ -3910,7 +3910,7 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
                 )}
                 {(v.reason||v.timeline)&&(
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                    {v.reason&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:v.reason==="sourcing"?C.ltgrn:v.reason==="research"?C.ltblue:C.ltnavy,color:v.reason==="sourcing"?"#14532D":v.reason==="research"?"#1E3A8A":C.muted,fontWeight:600}}>{v.reason}</span>}
+                    {v.reason&&(()=>{const parts=(v.reason||"").split("|").map(s=>s.trim()).filter(Boolean);const first=parts[0]||"";const rest=parts.length-1;const short=first.length>40?first.slice(0,40)+"…":first;return(<span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:v.reason==="sourcing"?C.ltgrn:v.reason==="research"?C.ltblue:C.ltnavy,color:v.reason==="sourcing"?"#14532D":v.reason==="research"?"#1E3A8A":C.muted,fontWeight:600}}>{short}{rest>0&&<span style={{marginLeft:4,background:"rgba(0,0,0,0.12)",borderRadius:99,padding:"0 5px",fontSize:8}}>+{rest}</span>}</span>);})()}
                     {v.timeline&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:C.ltylw,color:"#633806",fontWeight:600}}>{v.timeline}</span>}
                   </div>
                 )}
