@@ -2204,7 +2204,7 @@ function ContactStats({contacts}) {
   );
 }
 
-async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading) {
+async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary) {
   const file = e.target.files[0];
   if (!file || !ex?.id) return;
   setUploading(true);
@@ -2222,6 +2222,7 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploadi
       const data = await res.json();
       setUploadDone(true);
       setTotalRecords(data.uploaded || 0);
+      setUploadSummary({ uploaded: data.uploaded || 0, rejected: data.rejected || 0 });
     }
   } finally {
     setUploading(false);
@@ -2278,6 +2279,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
   },[ex?.id]);
   const [source, setSource] = useState("upload");
   const [uploadDone, setUploadDone]   = useState(false);
+  const [uploadSummary, setUploadSummary] = useState(null);
   const [dbConnected, setDbConnected] = useState(false);
   const [crmStatus, setCrmStatus]     = useState(null); // {provider, status, record_count, last_synced_at}
   const [crmLoading, setCrmLoading]   = useState(false);
@@ -2394,7 +2396,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                     <p style={{fontSize:14,fontWeight:600,color:C.muted,marginBottom:4}}>Drop CSV / Excel here or click to browse</p>
                     <p style={{fontSize:11,color:C.muted2,marginBottom:16}}>Max 10,000 rows · .csv or .xlsx · UTF-8 encoding</p>
                     <input type="file" accept=".csv,.xlsx" style={{display:"none"}} id="csv-upload"
-                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading)}
+                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary)}
                       disabled={uploading}
                     />
                     {uploading ? (
@@ -2413,13 +2415,22 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                 </div>
               ) : (
                 <div>
-                  <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"14px 18px",marginBottom:20,display:"flex",gap:12,alignItems:"center"}}>
+                  <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"14px 18px",marginBottom:12,display:"flex",gap:12,alignItems:"center"}}>
                     <span style={{fontSize:24}}>✓</span>
                     <div>
-                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{totalRecords} contacts imported · IEI scoring complete</p>
-                      <p style={{fontSize:11,color:"#166534",margin:0}}>Claude enrichment complete · XGBoost scored 41 signals per visitor</p>
+                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{uploadSummary?.uploaded ?? totalRecords} contacts imported · IEI scoring complete</p>
+                      <p style={{fontSize:11,color:"#166534",margin:0}}>Fingoh enrichment complete · XGBoost scored against IEI framework</p>
                     </div>
                   </div>
+                  {uploadSummary?.rejected > 0 && (
+                    <div style={{background:"#FFF0F0",border:"1px solid #FECACA",borderRadius:10,padding:"12px 18px",marginBottom:12,display:"flex",gap:12,alignItems:"center"}}>
+                      <span style={{fontSize:20}}>⚠</span>
+                      <div>
+                        <p style={{fontSize:13,fontWeight:700,color:"#DC2626",margin:0}}>{uploadSummary.rejected} record{uploadSummary.rejected!==1?"s":""} rejected</p>
+                        <p style={{fontSize:11,color:"#B91C1C",margin:0}}>Missing required fields: name, company name, or email. Please fix and re-upload.</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
