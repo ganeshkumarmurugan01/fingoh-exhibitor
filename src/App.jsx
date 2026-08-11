@@ -2363,8 +2363,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                       const notes =   ["First name","Last name","Work email *","Full job title *","Company name *","Country *","City *","Phone","Why attending","Comma-separated interests","yes / no","Manufacturer/API Producer/CMO-CDMO/Packaging/Distributor","FDA/EMA/WHO PQ/CDSCO/NMPA/ANVISA","Specific product they are sourcing","Within 3 months/3-6 months/6-12 months/Just exploring","1-50/51-200/201-500/501-1000/1000+","Current supplier","Yes/No","LinkedIn URL","e.g. USD 2M","Markets they export to e.g. USA,EU"];
                       const example = ["Ganesh","Kumar","ganesh@akiraas.com","Head of Procurement","Aurobindo Pharma","India","Hyderabad","+91 98765 43210","Sourcing new suppliers","Packaging, Serialisation","yes","Manufacturer","USFDA, EU GMP","Blister foil for oral solids","Within 3 months","201-500","Huhtamaki","Yes","linkedin.com/in/ganeshkumar","USD 2M","USA, EU, Africa"];
                       const rows = [headers, notes, example];
-                      const csv = rows.map(r=>r.map(v=>`"${v}"`).join(",")).join("
-");
+                      const csv = rows.map(r=>r.map(v=>'"'+v+'"').join(",")).join("\n");
                       const blob = new Blob([csv], {type:"text/csv"});
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
