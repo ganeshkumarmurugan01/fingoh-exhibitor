@@ -7361,7 +7361,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
       });
       if (!tgtRes.ok) throw new Error("Failed to save targeting details");
 
-      if (onUpdate) onUpdate({...ex, ...form, ...extraFields, industry_vertical: form.industryVertical});
+      if (onUpdate) onUpdate({...ex, ...form, ...extraFields, industry_vertical: extraFields.industry_vertical || form.industryVertical, industryVertical: extraFields.industry_vertical || form.industryVertical});
       setSaved(true); setTimeout(()=>setSaved(false), 2500);
     } catch(e) {
       setError(e.message || "Save failed");
