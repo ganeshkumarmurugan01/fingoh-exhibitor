@@ -1271,6 +1271,8 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                     intentWhy: full.intent?.intent_why || "", intentBuyers: full.intent?.intent_buyers || "",
                     intentSignals: full.intent?.intent_signals || [], buyerSignals: full.intent?.buyer_signals || [],
                     finetuneNotes: full.intent?.finetune_notes || [],
+                    industry_vertical: full.industry_vertical || "general",
+                    industryVertical: full.industry_vertical || "general",
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
