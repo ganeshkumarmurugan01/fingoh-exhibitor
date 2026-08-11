@@ -7439,7 +7439,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
             ["electronics",  "⚡ Electronics & Deep Tech", "Semiconductors, VLSI, PCB, IoT, embedded systems, defence electronics"],
             ["logistics",    "🚚 Logistics & Supply Chain", "Warehousing, 3PL, freight, cold chain, last-mile delivery"],
           ].map(([val, label, desc])=>(
-            <div key={val} onClick={async()=>{upd("industryVertical", val); await saveSection({industry_vertical: val}); }}
+            <div key={val} onClick={()=>upd("industryVertical", val)}
               style={{padding:"12px 14px",border:`2px solid ${form.industryVertical===val?C.navy:"#E2E8F0"}`,borderRadius:10,cursor:"pointer",background:form.industryVertical===val?C.ltnavy:C.white,transition:"all .15s"}}>
               <p style={{fontSize:12,fontWeight:700,color:form.industryVertical===val?C.navy:C.dark,margin:"0 0 3px"}}>{form.industryVertical===val?"✓ ":""}{label}</p>
               <p style={{fontSize:10,color:C.muted,margin:0,lineHeight:1.4}}>{desc}</p>
