@@ -3273,7 +3273,8 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
   const [dbLoading,setDbLoading]   = useState(true);
   const [prefetchStatus,setPrefetchStatus] = useState("");
   const [nv,setNv]           = useState({name:"",title:"",company:"",linkedIn:"",primaryReason:"",timeline:"",cats:[],specificProducts:""});
-
+const [rescoring, setRescoring]     = useState(false);
+const [rescoredMsg, setRescoredMsg] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [refreshing, setRefreshing]   = useState(false);
 
@@ -3834,6 +3835,28 @@ function IEIAnalysis({ex, planFeatures, ieiCredits, setIeiCredits, researchData,
                 ? <><div style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid #93C5FD",borderTopColor:C.blue,animation:"spin 1s linear infinite"}}/> Refreshing…</>
                 : "↻ Refresh"}
             </button>
+            <button onClick={async()=>{
+              if(!ex?.id) return;
+              setRescoring(true);
+              try {
+                const tok = localStorage.getItem("sb-token") || sessionStorage.getItem("sb-token") || "";
+                const res = await fetch(`/api/proxy?slug=v1/audience/rescore/${ex.id}`, {
+                  method:"POST", headers:{"x-fingoh-auth":tok,"Content-Type":"application/json"}
+                });
+                const data = await res.json();
+                if(data.rescored !== undefined) {
+                  setRescoredMsg(`✓ Rescored ${data.rescored} visitors (${data.method||""})`);
+                  setTimeout(()=>{ loadContacts(true); setRescoredMsg(null); }, 1500);
+                }
+              } catch(e){ setRescoredMsg("✗ Rescore failed"); }
+              finally { setRescoring(false); }
+            }} disabled={rescoring}
+              style={{padding:"4px 10px",border:"1px solid #E2E8F0",borderRadius:6,fontSize:11,fontWeight:600,cursor:rescoring?"not-allowed":"pointer",background:rescoring?"#F1F5F9":C.white,color:rescoring?C.muted:"#7C3AED",fontFamily:F,display:"flex",alignItems:"center",gap:5}}>
+              {rescoring
+                ? <><div style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid #C4B5FD",borderTopColor:"#7C3AED",animation:"spin 1s linear infinite"}}/> Rescoring…</>
+                : "⟳ Rescore All"}
+            </button>
+            {rescoredMsg && <span style={{fontSize:10,fontWeight:600,color:rescoredMsg.startsWith("✓")?"#16a34a":"#DC2626"}}>{rescoredMsg}</span>}
             {prefetchStatus==="fetching" && (
               <span style={{fontSize:10,color:C.blue,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
                 <div style={{width:7,height:7,borderRadius:"50%",border:"1.5px solid #93C5FD",borderTopColor:C.blue,animation:"spin 1s linear infinite"}}/>
