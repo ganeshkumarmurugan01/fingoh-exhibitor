@@ -1274,7 +1274,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
-                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,industry_vertical:ev.industry_vertical||"general"});
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,industry_vertical:ev.industry_vertical||"general",industryVertical:ev.industry_vertical||"general"});
                 }
               }}
                 style={{width:"100%",padding:"9px 0",background:C.navy,color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
@@ -1313,7 +1313,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
-                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,isPast:true,industry_vertical:ev.industry_vertical||"general"});
+                  onLaunch({name:ev.name,type:ev.type,id:ev.id,cats:EX_TYPES.find(t=>t.id===ev.type)?.cats||[],dateFrom:ev.date_from,dateTo:ev.date_to,venue:ev.venue,company:ev.company,product:ev.product,isPast:true,industry_vertical:ev.industry_vertical||"general",industryVertical:ev.industry_vertical||"general"});
                 }
               }}
                 style={{width:"100%",padding:"9px 0",background:C.white,color:C.navy,border:"1px solid #E2E8F0",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
