@@ -9473,16 +9473,13 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [sessionToken, setSessionToken] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({data:{session}}) => {
       setIsLoggedIn(!!session);
+      setSessionToken(session?.access_token || "");
       setCheckingAuth(false);
-      // If logged in and token is pending, auto-accept
-      if (session && sessionStorage.getItem("pending_org_invite")) {
-        sessionStorage.removeItem("pending_org_invite");
-        handleAcceptWithSession(session);
-      }
     });
   }, []);
 
@@ -9491,7 +9488,11 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
     try {
       const res = await fetch(`/api/proxy?slug=v1/organiser/invite/accept/${token}`, {
         method: "POST",
-        headers: { "x-fingoh-auth": `Bearer ${session.access_token}` },
+        headers: {
+          "Content-Type": "application/json",
+          "x-fingoh-auth": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.detail || "Failed to accept invite");
@@ -9502,8 +9503,7 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
 
   const handleAccept = async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      // Store token, redirect to login
+    if (!session || !session.access_token) {
       sessionStorage.setItem("pending_org_invite", token);
       onLogin();
       return;
@@ -9591,14 +9591,25 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
 
         {/* Actions */}
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          <button onClick={handleAccept} disabled={accepting}
-            style={{ width:"100%", padding:"12px 0", background:accepting?"#CBD5E1":C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:accepting?"not-allowed":"pointer", fontFamily:F }}>
-            {accepting ? "Accepting…" : "Accept Invite & Join Event →"}
-          </button>
-          <button onClick={onRegister}
-            style={{ width:"100%", padding:"12px 0", background:C.white, color:C.navy, border:`1.5px solid ${C.border}`, borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F }}>
-            New to Fingoh? Register first
-          </button>
+          {checkingAuth ? (
+            <div style={{ textAlign:"center", color:C.muted, fontSize:13, padding:"12px 0" }}>Checking session…</div>
+          ) : isLoggedIn ? (
+            <button onClick={handleAccept} disabled={accepting}
+              style={{ width:"100%", padding:"12px 0", background:accepting?"#CBD5E1":C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:accepting?"not-allowed":"pointer", fontFamily:F }}>
+              {accepting ? "Accepting…" : "Accept Invite & Join Event →"}
+            </button>
+          ) : (
+            <>
+              <button onClick={handleAccept}
+                style={{ width:"100%", padding:"12px 0", background:C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+                Sign in to Accept →
+              </button>
+              <button onClick={onRegister}
+                style={{ width:"100%", padding:"12px 0", background:C.white, color:C.navy, border:`1.5px solid ${C.border}`, borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F }}>
+                New to Fingoh? Register first
+              </button>
+            </>
+          )}
         </div>
 
         <p style={{ fontSize:11, color:C.muted, textAlign:"center", margin:"16px 0 0" }}>
