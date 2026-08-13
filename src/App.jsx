@@ -1247,6 +1247,11 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
               onMouseOver={e=>{e.currentTarget.style.boxShadow="0 6px 24px rgba(13,27,62,0.12)";}}
               onMouseOut={e=>{e.currentTarget.style.boxShadow="none";}}>
               <div style={{position:"absolute",top:14,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#DBEAFE",color:C.blue,fontWeight:700}}>REGISTERED</div>
+              {ev.organiser_powered_label && (
+                <div style={{position:"absolute",top:38,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#F5F3FF",color:"#7C3AED",fontWeight:700}}>
+                  {ev.organiser_powered_label}
+                </div>
+              )}
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                 <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{EX_TYPES.find(t=>t.id===ev.type)?.icon||"🎪"}</div>
                 <div>
@@ -8972,6 +8977,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {id:"outcomes",    label:"Outcomes",         icon:"📊"},
         {id:"export",      label:"Export Leads",     icon:"↑"},
         {id:"event-setup", label:"Event Setup",      icon:"⚙️"},
+        ...(ex?.organiser_event_id ? [{id:"org-data", label:"Organiser Data", icon:"🏢"}] : []),
       ]
     },
   ];
@@ -9237,9 +9243,357 @@ function GdprContent() {
 // ═══════════════════════════════════════════════════════════════════
 // ROOT
 // ═══════════════════════════════════════════════════════════════════
+
+
+// ── Organiser Data Screen ─────────────────────────────────────────────────────
+function OrgDataScreen({ ex }) {
+  const [rows, setRows]           = useState([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [loading, setLoading]     = useState(true);
+  const [allocation, setAllocation] = useState(0);
+  const [consumed, setConsumed]   = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  const [selected, setSelected]   = useState(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const PAGE_SIZE = 50;
+
+  const COLS = [
+    { key:"first_name",  label:"First Name" },
+    { key:"last_name",   label:"Last Name" },
+    { key:"email",       label:"Email" },
+    { key:"company",     label:"Company" },
+    { key:"job_title",   label:"Job Title" },
+    { key:"country",     label:"Country" },
+    { key:"city",        label:"City" },
+  ];
+
+  const load = async (p = 1) => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(
+        `/api/proxy?slug=v1/organiser/pool/${ex.organiser_event_id}&page=${p}&page_size=${PAGE_SIZE}`,
+        { headers: { "x-fingoh-auth": `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail);
+      setRows(data.rows || []);
+      setTotal(data.total || 0);
+      setAllocation(data.allocation || 0);
+      setConsumed(data.consumed || 0);
+      setRemaining(data.remaining || 0);
+      setPage(p);
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(1); }, [ex.organiser_event_id]);
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === rows.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(rows.map(r => r.id)));
+    }
+  };
+
+  const handleImport = async () => {
+    if (selected.size === 0) return;
+    if (selected.size > remaining) {
+      setImportMsg(`✗ Selection (${selected.size}) exceeds remaining allocation (${remaining})`);
+      return;
+    }
+    setImporting(true); setImportMsg("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/organiser/import/${ex.organiser_event_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
+        body: JSON.stringify({ row_ids: [...selected], event_id: ex.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Import failed");
+      setImportMsg(`✓ ${data.imported} visitors imported to your audience`);
+      setSelected(new Set());
+      load(page);
+    } catch(e) { setImportMsg("✗ " + e.message); }
+    setImporting(false);
+  };
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pct = allocation > 0 ? Math.round((consumed / allocation) * 100) : 0;
+
+  return (
+    <div style={{padding:"24px 32px", maxWidth:1200, margin:"0 auto"}}>
+      <div style={{marginBottom:24}}>
+        <h2 style={{fontSize:18, fontWeight:700, color:C.navy, margin:"0 0 4px"}}>Organiser Data</h2>
+        <p style={{fontSize:12, color:C.muted, margin:0}}>Browse and import visitor data shared by the event organiser</p>
+      </div>
+
+      {/* Quota bar */}
+      <div style={{background:C.white, border:"1px solid #E2E8F0", borderRadius:12, padding:20, marginBottom:20}}>
+        <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
+          <span style={{fontSize:13, fontWeight:600, color:C.navy}}>Your data allocation</span>
+          <span style={{fontSize:13, color:C.muted}}>{consumed} used / {allocation} allocated · {remaining} remaining</span>
+        </div>
+        <div style={{height:8, background:"#E2E8F0", borderRadius:99, overflow:"hidden"}}>
+          <div style={{height:"100%", width:`${pct}%`, background: pct > 90 ? "#DC2626" : "#7C3AED", borderRadius:99, transition:"width .3s"}}/>
+        </div>
+      </div>
+
+      {/* Action bar */}
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+        <div style={{display:"flex", alignItems:"center", gap:12}}>
+          <span style={{fontSize:13, color:C.muted}}>{total} rows available · {selected.size} selected</span>
+          {importMsg && (
+            <span style={{fontSize:12, color:importMsg.startsWith("✓") ? "#16A34A" : "#DC2626", fontWeight:600}}>
+              {importMsg}
+            </span>
+          )}
+        </div>
+        <button onClick={handleImport} disabled={importing || selected.size === 0 || remaining === 0}
+          style={{
+            padding:"8px 20px",
+            background: selected.size === 0 || remaining === 0 ? "#E2E8F0" : C.navy,
+            color: selected.size === 0 || remaining === 0 ? C.muted : C.white,
+            border:"none", borderRadius:8, fontSize:12, fontWeight:700,
+            cursor: selected.size === 0 || remaining === 0 ? "not-allowed" : "pointer", fontFamily:F
+          }}>
+          {importing ? "Importing…" : `Import ${selected.size > 0 ? selected.size : ""} Selected →`}
+        </button>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div style={{padding:60, textAlign:"center", color:C.muted}}>Loading visitor data…</div>
+      ) : rows.length === 0 ? (
+        <div style={{background:C.white, border:"1px solid #E2E8F0", borderRadius:12, padding:40, textAlign:"center", color:C.muted, fontSize:13}}>
+          No visitor data available yet — the organiser hasn't uploaded any data
+        </div>
+      ) : (
+        <div style={{background:C.white, border:"1px solid #E2E8F0", borderRadius:12, overflow:"auto"}}>
+          <table style={{width:"100%", borderCollapse:"collapse", fontSize:12}}>
+            <thead>
+              <tr style={{background:"#F8FAFC"}}>
+                <th style={{padding:"8px 12px", borderBottom:"1px solid #E2E8F0", width:40}}>
+                  <input type="checkbox"
+                    checked={selected.size === rows.length && rows.length > 0}
+                    onChange={toggleAll}/>
+                </th>
+                {COLS.map(col => (
+                  <th key={col.key} style={{padding:"8px 12px", textAlign:"left", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", borderBottom:"1px solid #E2E8F0", whiteSpace:"nowrap"}}>
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => {
+                const d = row.raw_data || {};
+                const isSelected = selected.has(row.id);
+                return (
+                  <tr key={row.id}
+                    onClick={() => toggleSelect(row.id)}
+                    style={{
+                      borderBottom: i < rows.length-1 ? "1px solid #E2E8F0" : "none",
+                      background: isSelected ? "#EFF6FF" : "white",
+                      cursor:"pointer"
+                    }}>
+                    <td style={{padding:"8px 12px"}}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(row.id)} onClick={e => e.stopPropagation()}/>
+                    </td>
+                    {COLS.map(col => (
+                      <td key={col.key} style={{padding:"8px 12px", color:C.dark, maxWidth:160}}>
+                        <span style={{overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:150}}>
+                          {d[col.key] || "—"}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderTop:"1px solid #E2E8F0"}}>
+              <span style={{fontSize:12, color:C.muted}}>Page {page} of {totalPages} · {total} rows</span>
+              <div style={{display:"flex", gap:6}}>
+                <button onClick={() => load(page - 1)} disabled={page === 1}
+                  style={{padding:"5px 12px", background:C.white, color:page===1?C.muted:C.navy, border:"1px solid #E2E8F0", borderRadius:6, fontSize:12, cursor:page===1?"not-allowed":"pointer", fontFamily:F}}>
+                  ← Prev
+                </button>
+                <button onClick={() => load(page + 1)} disabled={page === totalPages}
+                  style={{padding:"5px 12px", background:C.white, color:page===totalPages?C.muted:C.navy, border:"1px solid #E2E8F0", borderRadius:6, fontSize:12, cursor:page===totalPages?"not-allowed":"pointer", fontFamily:F}}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Organiser Invite Screen ───────────────────────────────────────────────────
+function OrgInviteScreen({ token, onLogin, onRegister }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+  const [accepting, setAccepting] = useState(false);
+  const [accepted, setAccepted]   = useState(false);
+
+  useEffect(() => {
+    if (!token) { setError("Invalid invite link"); setLoading(false); return; }
+    fetch(`/api/proxy?slug=v1/organiser/invite/validate/${token}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.detail) throw new Error(d.detail);
+        setData(d);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const handleAccept = async () => {
+    setAccepting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { onLogin(); return; }
+      const res = await fetch(`/api/proxy?slug=v1/organiser/invite/accept/${token}`, {
+        method: "POST",
+        headers: { "x-fingoh-auth": `Bearer ${session.access_token}` },
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || "Failed to accept invite");
+      setAccepted(true);
+    } catch(e) { setError(e.message); }
+    setAccepting(false);
+  };
+
+  const F = "'Inter', -apple-system, sans-serif";
+  const C = { navy:"#0D1B3E", blue:"#2563EB", white:"#FFFFFF", muted:"#94A3B8", border:"#E2E8F0", green:"#16A34A", ltgrn:"#F0FDF4", red:"#DC2626" };
+
+  if (loading) return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F }}>
+      <div style={{ color:"rgba(255,255,255,0.6)", fontSize:14 }}>Validating invite…</div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F }}>
+      <div style={{ background:C.white, borderRadius:16, padding:40, maxWidth:420, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:32, marginBottom:16 }}>⚠️</div>
+        <h2 style={{ fontSize:18, fontWeight:700, color:C.navy, marginBottom:8 }}>Invalid Invite</h2>
+        <p style={{ fontSize:13, color:C.muted, marginBottom:24 }}>{error}</p>
+        <button onClick={onLogin}
+          style={{ padding:"10px 24px", background:C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+          Go to Login
+        </button>
+      </div>
+    </div>
+  );
+
+  if (accepted) return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F }}>
+      <div style={{ background:C.white, borderRadius:16, padding:40, maxWidth:420, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:40, marginBottom:16 }}>🎉</div>
+        <h2 style={{ fontSize:18, fontWeight:700, color:C.navy, marginBottom:8 }}>You're in!</h2>
+        <p style={{ fontSize:13, color:C.muted, marginBottom:8 }}>
+          You've joined <strong>{data?.event?.name}</strong> powered by <strong>{data?.organiser?.name}</strong>.
+        </p>
+        <p style={{ fontSize:12, color:C.muted, marginBottom:24 }}>
+          Your event has been created. Set up your ICP and start exploring visitor data.
+        </p>
+        <button onClick={onLogin}
+          style={{ width:"100%", padding:"11px 0", background:C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+          Go to Dashboard →
+        </button>
+      </div>
+    </div>
+  );
+
+  const { event, organiser, link } = data || {};
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F, padding:24 }}>
+      <div style={{ background:C.white, borderRadius:16, padding:40, maxWidth:480, width:"100%" }}>
+        {/* Organiser branding */}
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          {organiser?.logo_url && (
+            <img src={organiser.logo_url} alt={organiser.name} style={{ maxHeight:48, marginBottom:12, display:"block", margin:"0 auto 12px" }}/>
+          )}
+          <div style={{ fontSize:11, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em" }}>
+            {organiser?.name} invites you to
+          </div>
+          <h1 style={{ fontSize:22, fontWeight:800, color:C.navy, margin:"8px 0 4px", letterSpacing:"-0.02em" }}>
+            {event?.name}
+          </h1>
+          <p style={{ fontSize:13, color:C.muted, margin:0 }}>
+            {event?.venue} · {event?.start_date || "TBD"}
+          </p>
+        </div>
+
+        {/* What you get */}
+        <div style={{ background:"#F8FAFC", borderRadius:10, padding:16, marginBottom:24 }}>
+          <p style={{ fontSize:12, fontWeight:700, color:C.navy, margin:"0 0 10px" }}>As an exhibitor you'll get:</p>
+          {[
+            `${link?.data_allocation || 0} visitor data rows from ${organiser?.name}`,
+            "IEI scoring to identify your highest-intent visitors",
+            "Meeting management and outcome tracking",
+            "Staff app for real-time lead capture",
+          ].map((item, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6, fontSize:12, color:"#374151" }}>
+              <span style={{ color:C.green, fontWeight:700 }}>✓</span> {item}
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <button onClick={handleAccept} disabled={accepting}
+            style={{ width:"100%", padding:"12px 0", background:accepting?"#CBD5E1":C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:accepting?"not-allowed":"pointer", fontFamily:F }}>
+            {accepting ? "Accepting…" : "Accept Invite & Join Event →"}
+          </button>
+          <button onClick={onRegister}
+            style={{ width:"100%", padding:"12px 0", background:C.white, color:C.navy, border:`1.5px solid ${C.border}`, borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F }}>
+            New to Fingoh? Register first
+          </button>
+        </div>
+
+        <p style={{ fontSize:11, color:C.muted, textAlign:"center", margin:"16px 0 0" }}>
+          Powered by Fingoh · Exhibitor Intelligence Platform
+        </p>
+      </div>
+    </div>
+  );
+}
+
   export default function App() {
   const [screen, setScreen]     = useState(()=>{
-    try { return sessionStorage.getItem("fingoh_screen") || "login"; } catch { return "login"; }
+    try {
+      // Check for organiser invite token in URL
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("org_invite")) return "org-invite";
+      return sessionStorage.getItem("fingoh_screen") || "login";
+    } catch { return "login"; }
+  });
+  const [orgInviteToken, setOrgInviteToken] = useState(()=>{
+    try { return new URLSearchParams(window.location.search).get("org_invite") || ""; } catch { return ""; }
   });
   const [ex, setEx]             = useState(()=>{
     try {
@@ -9933,6 +10287,13 @@ function RegistrationPage({ eventId }) {
       Loading...
     </div>
   )
+  if(screen==="org-invite")
+    return <OrgInviteScreen
+      token={orgInviteToken}
+      onLogin={()=>{ setScreen("events"); window.history.replaceState({}, "", window.location.pathname); }}
+      onRegister={()=>{ setScreen("login"); }}
+    />;
+
   if(screen==="login")
     return <LoginScreen onLogin={()=>setScreen("events")}/>;
   if(screen==="events")
@@ -9962,6 +10323,7 @@ function RegistrationPage({ eventId }) {
         {screen==="agent"       && <AgentPage ex={ex} onQueueLoaded={setAgentQueueCount}/>}
         {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
         {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}}/>}
+        {screen==="org-data"    && <OrgDataScreen ex={ex}/>}
       </NavShell>
 
     </>
