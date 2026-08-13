@@ -9471,11 +9471,24 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
       .finally(() => setLoading(false));
   }, [token]);
 
-  const handleAccept = async () => {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({data:{session}}) => {
+      setIsLoggedIn(!!session);
+      setCheckingAuth(false);
+      // If logged in and token is pending, auto-accept
+      if (session && sessionStorage.getItem("pending_org_invite")) {
+        sessionStorage.removeItem("pending_org_invite");
+        handleAcceptWithSession(session);
+      }
+    });
+  }, []);
+
+  const handleAcceptWithSession = async (session) => {
     setAccepting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { onLogin(); return; }
       const res = await fetch(`/api/proxy?slug=v1/organiser/invite/accept/${token}`, {
         method: "POST",
         headers: { "x-fingoh-auth": `Bearer ${session.access_token}` },
@@ -9485,6 +9498,17 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
       setAccepted(true);
     } catch(e) { setError(e.message); }
     setAccepting(false);
+  };
+
+  const handleAccept = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      // Store token, redirect to login
+      sessionStorage.setItem("pending_org_invite", token);
+      onLogin();
+      return;
+    }
+    handleAcceptWithSession(session);
   };
 
   const F = "'Inter', -apple-system, sans-serif";
@@ -10292,12 +10316,21 @@ function RegistrationPage({ eventId }) {
   if(screen==="org-invite")
     return <OrgInviteScreen
       token={orgInviteToken}
-      onLogin={()=>{ setScreen("events"); window.history.replaceState({}, "", window.location.pathname); }}
+      onLogin={()=>{ setScreen("login"); }}
       onRegister={()=>{ setScreen("login"); }}
     />;
 
   if(screen==="login")
-    return <LoginScreen onLogin={()=>setScreen("events")}/>;
+    return <LoginScreen onLogin={()=>{
+      // Check for pending org invite after login
+      const pendingToken = sessionStorage.getItem("pending_org_invite");
+      if (pendingToken) {
+        setOrgInviteToken(pendingToken);
+        setScreen("org-invite");
+      } else {
+        setScreen("events");
+      }
+    }}/>;
   if(screen==="events")
     return <EventHome
       profile={profile}
