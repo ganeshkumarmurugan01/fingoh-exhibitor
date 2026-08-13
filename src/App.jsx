@@ -1278,6 +1278,8 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                     finetuneNotes: full.intent?.finetune_notes || [],
                     industry_vertical: full.industry_vertical || "general",
                     industryVertical: full.industry_vertical || "general",
+                    organiser_event_id: full.organiser_event_id || null,
+                    organiser_powered_label: full.organiser_powered_label || null,
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
