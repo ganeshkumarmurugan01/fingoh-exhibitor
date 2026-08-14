@@ -2310,8 +2310,8 @@ function AudienceUpload({ex, onNext, planFeatures}) {
     ...(planFeatures?.has_crm_sync !== false ? [{id:"database", icon:"🗄️", label:"Contact database", sub:"CRM or data warehouse"}] : []),
     {id:"registration", icon:"🔗", label:"Live registration feed",  sub:"Registration system API"},
     {id:"manual",       icon:"✏️", label:"Manual entry",            sub:"Add single contact"},
-    {id:"visitors",     icon:"👥", label:"Visitor list",            sub:"All contacts · IEI scored"},
     ...(ex?.organiser_event_id ? [{id:"organiser", icon:"🏢", label:"Organiser Data", sub:"Visitor data from event organiser"}] : []),
+    {id:"visitors",     icon:"👥", label:"Visitor list",            sub:"All contacts · IEI scored"},
   ];
 
   return (
