@@ -9972,6 +9972,7 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
   const [agentOpen, setAgentOpen] = useState(false);
   const [ieiCredits, setIeiCredits] = useState(null);
   const [setupOfferings, setSetupOfferings] = useState([]);
+  const [setupOfferingsLoaded, setSetupOfferingsLoaded] = useState(false);
 
   // ── Research state — lives at App level so tab switches don't kill in-flight fetches ──
   const [researchData, setResearchData]     = useState({});
@@ -9984,7 +9985,7 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
     if (!ex?.id) return;
     fetch(`/api/proxy?slug=v1/offerings/event/${ex.id}`, {
       headers: {"x-fingoh-auth": `Bearer ${localStorage.getItem("sb_token")}`}
-    }).then(r=>r.json()).then(d=>setSetupOfferings(Array.isArray(d)?d:[])).catch(()=>setSetupOfferings([]));
+    }).then(r=>r.json()).then(d=>{setSetupOfferings(Array.isArray(d)?d:[]);setSetupOfferingsLoaded(true);}).catch(()=>{setSetupOfferings([]);setSetupOfferingsLoaded(true);});
   }, [ex?.id]);
 
   // Reset research state when switching events
