@@ -1098,7 +1098,7 @@ function computeSetupProgress(ex, offerings) {
   return Math.round(score);
 }
 
-const SETUP_THRESHOLD = 60;
+const SETUP_THRESHOLD = 50;
 
 function SetupProgressBar({progress, compact=false}) {
   const color = progress >= SETUP_THRESHOLD ? "#16A34A" : progress >= 60 ? "#D97706" : "#DC2626";
@@ -1140,7 +1140,7 @@ function SetupGate({progress, onGoSetup}) {
       <div style={{fontSize:48,marginBottom:16}}>🔒</div>
       <h2 style={{fontSize:20,fontWeight:800,color:"#0D1B3E",margin:"0 0 8px"}}>Complete Event Setup First</h2>
       <p style={{fontSize:14,color:"#64748B",margin:"0 0 24px",maxWidth:420}}>
-        Your event setup is {progress}% complete. Reach 60% to unlock Audience Upload, IEI Analysis, Meetings, and Live Dashboard.
+        Your event setup is {progress}% complete. Reach 50% to unlock Audience Upload, IEI Analysis, Meetings, and Live Dashboard.
       </p>
       <div style={{width:320,marginBottom:24}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -1150,7 +1150,7 @@ function SetupGate({progress, onGoSetup}) {
         <div style={{height:8,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
           <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
         </div>
-        <p style={{fontSize:11,color:"#94A3B8",margin:"6px 0 0"}}>Need 60% to unlock features</p>
+        <p style={{fontSize:11,color:"#94A3B8",margin:"6px 0 0"}}>Need 50% to unlock features</p>
       </div>
       <button onClick={onGoSetup} style={{padding:"12px 28px",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
         Complete Event Setup →
@@ -8776,7 +8776,7 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
               <div style={{height:5,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
                 <div style={{height:"100%",width:sp+"%",background:spColor,borderRadius:99,transition:"width .4s"}}/>
               </div>
-              {sp<90&&<p style={{fontSize:10,color:"#94A3B8",margin:"4px 0 0"}}>Need 60% to unlock all features</p>}
+              {sp<90&&<p style={{fontSize:10,color:"#94A3B8",margin:"4px 0 0"}}>Need 50% to unlock all features</p>}
             </div>
             {SECTIONS.map(s=>(
               <button key={s.id} onClick={()=>setActiveSection(s.id)}
@@ -10680,16 +10680,16 @@ function RegistrationPage({ eventId }) {
   return (
     <>
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features} ieiCredits={ieiCredits}>
-        {screen==="audience"    && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+        {screen==="audience"    && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
           ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
           : <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>)}
-        {screen==="iei"         && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+        {screen==="iei"         && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
           ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
           : <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchLoadingIds={researchLoadingIds} researchError={researchError} fetchResearch={fetchResearch}/>)}
-        {screen==="meetings"    && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+        {screen==="meetings"    && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
           ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
           : <MeetingsScreen ex={ex}/>)}
-        {screen==="live"        && !selP && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+        {screen==="live"        && !selP && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
           ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
           : <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>)}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
