@@ -7469,7 +7469,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
 
   // Editable form state
   const [form, setForm] = useState({
-    company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
+    company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "", linkedin_url: ex.linkedin_url || "",
     industryVertical: ex.industry_vertical || ex.industryVertical || "general",
     dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
     venue: ex.venue || "", country: ex.country || "",
@@ -7495,7 +7495,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
       const coreRes = await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
         method:"PATCH", headers,
         body: JSON.stringify({
-          company: form.company, product: form.product, website: form.website, booth_size: form.boothSize,
+          company: form.company, product: form.product, website: form.website, booth_size: form.boothSize, linkedin_url: form.linkedin_url,
           date_from: form.dateFrom, date_to: form.dateTo,
           venue: form.venue, country: form.country,
           industry_vertical: form.industryVertical,
@@ -7711,8 +7711,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Company & booth</h2>
       <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Your company details and booth configuration for this event.</p>
       <EventSetupInput label="Company name"       value={form.company}   onChange={v=>upd("company",v)}/>
-      <EventSetupInput label="Product / solution" value={form.product}   onChange={v=>upd("product",v)}  placeholder="What are you showcasing?"/>
       <EventSetupInput label="Website"            value={form.website}   onChange={v=>upd("website",v)}   placeholder="https://"/>
+      <EventSetupInput label="LinkedIn page"      value={form.linkedin_url||""} onChange={v=>upd("linkedin_url",v)} placeholder="https://linkedin.com/company/yourcompany"/>
       <EventSetupInput label="Booth size (m²)"    value={form.boothSize} onChange={v=>upd("boothSize",v)} placeholder="e.g. 36"/>
       <SaveBar/>
     </div>
