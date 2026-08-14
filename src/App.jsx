@@ -1050,6 +1050,115 @@ function PlanAccountCard({planInfo, profile}) {
   );
 }
 
+
+// ── Event Setup Progress ──────────────────────────────────────────────────────
+function computeSetupProgress(ex, offerings) {
+  let score = 0;
+
+  // 1. Event overview: dates + venue + country (10%)
+  const hasVenue   = ex.venue && ex.venue.trim().length > 0;
+  const hasCountry = ex.country && ex.country.trim().length > 0;
+  const hasDates   = ex.dateFrom && ex.dateTo;
+  const overviewPct = ((hasVenue?1:0) + (hasCountry?1:0) + (hasDates?1:0)) / 3;
+  score += overviewPct * 10;
+
+  // 2. Company & booth (20%)
+  const hasCompany  = ex.company && ex.company.trim().length > 2;
+  const hasProduct  = ex.product && ex.product.trim().length > 2;
+  const hasBooth    = ex.boothSize && ex.boothSize.trim().length > 0;
+  const hasWebsite  = ex.website && ex.website.trim().length > 4;
+  const companyPct  = ((hasCompany?1:0) + (hasProduct?1:0) + (hasBooth?1:0) + (hasWebsite?1:0)) / 4;
+  score += companyPct * 20;
+
+  // 3. Products & Services — offerings (15%)
+  const offeringCount = (offerings||[]).length;
+  const offeringPct = offeringCount === 0 ? 0 : offeringCount === 1 ? 0.5 : offeringCount >= 2 ? 1 : 0;
+  score += offeringPct * 15;
+
+  // 4. Visitor categories (10%)
+  const catCount = (ex.cats||[]).length;
+  const catPct = catCount === 0 ? 0 : catCount === 1 ? 0.4 : catCount >= 3 ? 1 : 0.7;
+  score += catPct * 10;
+
+  // 5. ICP (20%) — intelligent partial scoring
+  const hasRoles   = (ex.icpRole||[]).length > 0;
+  const hasSizes   = (ex.icpSize||[]).length > 0;
+  const hasReasons = (ex.icpReason||[]).length > 0;
+  const icpPct = ((hasRoles?1:0) + (hasSizes?1:0) + (hasReasons?1:0)) / 3;
+  score += icpPct * 20;
+
+  // 6. Exhibitor intent (25%) — intelligent partial scoring
+  const hasWhy     = ex.intentWhy && ex.intentWhy.trim().length > 20;
+  const hasBuyers  = ex.intentBuyers && ex.intentBuyers.trim().length > 20;
+  const hasSignals = (ex.intentSignals||[]).length > 0;
+  const hasBuyerSig = (ex.buyerSignals||[]).length > 0;
+  const intentPct = ((hasWhy?1:0) + (hasBuyers?1:0) + (hasSignals?1:0) + (hasBuyerSig?1:0)) / 4;
+  score += intentPct * 25;
+
+  return Math.round(score);
+}
+
+const SETUP_THRESHOLD = 90;
+
+function SetupProgressBar({progress, compact=false}) {
+  const color = progress >= SETUP_THRESHOLD ? "#16A34A" : progress >= 60 ? "#D97706" : "#DC2626";
+  if (compact) return (
+    <div style={{marginTop:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+        <span style={{fontSize:10,color:"#64748B",fontWeight:600}}>SETUP</span>
+        <span style={{fontSize:10,fontWeight:700,color}}>{progress}%</span>
+      </div>
+      <div style={{height:4,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+        <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+      </div>
+    </div>
+  );
+  return (
+    <div style={{marginBottom:16,padding:"10px 14px",background:progress>=SETUP_THRESHOLD?"#F0FDF4":"#FFF7ED",borderRadius:8,border:`1px solid ${progress>=SETUP_THRESHOLD?"#BBF7D0":"#FED7AA"}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <span style={{fontSize:12,fontWeight:700,color:progress>=SETUP_THRESHOLD?"#15803D":"#92400E"}}>
+          {progress>=SETUP_THRESHOLD ? "✓ Event setup complete" : `Event setup ${progress}% complete`}
+        </span>
+        <span style={{fontSize:12,fontWeight:800,color}}>{progress}%</span>
+      </div>
+      <div style={{height:6,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+        <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+      </div>
+      {progress < SETUP_THRESHOLD && (
+        <p style={{margin:"6px 0 0",fontSize:11,color:"#92400E"}}>
+          Complete your event setup to unlock Audience Upload, IEI Analysis, and Meetings.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SetupGate({progress, onGoSetup}) {
+  const color = progress >= 60 ? "#D97706" : "#DC2626";
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:400,padding:40,textAlign:"center"}}>
+      <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+      <h2 style={{fontSize:20,fontWeight:800,color:"#0D1B3E",margin:"0 0 8px"}}>Complete Event Setup First</h2>
+      <p style={{fontSize:14,color:"#64748B",margin:"0 0 24px",maxWidth:420}}>
+        Your event setup is {progress}% complete. Reach 90% to unlock Audience Upload, IEI Analysis, Meetings, and Live Dashboard.
+      </p>
+      <div style={{width:320,marginBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{fontSize:12,color:"#64748B"}}>Setup progress</span>
+          <span style={{fontSize:12,fontWeight:700,color}}>{progress}%</span>
+        </div>
+        <div style={{height:8,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+          <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+        </div>
+        <p style={{fontSize:11,color:"#94A3B8",margin:"6px 0 0"}}>Need 90% to unlock features</p>
+      </div>
+      <button onClick={onGoSetup} style={{padding:"12px 28px",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+        Complete Event Setup →
+      </button>
+    </div>
+  );
+}
+
 function EventHome({onLaunch, onCreateEvent, profile}) {
   const [showTeam, setShowTeam] = useState(false);
 
@@ -1260,6 +1369,13 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                 </div>
               </div>
               <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
+              <SetupProgressBar progress={computeSetupProgress({
+                company: ev.company, product: ev.product, boothSize: ev.booth_size,
+                website: ev.website, venue: ev.venue, country: ev.country,
+                dateFrom: ev.date_from, dateTo: ev.date_to,
+                cats: [], icpRole: [], icpSize: [], icpReason: [],
+                intentWhy: "", intentBuyers: "", intentSignals: [], buyerSignals: []
+              }, [])} compact={true} />
               <button onClick={async (e)=>{
                 const btn = e.currentTarget;
                 btn.disabled = true;
@@ -9664,12 +9780,21 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
   const [selP, setSelP]         = useState(null);
   const [agentOpen, setAgentOpen] = useState(false);
   const [ieiCredits, setIeiCredits] = useState(null);
+  const [setupOfferings, setSetupOfferings] = useState([]);
 
   // ── Research state — lives at App level so tab switches don't kill in-flight fetches ──
   const [researchData, setResearchData]     = useState({});
   const [researchLoadingIds, setResearchLoadingIds] = useState(new Set());
   const researchLoading = researchLoadingIds.size > 0;
   const [researchError, setResearchError]   = useState("");
+
+  // Fetch offerings for setup progress
+  React.useEffect(() => {
+    if (!ex?.id) return;
+    fetch(`/api/proxy?slug=v1/offerings/event/${ex.id}`, {
+      headers: {"x-fingoh-auth": `Bearer ${localStorage.getItem("sb_token")}`}
+    }).then(r=>r.json()).then(d=>setSetupOfferings(Array.isArray(d)?d:[])).catch(()=>setSetupOfferings([]));
+  }, [ex?.id]);
 
   // Reset research state when switching events
   React.useEffect(() => { setResearchData({}); setResearchError(""); }, [ex?.id]);
@@ -10363,10 +10488,18 @@ function RegistrationPage({ eventId }) {
   return (
     <>
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features} ieiCredits={ieiCredits}>
-        {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>}
-        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchLoadingIds={researchLoadingIds} researchError={researchError} fetchResearch={fetchResearch}/>}
-        {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
-        {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
+        {screen==="audience"    && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>)}
+        {screen==="iei"         && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchLoadingIds={researchLoadingIds} researchError={researchError} fetchResearch={fetchResearch}/>)}
+        {screen==="meetings"    && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <MeetingsScreen ex={ex}/>)}
+        {screen==="live"        && !selP && (computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>)}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
         {screen==="outcomes"    && <OutcomesDashboard ex={ex}/>}
         {screen==="export"      && <LeadExport ex={ex}/>}
