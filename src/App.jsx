@@ -2311,6 +2311,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
     {id:"registration", icon:"🔗", label:"Live registration feed",  sub:"Registration system API"},
     {id:"manual",       icon:"✏️", label:"Manual entry",            sub:"Add single contact"},
     {id:"visitors",     icon:"👥", label:"Visitor list",            sub:"All contacts · IEI scored"},
+    ...(ex?.organiser_event_id ? [{id:"organiser", icon:"🏢", label:"Organiser Data", sub:"Visitor data from event organiser"}] : []),
   ];
 
   return (
@@ -2358,7 +2359,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
         ))}
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:source==="visitors"?"1fr":"1fr 300px",gap:20}}>
+      <div style={{display:"grid",gridTemplateColumns:(source==="visitors"||source==="organiser")?"1fr":"1fr 300px",gap:20}}>
         {/* Main panel */}
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
@@ -2618,6 +2619,9 @@ function AudienceUpload({ex, onNext, planFeatures}) {
           )}
 
           {/* ── VISITOR LIST ── */}
+          {source==="organiser" && ex?.organiser_event_id && (
+            <OrgDataScreen ex={ex} />
+          )}
           {source==="visitors" && (
             <div style={{padding:"20px 28px"}}>
               <VisitorList eventId={ex?.id} refreshKey={source}/>
@@ -2627,7 +2631,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
         </div>
 
         {/* Right sidebar — what Fingoh does with data — hidden on visitor list */}
-        <div style={{display: source==="visitors" ? "none" : "flex",flexDirection:"column",gap:12}}>
+        <div style={{display: (source==="visitors"||source==="organiser") ? "none" : "flex",flexDirection:"column",gap:12}}>
           <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:18}}>
             <p style={{fontSize:11,fontWeight:700,color:C.navy,margin:0,marginBottom:12,textTransform:"uppercase",letterSpacing:.06}}>What Fingoh does with your data</p>
             {[
@@ -8979,7 +8983,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {id:"outcomes",    label:"Outcomes",         icon:"📊"},
         {id:"export",      label:"Export Leads",     icon:"↑"},
         {id:"event-setup", label:"Event Setup",      icon:"⚙️"},
-        ...(ex?.organiser_event_id ? [{id:"org-data", label:"Organiser Data", icon:"🏢"}] : []),
+    
       ]
     },
   ];
