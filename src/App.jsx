@@ -8043,6 +8043,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
               <div style={{marginBottom:12}}>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {(ex.cats||[]).length===0 && <p style={{fontSize:11,color:"#94A3B8",margin:0}}>No categories defined yet — complete <strong>Visitor categories</strong> in Event Setup first.</p>}
                   {(ex.cats||[]).map(cat => (
                     <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:(f.category||[]).includes(cat)?(f.category||[]).filter(c=>c!==cat):[...(f.category||[]),cat]}))}
                       style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
