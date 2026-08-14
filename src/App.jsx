@@ -7410,7 +7410,7 @@ function EventSetupInput({label, value, onChange, type="text", placeholder}) {
   );
 }
 
-function EventSetup({ex, onUpdate, onDelete}) {
+function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}) {
   if (!ex) return null;
 
   // ── Left nav sections ─────────────────────────────────────────────
@@ -7902,7 +7902,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
 
 
   // ── Offerings state ──────────────────────────────────────────────
-  const [offerings, setOfferings] = React.useState([]);
+  const offerings = sharedOfferings || [];
+  const setOfferings = onOfferingsChange || (()=>{});
   const [offeringsLoading, setOfferingsLoading] = React.useState(false);
   const [showAddOffering, setShowAddOffering] = React.useState(false);
   const [editingOffering, setEditingOffering] = React.useState(null);
@@ -7915,7 +7916,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   const [offeringSaving, setOfferingSaving] = React.useState(false);
 
   React.useEffect(() => {
-    if (!ex?.id || activeSection !== 'offerings') return;
+    if (!ex?.id) return;
     setOfferingsLoading(true);
     getOfferings(ex.id).then(data => {
       setOfferings(data || []);
@@ -10538,7 +10539,7 @@ function RegistrationPage({ eventId }) {
         {screen==="export"      && <LeadExport ex={ex}/>}
         {screen==="agent"       && <AgentPage ex={ex} onQueueLoaded={setAgentQueueCount}/>}
         {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
-        {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}}/>}
+        {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}} sharedOfferings={setupOfferings} onOfferingsChange={setSetupOfferings}/>}
         {screen==="org-data"    && <OrgDataScreen ex={ex}/>}
       </NavShell>
 
