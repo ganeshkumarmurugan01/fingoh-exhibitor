@@ -1064,10 +1064,10 @@ function computeSetupProgress(ex, offerings) {
 
   // 2. Company & booth (20%)
   const hasCompany  = ex.company && ex.company.trim().length > 2;
-  const hasProduct  = ex.product && ex.product.trim().length > 2;
   const hasBooth    = ex.boothSize && ex.boothSize.trim().length > 0;
   const hasWebsite  = ex.website && ex.website.trim().length > 4;
-  const companyPct  = ((hasCompany?1:0) + (hasProduct?1:0) + (hasBooth?1:0) + (hasWebsite?1:0)) / 4;
+  const hasLinkedin = ex.linkedin_url && ex.linkedin_url.trim().length > 4;
+  const companyPct  = ((hasCompany?1:0) + (hasBooth?1:0) + (hasWebsite?1:0) + (hasLinkedin?1:0)) / 4;
   score += companyPct * 20;
 
   // 3. Products & Services — offerings (15%)
@@ -8600,7 +8600,7 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           const spColor = sp>=90?"#16A34A":sp>=60?"#D97706":"#DC2626";
           const sectionDone = {
             overview: !!(form.venue&&form.venue.trim().length>0&&form.country&&form.country.trim().length>0&&form.dateFrom&&form.dateTo),
-            company:  !!(form.company&&form.company.trim().length>2&&form.product&&form.product.trim().length>2&&form.boothSize),
+            company:  !!(form.company&&form.company.trim().length>2&&form.website&&form.website.trim().length>4&&form.boothSize),
             offerings: offerings.length>=2,
             categories: (form.cats||[]).length>=3,
             icp: (form.icpRole||[]).length>0&&(form.icpSize||[]).length>0&&(form.icpReason||[]).length>0,
