@@ -1369,13 +1369,16 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                 </div>
               </div>
               <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
-              <SetupProgressBar progress={computeSetupProgress({
-                company: ev.company, product: ev.product, boothSize: ev.booth_size,
-                website: ev.website, venue: ev.venue, country: ev.country,
-                dateFrom: ev.date_from, dateTo: ev.date_to,
-                cats: [], icpRole: [], icpSize: [], icpReason: [],
-                intentWhy: "", intentBuyers: "", intentSignals: [], buyerSignals: []
-              }, [])} compact={true} />
+              {(()=>{
+                const basicDone = ev.company && ev.product && ev.venue && ev.country;
+                if (basicDone) return null;
+                return (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8,padding:"5px 10px",background:"#FFF7ED",borderRadius:6,border:"1px solid #FED7AA"}}>
+                    <span style={{fontSize:11}}>⚠️</span>
+                    <span style={{fontSize:11,color:"#92400E",fontWeight:600}}>Setup incomplete — open to complete</span>
+                  </div>
+                );
+              })()}
               <button onClick={async (e)=>{
                 const btn = e.currentTarget;
                 btn.disabled = true;
@@ -8592,18 +8595,48 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0}}>Event setup</p>
           <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:"4px 0 0",lineHeight:1.3,wordBreak:"break-word"}}>{ex.name}</p>
         </div>
-        {SECTIONS.map(s=>(
-          <button key={s.id} onClick={()=>setActiveSection(s.id)}
-            style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 16px",border:"none",cursor:"pointer",fontFamily:F,textAlign:"left",
-              background:activeSection===s.id?"#EFF6FF":"transparent",
-              borderRight:activeSection===s.id?`3px solid ${C.navy}`:"3px solid transparent",
-              color:activeSection===s.id?C.navy:C.muted,
-              fontWeight:activeSection===s.id?700:500, fontSize:12,
-            }}>
-            <span style={{fontSize:15,flexShrink:0}}>{s.icon}</span>
-            {s.label}
-          </button>
-        ))}
+        {(()=>{
+          const sp = computeSetupProgress(form, offerings);
+          const spColor = sp>=90?"#16A34A":sp>=60?"#D97706":"#DC2626";
+          const sectionDone = {
+            overview: !!(form.venue&&form.venue.trim().length>0&&form.country&&form.country.trim().length>0&&form.dateFrom&&form.dateTo),
+            company:  !!(form.company&&form.company.trim().length>2&&form.product&&form.product.trim().length>2&&form.boothSize),
+            offerings: offerings.length>=2,
+            categories: (form.cats||[]).length>=3,
+            icp: (form.icpRole||[]).length>0&&(form.icpSize||[]).length>0&&(form.icpReason||[]).length>0,
+            intent: !!(form.intentWhy&&form.intentWhy.trim().length>20&&form.intentBuyers&&form.intentBuyers.trim().length>20&&(form.intentSignals||[]).length>0),
+            finetune: true,
+            email: true,
+            danger: true,
+          };
+          return (<>
+            <div style={{padding:"8px 16px 12px",borderBottom:"1px solid #E2E8F0",marginBottom:4}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <span style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Setup progress</span>
+                <span style={{fontSize:11,fontWeight:800,color:spColor}}>{sp}%</span>
+              </div>
+              <div style={{height:5,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+                <div style={{height:"100%",width:sp+"%",background:spColor,borderRadius:99,transition:"width .4s"}}/>
+              </div>
+              {sp<90&&<p style={{fontSize:10,color:"#94A3B8",margin:"4px 0 0"}}>Need 90% to unlock all features</p>}
+            </div>
+            {SECTIONS.map(s=>(
+              <button key={s.id} onClick={()=>setActiveSection(s.id)}
+                style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 16px",border:"none",cursor:"pointer",fontFamily:F,textAlign:"left",
+                  background:activeSection===s.id?"#EFF6FF":"transparent",
+                  borderRight:activeSection===s.id?`3px solid ${C.navy}`:"3px solid transparent",
+                  color:activeSection===s.id?C.navy:C.muted,
+                  fontWeight:activeSection===s.id?700:500, fontSize:12,
+                }}>
+                <span style={{fontSize:15,flexShrink:0}}>{s.icon}</span>
+                <span style={{flex:1}}>{s.label}</span>
+                {["overview","company","offerings","categories","icp","intent"].includes(s.id) && (
+                  <span style={{fontSize:14,flexShrink:0}}>{sectionDone[s.id]?"✅":"⭕"}</span>
+                )}
+              </button>
+            ))}
+          </>);
+        })()}
         {saved && (
           <div style={{margin:"16px 12px 0",padding:"8px 12px",background:C.ltgrn,borderRadius:8,border:"1px solid #86EFAC"}}>
             <p style={{fontSize:11,color:"#14532D",fontWeight:700,margin:0}}>✓ Changes saved</p>
