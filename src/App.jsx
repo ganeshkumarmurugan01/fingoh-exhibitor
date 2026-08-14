@@ -7669,8 +7669,8 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
               </div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <Input label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
-              <Input label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
+              <EventSetupInput label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
+              <EventSetupInput label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
             </div>
             {error && <p style={{fontSize:11,color:"#DC2626",margin:"8px 0 0"}}>⚠ {error}</p>}
             {saved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:"8px 0 0"}}>✓ Dates updated successfully</p>}
