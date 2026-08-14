@@ -1373,9 +1373,14 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                 const basicDone = ev.company && ev.product && ev.venue && ev.country;
                 if (basicDone) return null;
                 return (
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:8,padding:"5px 10px",background:"#FFF7ED",borderRadius:6,border:"1px solid #FED7AA"}}>
-                    <span style={{fontSize:11}}>⚠️</span>
-                    <span style={{fontSize:11,color:"#92400E",fontWeight:600}}>Setup incomplete — open to complete</span>
+                  <div style={{marginTop:8}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                      <span style={{fontSize:10,color:"#64748B",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>Event setup</span>
+                      <span style={{fontSize:10,fontWeight:700,color:"#DC2626"}}>Incomplete</span>
+                    </div>
+                    <div style={{height:3,borderRadius:99,background:"#FEE2E2",overflow:"hidden"}}>
+                      <div style={{height:"100%",width:"30%",background:"#F87171",borderRadius:99}}/>
+                    </div>
                   </div>
                 );
               })()}
