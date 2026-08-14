@@ -1776,6 +1776,23 @@ function VisitorList({eventId, refreshKey}) {
   const [search, setSearch]         = React.useState("");
   const [sortCol, setSortCol]       = React.useState("iei_score");
   const [selectedContactId, setSelectedContactId] = React.useState(null);
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
+  const toggleSelect = (id) => setSelectedIds(prev => { const s = new Set(prev); s.has(id)?s.delete(id):s.add(id); return s; });
+  const toggleAll = (ids) => setSelectedIds(prev => prev.size===ids.length ? new Set() : new Set(ids));
+
+  const bulkDelete = async () => {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`Delete ${selectedIds.size} visitor(s)? This cannot be undone.`)) return;
+    const {data:{session}} = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const ids = [...selectedIds];
+    await Promise.all(ids.map(id => fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}/${id}`, {
+      method:"DELETE", headers:{"x-fingoh-auth":`Bearer ${token}`}
+    })));
+    setContacts(prev => prev.filter(c => !selectedIds.has(c.id)));
+    setSelectedIds(new Set());
+  };
+
   const deleteContact = async (contactId, name) => {
     if (!window.confirm(`Delete ${name}? This will remove all their signals and meetings for this event.`)) return;
     try {
@@ -1937,10 +1954,25 @@ function VisitorList({eventId, refreshKey}) {
       </div>
 
       {/* Table */}
+      {selectedIds.size > 0 && (
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"8px 14px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
+            <span style={{fontSize:12,fontWeight:600,color:"#1E40AF"}}>{selectedIds.size} visitor{selectedIds.size>1?"s":""} selected</span>
+            <button onClick={bulkDelete} style={{padding:"5px 14px",background:"#DC2626",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+              🗑 Delete selected
+            </button>
+            <button onClick={()=>setSelectedIds(new Set())} style={{padding:"5px 14px",background:"transparent",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:6,fontSize:12,cursor:"pointer"}}>
+              Clear
+            </button>
+          </div>
+        )}
       <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #E2E8F0"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr style={{background:"#F8FAFC"}}>
+              <th style={{padding:"8px 12px",borderBottom:"1px solid #E2E8F0",width:36}}>
+                <input type="checkbox" checked={selectedIds.size>0&&paginated.every(c=>selectedIds.has(c.id))}
+                  onChange={()=>toggleAll(paginated.map(c=>c.id))}/>
+              </th>
               <SortTh label="Name" col="name"/>
               <SortTh label="Company" col="company"/>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Role</th>
@@ -1957,7 +1989,10 @@ function VisitorList({eventId, refreshKey}) {
             {filtered.length===0 ? (
               <tr><td colSpan={8} style={{padding:24,textAlign:"center",color:C.muted}}>No visitors match your filters.</td></tr>
             ) : paginated.map((c,i) => (
-              <tr key={c.id} style={{background:i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
+              <tr key={c.id} style={{background:selectedIds.has(c.id)?"#EFF6FF":i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
+                <td style={{padding:"12px 14px",width:36}}>
+                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={()=>toggleSelect(c.id)}/>
+                </td>
                 <td style={{padding:"12px 14px"}}>
                   <div
                     onClick={()=>setSelectedContactId(c.id)}
@@ -1969,7 +2004,7 @@ function VisitorList({eventId, refreshKey}) {
                   <div style={{fontWeight:600,color:C.navy,fontSize:12}}>{c.company||"—"}</div>
                 </td>
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.designation||"—"}</td>
-                <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{[c.city,c.country].filter(Boolean).join(", ")||"—"}</td>
+                <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.country||"—"}</td>
                 <td style={{padding:"12px 14px"}}>
                   <span style={{fontSize:16,fontWeight:800,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:2,color:
                     c.prev_iei_score == null ? (TIER_COLORS[c.iei_tier]||C.muted) :
