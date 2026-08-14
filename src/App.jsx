@@ -1072,7 +1072,7 @@ function computeSetupProgress(ex, offerings) {
 
   // 3. Products & Services — offerings (15%)
   const offeringCount = (offerings||[]).length;
-  const offeringPct = offeringCount === 0 ? 0 : offeringCount === 1 ? 0.5 : offeringCount >= 2 ? 1 : 0;
+  const offeringPct = offeringCount === 0 ? 0 : 1;
   score += offeringPct * 15;
 
   // 4. Visitor categories (10%)
@@ -8601,7 +8601,7 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           const sectionDone = {
             overview: !!(form.venue&&form.venue.trim().length>0&&form.country&&form.country.trim().length>0&&form.dateFrom&&form.dateTo),
             company:  !!(form.company&&form.company.trim().length>2&&form.website&&form.website.trim().length>4&&form.boothSize),
-            offerings: offerings.length>=2,
+            offerings: offerings.length>=1,
             categories: (form.cats||[]).length>=3,
             icp: (form.icpRole||[]).length>0&&(form.icpSize||[]).length>0&&(form.icpReason||[]).length>0,
             intent: !!(form.intentWhy&&form.intentWhy.trim().length>20&&form.intentBuyers&&form.intentBuyers.trim().length>20&&(form.intentSignals||[]).length>0),
