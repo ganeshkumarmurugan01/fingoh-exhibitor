@@ -522,7 +522,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                   <div>
                     <label style={lS}>Country</label>
                     <select value={country} onChange={e=>setCountry(e.target.value)} style={{...iS,height:40}}>
-                      {["Singapore","Malaysia","Indonesia","Thailand","Philippines","Vietnam","India","UAE","UK","Australia"].map(c=><option key={c}>{c}</option>)}
+                      {["Afghanistan","Albania","Algeria","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahrain","Bangladesh","Belarus","Belgium","Bolivia","Bosnia and Herzegovina","Brazil","Bulgaria","Cambodia","Cameroon","Canada","Chile","China","Colombia","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Ecuador","Egypt","Estonia","Ethiopia","Finland","France","Georgia","Germany","Ghana","Greece","Guatemala","Honduras","Hong Kong","Hungary","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Ivory Coast","Japan","Jordan","Kazakhstan","Kenya","Kuwait","Kyrgyzstan","Latvia","Lebanon","Libya","Lithuania","Luxembourg","Malaysia","Mexico","Moldova","Morocco","Mozambique","Myanmar","Nepal","Netherlands","New Zealand","Nigeria","North Korea","Norway","Oman","Pakistan","Palestine","Panama","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Saudi Arabia","Senegal","Serbia","Singapore","Slovakia","Slovenia","South Africa","South Korea","Spain","Sri Lanka","Sudan","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Tunisia","Turkey","Turkmenistan","UAE","Uganda","UK","Ukraine","Uruguay","USA","Uzbekistan","Venezuela","Vietnam","Yemen","Zimbabwe"].map(c=><option key={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>
@@ -7670,7 +7670,129 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <EventSetupInput label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
-              <EventSetupInput label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:600,color:"#64748B",display:"block",marginBottom:4}}>COUNTRY</label>
+                <select value={form.country} onChange={e=>upd("country",e.target.value)}
+                  style={{width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:"inherit",color:"#0F172A",background:"white"}}>
+                  <option value="">Select country...</option>
+                  <option key="Afghanistan" value="Afghanistan">Afghanistan</option>
+                  <option key="Albania" value="Albania">Albania</option>
+                  <option key="Algeria" value="Algeria">Algeria</option>
+                  <option key="Argentina" value="Argentina">Argentina</option>
+                  <option key="Armenia" value="Armenia">Armenia</option>
+                  <option key="Australia" value="Australia">Australia</option>
+                  <option key="Austria" value="Austria">Austria</option>
+                  <option key="Azerbaijan" value="Azerbaijan">Azerbaijan</option>
+                  <option key="Bahrain" value="Bahrain">Bahrain</option>
+                  <option key="Bangladesh" value="Bangladesh">Bangladesh</option>
+                  <option key="Belarus" value="Belarus">Belarus</option>
+                  <option key="Belgium" value="Belgium">Belgium</option>
+                  <option key="Bolivia" value="Bolivia">Bolivia</option>
+                  <option key="Bosnia and Herzegovina" value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+                  <option key="Brazil" value="Brazil">Brazil</option>
+                  <option key="Bulgaria" value="Bulgaria">Bulgaria</option>
+                  <option key="Cambodia" value="Cambodia">Cambodia</option>
+                  <option key="Cameroon" value="Cameroon">Cameroon</option>
+                  <option key="Canada" value="Canada">Canada</option>
+                  <option key="Chile" value="Chile">Chile</option>
+                  <option key="China" value="China">China</option>
+                  <option key="Colombia" value="Colombia">Colombia</option>
+                  <option key="Costa Rica" value="Costa Rica">Costa Rica</option>
+                  <option key="Croatia" value="Croatia">Croatia</option>
+                  <option key="Cuba" value="Cuba">Cuba</option>
+                  <option key="Cyprus" value="Cyprus">Cyprus</option>
+                  <option key="Czech Republic" value="Czech Republic">Czech Republic</option>
+                  <option key="Denmark" value="Denmark">Denmark</option>
+                  <option key="Ecuador" value="Ecuador">Ecuador</option>
+                  <option key="Egypt" value="Egypt">Egypt</option>
+                  <option key="Estonia" value="Estonia">Estonia</option>
+                  <option key="Ethiopia" value="Ethiopia">Ethiopia</option>
+                  <option key="Finland" value="Finland">Finland</option>
+                  <option key="France" value="France">France</option>
+                  <option key="Georgia" value="Georgia">Georgia</option>
+                  <option key="Germany" value="Germany">Germany</option>
+                  <option key="Ghana" value="Ghana">Ghana</option>
+                  <option key="Greece" value="Greece">Greece</option>
+                  <option key="Guatemala" value="Guatemala">Guatemala</option>
+                  <option key="Honduras" value="Honduras">Honduras</option>
+                  <option key="Hong Kong" value="Hong Kong">Hong Kong</option>
+                  <option key="Hungary" value="Hungary">Hungary</option>
+                  <option key="India" value="India">India</option>
+                  <option key="Indonesia" value="Indonesia">Indonesia</option>
+                  <option key="Iran" value="Iran">Iran</option>
+                  <option key="Iraq" value="Iraq">Iraq</option>
+                  <option key="Ireland" value="Ireland">Ireland</option>
+                  <option key="Israel" value="Israel">Israel</option>
+                  <option key="Italy" value="Italy">Italy</option>
+                  <option key="Ivory Coast" value="Ivory Coast">Ivory Coast</option>
+                  <option key="Japan" value="Japan">Japan</option>
+                  <option key="Jordan" value="Jordan">Jordan</option>
+                  <option key="Kazakhstan" value="Kazakhstan">Kazakhstan</option>
+                  <option key="Kenya" value="Kenya">Kenya</option>
+                  <option key="Kuwait" value="Kuwait">Kuwait</option>
+                  <option key="Kyrgyzstan" value="Kyrgyzstan">Kyrgyzstan</option>
+                  <option key="Latvia" value="Latvia">Latvia</option>
+                  <option key="Lebanon" value="Lebanon">Lebanon</option>
+                  <option key="Libya" value="Libya">Libya</option>
+                  <option key="Lithuania" value="Lithuania">Lithuania</option>
+                  <option key="Luxembourg" value="Luxembourg">Luxembourg</option>
+                  <option key="Malaysia" value="Malaysia">Malaysia</option>
+                  <option key="Mexico" value="Mexico">Mexico</option>
+                  <option key="Moldova" value="Moldova">Moldova</option>
+                  <option key="Morocco" value="Morocco">Morocco</option>
+                  <option key="Mozambique" value="Mozambique">Mozambique</option>
+                  <option key="Myanmar" value="Myanmar">Myanmar</option>
+                  <option key="Nepal" value="Nepal">Nepal</option>
+                  <option key="Netherlands" value="Netherlands">Netherlands</option>
+                  <option key="New Zealand" value="New Zealand">New Zealand</option>
+                  <option key="Nigeria" value="Nigeria">Nigeria</option>
+                  <option key="North Korea" value="North Korea">North Korea</option>
+                  <option key="Norway" value="Norway">Norway</option>
+                  <option key="Oman" value="Oman">Oman</option>
+                  <option key="Pakistan" value="Pakistan">Pakistan</option>
+                  <option key="Palestine" value="Palestine">Palestine</option>
+                  <option key="Panama" value="Panama">Panama</option>
+                  <option key="Peru" value="Peru">Peru</option>
+                  <option key="Philippines" value="Philippines">Philippines</option>
+                  <option key="Poland" value="Poland">Poland</option>
+                  <option key="Portugal" value="Portugal">Portugal</option>
+                  <option key="Qatar" value="Qatar">Qatar</option>
+                  <option key="Romania" value="Romania">Romania</option>
+                  <option key="Russia" value="Russia">Russia</option>
+                  <option key="Saudi Arabia" value="Saudi Arabia">Saudi Arabia</option>
+                  <option key="Senegal" value="Senegal">Senegal</option>
+                  <option key="Serbia" value="Serbia">Serbia</option>
+                  <option key="Singapore" value="Singapore">Singapore</option>
+                  <option key="Slovakia" value="Slovakia">Slovakia</option>
+                  <option key="Slovenia" value="Slovenia">Slovenia</option>
+                  <option key="South Africa" value="South Africa">South Africa</option>
+                  <option key="South Korea" value="South Korea">South Korea</option>
+                  <option key="Spain" value="Spain">Spain</option>
+                  <option key="Sri Lanka" value="Sri Lanka">Sri Lanka</option>
+                  <option key="Sudan" value="Sudan">Sudan</option>
+                  <option key="Sweden" value="Sweden">Sweden</option>
+                  <option key="Switzerland" value="Switzerland">Switzerland</option>
+                  <option key="Syria" value="Syria">Syria</option>
+                  <option key="Taiwan" value="Taiwan">Taiwan</option>
+                  <option key="Tajikistan" value="Tajikistan">Tajikistan</option>
+                  <option key="Tanzania" value="Tanzania">Tanzania</option>
+                  <option key="Thailand" value="Thailand">Thailand</option>
+                  <option key="Tunisia" value="Tunisia">Tunisia</option>
+                  <option key="Turkey" value="Turkey">Turkey</option>
+                  <option key="Turkmenistan" value="Turkmenistan">Turkmenistan</option>
+                  <option key="UAE" value="UAE">UAE</option>
+                  <option key="Uganda" value="Uganda">Uganda</option>
+                  <option key="UK" value="UK">UK</option>
+                  <option key="Ukraine" value="Ukraine">Ukraine</option>
+                  <option key="Uruguay" value="Uruguay">Uruguay</option>
+                  <option key="USA" value="USA">USA</option>
+                  <option key="Uzbekistan" value="Uzbekistan">Uzbekistan</option>
+                  <option key="Venezuela" value="Venezuela">Venezuela</option>
+                  <option key="Vietnam" value="Vietnam">Vietnam</option>
+                  <option key="Yemen" value="Yemen">Yemen</option>
+                  <option key="Zimbabwe" value="Zimbabwe">Zimbabwe</option>
+                </select>
+              </div>
             </div>
             {error && <p style={{fontSize:11,color:"#DC2626",margin:"8px 0 0"}}>⚠ {error}</p>}
             {saved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:"8px 0 0"}}>✓ Dates updated successfully</p>}
