@@ -522,7 +522,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                   <div>
                     <label style={lS}>Country</label>
                     <select value={country} onChange={e=>setCountry(e.target.value)} style={{...iS,height:40}}>
-                      {["Singapore","Malaysia","Indonesia","Thailand","Philippines","Vietnam","India","UAE","UK","Australia"].map(c=><option key={c}>{c}</option>)}
+                      {["Afghanistan","Albania","Algeria","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahrain","Bangladesh","Belarus","Belgium","Bolivia","Bosnia and Herzegovina","Brazil","Bulgaria","Cambodia","Cameroon","Canada","Chile","China","Colombia","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic","Denmark","Ecuador","Egypt","Estonia","Ethiopia","Finland","France","Georgia","Germany","Ghana","Greece","Guatemala","Honduras","Hong Kong","Hungary","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Ivory Coast","Japan","Jordan","Kazakhstan","Kenya","Kuwait","Kyrgyzstan","Latvia","Lebanon","Libya","Lithuania","Luxembourg","Malaysia","Mexico","Moldova","Morocco","Mozambique","Myanmar","Nepal","Netherlands","New Zealand","Nigeria","North Korea","Norway","Oman","Pakistan","Palestine","Panama","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Saudi Arabia","Senegal","Serbia","Singapore","Slovakia","Slovenia","South Africa","South Korea","Spain","Sri Lanka","Sudan","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Tunisia","Turkey","Turkmenistan","UAE","Uganda","UK","Ukraine","Uruguay","USA","Uzbekistan","Venezuela","Vietnam","Yemen","Zimbabwe"].map(c=><option key={c}>{c}</option>)}
                     </select>
                   </div>
                 </div>
@@ -1050,6 +1050,115 @@ function PlanAccountCard({planInfo, profile}) {
   );
 }
 
+
+// ── Event Setup Progress ──────────────────────────────────────────────────────
+function computeSetupProgress(ex, offerings) {
+  let score = 0;
+
+  // 1. Event overview: dates + venue + country (10%)
+  const hasVenue   = ex.venue && ex.venue.trim().length > 0;
+  const hasCountry = ex.country && ex.country.trim().length > 0;
+  const hasDates   = ex.dateFrom && ex.dateTo;
+  const overviewPct = ((hasVenue?1:0) + (hasCountry?1:0) + (hasDates?1:0)) / 3;
+  score += overviewPct * 10;
+
+  // 2. Company & booth (20%)
+  const hasCompany  = ex.company && ex.company.trim().length > 2;
+  const hasBooth    = ex.boothSize && ex.boothSize.trim().length > 0;
+  const hasWebsite  = ex.website && ex.website.trim().length > 4;
+  const hasLinkedin = ex.linkedin_url && ex.linkedin_url.trim().length > 4;
+  const companyPct  = ((hasCompany?1:0) + (hasBooth?1:0) + (hasWebsite?1:0) + (hasLinkedin?1:0)) / 4;
+  score += companyPct * 20;
+
+  // 3. Products & Services — offerings (15%)
+  const offeringCount = (offerings||[]).length;
+  const offeringPct = offeringCount === 0 ? 0 : 1;
+  score += offeringPct * 15;
+
+  // 4. Visitor categories (10%)
+  const catCount = (ex.cats||[]).length;
+  const catPct = catCount === 0 ? 0 : catCount === 1 ? 0.4 : catCount >= 3 ? 1 : 0.7;
+  score += catPct * 10;
+
+  // 5. ICP (20%) — intelligent partial scoring
+  const hasRoles   = (ex.icpRole||[]).length > 0;
+  const hasSizes   = (ex.icpSize||[]).length > 0;
+  const hasReasons = (ex.icpReason||[]).length > 0;
+  const icpPct = ((hasRoles?1:0) + (hasSizes?1:0) + (hasReasons?1:0)) / 3;
+  score += icpPct * 20;
+
+  // 6. Exhibitor intent (25%) — intelligent partial scoring
+  const hasWhy     = ex.intentWhy && ex.intentWhy.trim().length > 20;
+  const hasBuyers  = ex.intentBuyers && ex.intentBuyers.trim().length > 20;
+  const hasSignals = (ex.intentSignals||[]).length > 0;
+  const hasBuyerSig = (ex.buyerSignals||[]).length > 0;
+  const intentPct = ((hasWhy?1:0) + (hasBuyers?1:0) + (hasSignals?1:0) + (hasBuyerSig?1:0)) / 4;
+  score += intentPct * 25;
+
+  return Math.round(score);
+}
+
+const SETUP_THRESHOLD = 50;
+
+function SetupProgressBar({progress, compact=false}) {
+  const color = progress >= SETUP_THRESHOLD ? "#16A34A" : progress >= 60 ? "#D97706" : "#DC2626";
+  if (compact) return (
+    <div style={{marginTop:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+        <span style={{fontSize:10,color:"#64748B",fontWeight:600}}>SETUP</span>
+        <span style={{fontSize:10,fontWeight:700,color}}>{progress}%</span>
+      </div>
+      <div style={{height:4,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+        <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+      </div>
+    </div>
+  );
+  return (
+    <div style={{marginBottom:16,padding:"10px 14px",background:progress>=SETUP_THRESHOLD?"#F0FDF4":"#FFF7ED",borderRadius:8,border:`1px solid ${progress>=SETUP_THRESHOLD?"#BBF7D0":"#FED7AA"}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <span style={{fontSize:12,fontWeight:700,color:progress>=SETUP_THRESHOLD?"#15803D":"#92400E"}}>
+          {progress>=SETUP_THRESHOLD ? "✓ Event setup complete" : `Event setup ${progress}% complete`}
+        </span>
+        <span style={{fontSize:12,fontWeight:800,color}}>{progress}%</span>
+      </div>
+      <div style={{height:6,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+        <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+      </div>
+      {progress < SETUP_THRESHOLD && (
+        <p style={{margin:"6px 0 0",fontSize:11,color:"#92400E"}}>
+          Complete your event setup to unlock Audience Upload, IEI Analysis, and Meetings.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SetupGate({progress, onGoSetup}) {
+  const color = progress >= 60 ? "#D97706" : "#DC2626";
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:400,padding:40,textAlign:"center"}}>
+      <div style={{fontSize:48,marginBottom:16}}>🔒</div>
+      <h2 style={{fontSize:20,fontWeight:800,color:"#0D1B3E",margin:"0 0 8px"}}>Complete Event Setup First</h2>
+      <p style={{fontSize:14,color:"#64748B",margin:"0 0 24px",maxWidth:420}}>
+        Your event setup is {progress}% complete. Reach 50% to unlock Audience Upload, IEI Analysis, Meetings, and Live Dashboard.
+      </p>
+      <div style={{width:320,marginBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <span style={{fontSize:12,color:"#64748B"}}>Setup progress</span>
+          <span style={{fontSize:12,fontWeight:700,color}}>{progress}%</span>
+        </div>
+        <div style={{height:8,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+          <div style={{height:"100%",width:progress+"%",background:color,borderRadius:99,transition:"width .4s"}}/>
+        </div>
+        <p style={{fontSize:11,color:"#94A3B8",margin:"6px 0 0"}}>Need 50% to unlock features</p>
+      </div>
+      <button onClick={onGoSetup} style={{padding:"12px 28px",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:8,fontSize:14,fontWeight:700,cursor:"pointer"}}>
+        Complete Event Setup →
+      </button>
+    </div>
+  );
+}
+
 function EventHome({onLaunch, onCreateEvent, profile}) {
   const [showTeam, setShowTeam] = useState(false);
 
@@ -1247,6 +1356,11 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
               onMouseOver={e=>{e.currentTarget.style.boxShadow="0 6px 24px rgba(13,27,62,0.12)";}}
               onMouseOut={e=>{e.currentTarget.style.boxShadow="none";}}>
               <div style={{position:"absolute",top:14,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#DBEAFE",color:C.blue,fontWeight:700}}>REGISTERED</div>
+              {ev.organiser_powered_label && (
+                <div style={{position:"absolute",top:38,right:14,fontSize:9,padding:"3px 9px",borderRadius:99,background:"#F5F3FF",color:"#7C3AED",fontWeight:700}}>
+                  {ev.organiser_powered_label}
+                </div>
+              )}
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
                 <div style={{width:38,height:38,borderRadius:10,background:C.ltnavy,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{EX_TYPES.find(t=>t.id===ev.type)?.icon||"🎪"}</div>
                 <div>
@@ -1255,6 +1369,15 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                 </div>
               </div>
               <p style={{fontSize:11,color:C.muted,margin:0,marginBottom:14}}>📍 {ev.venue}</p>
+              {(()=>{
+                const basicDone = ev.company && ev.venue && ev.country;
+                return (
+                  <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:5,marginTop:6}}>
+                    <div style={{width:7,height:7,borderRadius:"50%",background:basicDone?"#16A34A":"#DC2626",flexShrink:0}}/>
+                    <span style={{fontSize:10,color:basicDone?"#16A34A":"#DC2626",fontWeight:600}}>{basicDone?"Setup complete":"Setup incomplete"}</span>
+                  </div>
+                );
+              })()}
               <button onClick={async (e)=>{
                 const btn = e.currentTarget;
                 btn.disabled = true;
@@ -1273,6 +1396,8 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
                     finetuneNotes: full.intent?.finetune_notes || [],
                     industry_vertical: full.industry_vertical || "general",
                     industryVertical: full.industry_vertical || "general",
+                    organiser_event_id: full.organiser_event_id || null,
+                    organiser_powered_label: full.organiser_powered_label || null,
                   });
                 } catch (e) {
                   // Fallback to minimal data if fetch fails
@@ -1651,6 +1776,23 @@ function VisitorList({eventId, refreshKey}) {
   const [search, setSearch]         = React.useState("");
   const [sortCol, setSortCol]       = React.useState("iei_score");
   const [selectedContactId, setSelectedContactId] = React.useState(null);
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
+  const toggleSelect = (id) => setSelectedIds(prev => { const s = new Set(prev); s.has(id)?s.delete(id):s.add(id); return s; });
+  const toggleAll = (ids) => setSelectedIds(prev => prev.size===ids.length ? new Set() : new Set(ids));
+
+  const bulkDelete = async () => {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`Delete ${selectedIds.size} visitor(s)? This cannot be undone.`)) return;
+    const {data:{session}} = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const ids = [...selectedIds];
+    await Promise.all(ids.map(id => fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}/${id}`, {
+      method:"DELETE", headers:{"x-fingoh-auth":`Bearer ${token}`}
+    })));
+    setContacts(prev => prev.filter(c => !selectedIds.has(c.id)));
+    setSelectedIds(new Set());
+  };
+
   const deleteContact = async (contactId, name) => {
     if (!window.confirm(`Delete ${name}? This will remove all their signals and meetings for this event.`)) return;
     try {
@@ -1812,10 +1954,25 @@ function VisitorList({eventId, refreshKey}) {
       </div>
 
       {/* Table */}
+      {selectedIds.size > 0 && (
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"8px 14px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
+            <span style={{fontSize:12,fontWeight:600,color:"#1E40AF"}}>{selectedIds.size} visitor{selectedIds.size>1?"s":""} selected</span>
+            <button onClick={bulkDelete} style={{padding:"5px 14px",background:"#DC2626",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+              🗑 Delete selected
+            </button>
+            <button onClick={()=>setSelectedIds(new Set())} style={{padding:"5px 14px",background:"transparent",color:"#64748B",border:"1px solid #E2E8F0",borderRadius:6,fontSize:12,cursor:"pointer"}}>
+              Clear
+            </button>
+          </div>
+        )}
       <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #E2E8F0"}}>
         <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
           <thead>
             <tr style={{background:"#F8FAFC"}}>
+              <th style={{padding:"8px 12px",borderBottom:"1px solid #E2E8F0",width:36}}>
+                <input type="checkbox" checked={selectedIds.size>0&&paginated.every(c=>selectedIds.has(c.id))}
+                  onChange={()=>toggleAll(paginated.map(c=>c.id))}/>
+              </th>
               <SortTh label="Name" col="name"/>
               <SortTh label="Company" col="company"/>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Role</th>
@@ -1832,7 +1989,10 @@ function VisitorList({eventId, refreshKey}) {
             {filtered.length===0 ? (
               <tr><td colSpan={8} style={{padding:24,textAlign:"center",color:C.muted}}>No visitors match your filters.</td></tr>
             ) : paginated.map((c,i) => (
-              <tr key={c.id} style={{background:i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
+              <tr key={c.id} style={{background:selectedIds.has(c.id)?"#EFF6FF":i%2===0?C.white:"#FAFAFA",borderBottom:"1px solid #F1F5F9"}}>
+                <td style={{padding:"12px 14px",width:36}}>
+                  <input type="checkbox" checked={selectedIds.has(c.id)} onChange={()=>toggleSelect(c.id)}/>
+                </td>
                 <td style={{padding:"12px 14px"}}>
                   <div
                     onClick={()=>setSelectedContactId(c.id)}
@@ -1844,7 +2004,7 @@ function VisitorList({eventId, refreshKey}) {
                   <div style={{fontWeight:600,color:C.navy,fontSize:12}}>{c.company||"—"}</div>
                 </td>
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.designation||"—"}</td>
-                <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{[c.city,c.country].filter(Boolean).join(", ")||"—"}</td>
+                <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.country||"—"}</td>
                 <td style={{padding:"12px 14px"}}>
                   <span style={{fontSize:16,fontWeight:800,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:2,color:
                     c.prev_iei_score == null ? (TIER_COLORS[c.iei_tier]||C.muted) :
@@ -2303,6 +2463,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
     ...(planFeatures?.has_crm_sync !== false ? [{id:"database", icon:"🗄️", label:"Contact database", sub:"CRM or data warehouse"}] : []),
     {id:"registration", icon:"🔗", label:"Live registration feed",  sub:"Registration system API"},
     {id:"manual",       icon:"✏️", label:"Manual entry",            sub:"Add single contact"},
+    ...(ex?.organiser_event_id ? [{id:"organiser", icon:"🏢", label:"Organiser Data", sub:"Visitor data from event organiser"}] : []),
     {id:"visitors",     icon:"👥", label:"Visitor list",            sub:"All contacts · IEI scored"},
   ];
 
@@ -2351,7 +2512,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
         ))}
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:source==="visitors"?"1fr":"1fr 300px",gap:20}}>
+      <div style={{display:"grid",gridTemplateColumns:(source==="visitors"||source==="organiser")?"1fr":"1fr 300px",gap:20}}>
         {/* Main panel */}
         <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
 
@@ -2611,6 +2772,9 @@ function AudienceUpload({ex, onNext, planFeatures}) {
           )}
 
           {/* ── VISITOR LIST ── */}
+          {source==="organiser" && ex?.organiser_event_id && (
+            <OrgDataScreen ex={ex} />
+          )}
           {source==="visitors" && (
             <div style={{padding:"20px 28px"}}>
               <VisitorList eventId={ex?.id} refreshKey={source}/>
@@ -2620,7 +2784,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
         </div>
 
         {/* Right sidebar — what Fingoh does with data — hidden on visitor list */}
-        <div style={{display: source==="visitors" ? "none" : "flex",flexDirection:"column",gap:12}}>
+        <div style={{display: (source==="visitors"||source==="organiser") ? "none" : "flex",flexDirection:"column",gap:12}}>
           <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,padding:18}}>
             <p style={{fontSize:11,fontWeight:700,color:C.navy,margin:0,marginBottom:12,textTransform:"uppercase",letterSpacing:.06}}>What Fingoh does with your data</p>
             {[
@@ -7280,7 +7444,7 @@ function EventSetupInput({label, value, onChange, type="text", placeholder}) {
   );
 }
 
-function EventSetup({ex, onUpdate, onDelete}) {
+function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}) {
   if (!ex) return null;
 
   // ── Left nav sections ─────────────────────────────────────────────
@@ -7339,7 +7503,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
 
   // Editable form state
   const [form, setForm] = useState({
-    company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "",
+    company: ex.company || "", product: ex.product || "", website: ex.website || "", boothSize: ex.boothSize || "", linkedin_url: ex.linkedin_url || "",
     industryVertical: ex.industry_vertical || ex.industryVertical || "general",
     dateFrom: ex.dateFrom || "", dateTo: ex.dateTo || "",
     venue: ex.venue || "", country: ex.country || "",
@@ -7365,7 +7529,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
       const coreRes = await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
         method:"PATCH", headers,
         body: JSON.stringify({
-          company: form.company, product: form.product, website: form.website, booth_size: form.boothSize,
+          company: form.company, product: form.product, website: form.website, booth_size: form.boothSize, linkedin_url: form.linkedin_url,
           date_from: form.dateFrom, date_to: form.dateTo,
           venue: form.venue, country: form.country,
           industry_vertical: form.industryVertical,
@@ -7540,8 +7704,130 @@ function EventSetup({ex, onUpdate, onDelete}) {
               </div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <Input label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
-              <Input label="Country" value={form.country} onChange={v=>upd("country",v)} placeholder="e.g. India"/>
+              <EventSetupInput label="Venue" value={form.venue} onChange={v=>upd("venue",v)} placeholder="e.g. Bombay Exhibition Centre"/>
+              <div style={{marginBottom:16}}>
+                <label style={{fontSize:11,fontWeight:600,color:"#64748B",display:"block",marginBottom:4}}>COUNTRY</label>
+                <select value={form.country} onChange={e=>upd("country",e.target.value)}
+                  style={{width:"100%",padding:"9px 12px",border:"1px solid #E2E8F0",borderRadius:8,fontSize:13,fontFamily:"inherit",color:"#0F172A",background:"white"}}>
+                  <option value="">Select country...</option>
+                  <option key="Afghanistan" value="Afghanistan">Afghanistan</option>
+                  <option key="Albania" value="Albania">Albania</option>
+                  <option key="Algeria" value="Algeria">Algeria</option>
+                  <option key="Argentina" value="Argentina">Argentina</option>
+                  <option key="Armenia" value="Armenia">Armenia</option>
+                  <option key="Australia" value="Australia">Australia</option>
+                  <option key="Austria" value="Austria">Austria</option>
+                  <option key="Azerbaijan" value="Azerbaijan">Azerbaijan</option>
+                  <option key="Bahrain" value="Bahrain">Bahrain</option>
+                  <option key="Bangladesh" value="Bangladesh">Bangladesh</option>
+                  <option key="Belarus" value="Belarus">Belarus</option>
+                  <option key="Belgium" value="Belgium">Belgium</option>
+                  <option key="Bolivia" value="Bolivia">Bolivia</option>
+                  <option key="Bosnia and Herzegovina" value="Bosnia and Herzegovina">Bosnia and Herzegovina</option>
+                  <option key="Brazil" value="Brazil">Brazil</option>
+                  <option key="Bulgaria" value="Bulgaria">Bulgaria</option>
+                  <option key="Cambodia" value="Cambodia">Cambodia</option>
+                  <option key="Cameroon" value="Cameroon">Cameroon</option>
+                  <option key="Canada" value="Canada">Canada</option>
+                  <option key="Chile" value="Chile">Chile</option>
+                  <option key="China" value="China">China</option>
+                  <option key="Colombia" value="Colombia">Colombia</option>
+                  <option key="Costa Rica" value="Costa Rica">Costa Rica</option>
+                  <option key="Croatia" value="Croatia">Croatia</option>
+                  <option key="Cuba" value="Cuba">Cuba</option>
+                  <option key="Cyprus" value="Cyprus">Cyprus</option>
+                  <option key="Czech Republic" value="Czech Republic">Czech Republic</option>
+                  <option key="Denmark" value="Denmark">Denmark</option>
+                  <option key="Ecuador" value="Ecuador">Ecuador</option>
+                  <option key="Egypt" value="Egypt">Egypt</option>
+                  <option key="Estonia" value="Estonia">Estonia</option>
+                  <option key="Ethiopia" value="Ethiopia">Ethiopia</option>
+                  <option key="Finland" value="Finland">Finland</option>
+                  <option key="France" value="France">France</option>
+                  <option key="Georgia" value="Georgia">Georgia</option>
+                  <option key="Germany" value="Germany">Germany</option>
+                  <option key="Ghana" value="Ghana">Ghana</option>
+                  <option key="Greece" value="Greece">Greece</option>
+                  <option key="Guatemala" value="Guatemala">Guatemala</option>
+                  <option key="Honduras" value="Honduras">Honduras</option>
+                  <option key="Hong Kong" value="Hong Kong">Hong Kong</option>
+                  <option key="Hungary" value="Hungary">Hungary</option>
+                  <option key="India" value="India">India</option>
+                  <option key="Indonesia" value="Indonesia">Indonesia</option>
+                  <option key="Iran" value="Iran">Iran</option>
+                  <option key="Iraq" value="Iraq">Iraq</option>
+                  <option key="Ireland" value="Ireland">Ireland</option>
+                  <option key="Israel" value="Israel">Israel</option>
+                  <option key="Italy" value="Italy">Italy</option>
+                  <option key="Ivory Coast" value="Ivory Coast">Ivory Coast</option>
+                  <option key="Japan" value="Japan">Japan</option>
+                  <option key="Jordan" value="Jordan">Jordan</option>
+                  <option key="Kazakhstan" value="Kazakhstan">Kazakhstan</option>
+                  <option key="Kenya" value="Kenya">Kenya</option>
+                  <option key="Kuwait" value="Kuwait">Kuwait</option>
+                  <option key="Kyrgyzstan" value="Kyrgyzstan">Kyrgyzstan</option>
+                  <option key="Latvia" value="Latvia">Latvia</option>
+                  <option key="Lebanon" value="Lebanon">Lebanon</option>
+                  <option key="Libya" value="Libya">Libya</option>
+                  <option key="Lithuania" value="Lithuania">Lithuania</option>
+                  <option key="Luxembourg" value="Luxembourg">Luxembourg</option>
+                  <option key="Malaysia" value="Malaysia">Malaysia</option>
+                  <option key="Mexico" value="Mexico">Mexico</option>
+                  <option key="Moldova" value="Moldova">Moldova</option>
+                  <option key="Morocco" value="Morocco">Morocco</option>
+                  <option key="Mozambique" value="Mozambique">Mozambique</option>
+                  <option key="Myanmar" value="Myanmar">Myanmar</option>
+                  <option key="Nepal" value="Nepal">Nepal</option>
+                  <option key="Netherlands" value="Netherlands">Netherlands</option>
+                  <option key="New Zealand" value="New Zealand">New Zealand</option>
+                  <option key="Nigeria" value="Nigeria">Nigeria</option>
+                  <option key="North Korea" value="North Korea">North Korea</option>
+                  <option key="Norway" value="Norway">Norway</option>
+                  <option key="Oman" value="Oman">Oman</option>
+                  <option key="Pakistan" value="Pakistan">Pakistan</option>
+                  <option key="Palestine" value="Palestine">Palestine</option>
+                  <option key="Panama" value="Panama">Panama</option>
+                  <option key="Peru" value="Peru">Peru</option>
+                  <option key="Philippines" value="Philippines">Philippines</option>
+                  <option key="Poland" value="Poland">Poland</option>
+                  <option key="Portugal" value="Portugal">Portugal</option>
+                  <option key="Qatar" value="Qatar">Qatar</option>
+                  <option key="Romania" value="Romania">Romania</option>
+                  <option key="Russia" value="Russia">Russia</option>
+                  <option key="Saudi Arabia" value="Saudi Arabia">Saudi Arabia</option>
+                  <option key="Senegal" value="Senegal">Senegal</option>
+                  <option key="Serbia" value="Serbia">Serbia</option>
+                  <option key="Singapore" value="Singapore">Singapore</option>
+                  <option key="Slovakia" value="Slovakia">Slovakia</option>
+                  <option key="Slovenia" value="Slovenia">Slovenia</option>
+                  <option key="South Africa" value="South Africa">South Africa</option>
+                  <option key="South Korea" value="South Korea">South Korea</option>
+                  <option key="Spain" value="Spain">Spain</option>
+                  <option key="Sri Lanka" value="Sri Lanka">Sri Lanka</option>
+                  <option key="Sudan" value="Sudan">Sudan</option>
+                  <option key="Sweden" value="Sweden">Sweden</option>
+                  <option key="Switzerland" value="Switzerland">Switzerland</option>
+                  <option key="Syria" value="Syria">Syria</option>
+                  <option key="Taiwan" value="Taiwan">Taiwan</option>
+                  <option key="Tajikistan" value="Tajikistan">Tajikistan</option>
+                  <option key="Tanzania" value="Tanzania">Tanzania</option>
+                  <option key="Thailand" value="Thailand">Thailand</option>
+                  <option key="Tunisia" value="Tunisia">Tunisia</option>
+                  <option key="Turkey" value="Turkey">Turkey</option>
+                  <option key="Turkmenistan" value="Turkmenistan">Turkmenistan</option>
+                  <option key="UAE" value="UAE">UAE</option>
+                  <option key="Uganda" value="Uganda">Uganda</option>
+                  <option key="UK" value="UK">UK</option>
+                  <option key="Ukraine" value="Ukraine">Ukraine</option>
+                  <option key="Uruguay" value="Uruguay">Uruguay</option>
+                  <option key="USA" value="USA">USA</option>
+                  <option key="Uzbekistan" value="Uzbekistan">Uzbekistan</option>
+                  <option key="Venezuela" value="Venezuela">Venezuela</option>
+                  <option key="Vietnam" value="Vietnam">Vietnam</option>
+                  <option key="Yemen" value="Yemen">Yemen</option>
+                  <option key="Zimbabwe" value="Zimbabwe">Zimbabwe</option>
+                </select>
+              </div>
             </div>
             {error && <p style={{fontSize:11,color:"#DC2626",margin:"8px 0 0"}}>⚠ {error}</p>}
             {saved && <p style={{fontSize:11,color:C.green,fontWeight:700,margin:"8px 0 0"}}>✓ Dates updated successfully</p>}
@@ -7581,8 +7867,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>Company & booth</h2>
       <p style={{fontSize:12,color:C.muted,margin:"0 0 20px"}}>Your company details and booth configuration for this event.</p>
       <EventSetupInput label="Company name"       value={form.company}   onChange={v=>upd("company",v)}/>
-      <EventSetupInput label="Product / solution" value={form.product}   onChange={v=>upd("product",v)}  placeholder="What are you showcasing?"/>
       <EventSetupInput label="Website"            value={form.website}   onChange={v=>upd("website",v)}   placeholder="https://"/>
+      <EventSetupInput label="LinkedIn page"      value={form.linkedin_url||""} onChange={v=>upd("linkedin_url",v)} placeholder="https://linkedin.com/company/yourcompany"/>
       <EventSetupInput label="Booth size (m²)"    value={form.boothSize} onChange={v=>upd("boothSize",v)} placeholder="e.g. 36"/>
       <SaveBar/>
     </div>
@@ -7772,7 +8058,8 @@ function EventSetup({ex, onUpdate, onDelete}) {
 
 
   // ── Offerings state ──────────────────────────────────────────────
-  const [offerings, setOfferings] = React.useState([]);
+  const offerings = sharedOfferings || [];
+  const setOfferings = onOfferingsChange || (()=>{});
   const [offeringsLoading, setOfferingsLoading] = React.useState(false);
   const [showAddOffering, setShowAddOffering] = React.useState(false);
   const [editingOffering, setEditingOffering] = React.useState(null);
@@ -7785,7 +8072,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
   const [offeringSaving, setOfferingSaving] = React.useState(false);
 
   React.useEffect(() => {
-    if (!ex?.id || activeSection !== 'offerings') return;
+    if (!ex?.id) return;
     setOfferingsLoading(true);
     getOfferings(ex.id).then(data => {
       setOfferings(data || []);
@@ -7913,6 +8200,7 @@ function EventSetup({ex, onUpdate, onDelete}) {
               <div style={{marginBottom:12}}>
                 <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {(ex.cats||[]).length===0 && <p style={{fontSize:11,color:"#94A3B8",margin:0}}>No categories defined yet — complete <strong>Visitor categories</strong> in Event Setup first.</p>}
                   {(ex.cats||[]).map(cat => (
                     <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:(f.category||[]).includes(cat)?(f.category||[]).filter(c=>c!==cat):[...(f.category||[]),cat]}))}
                       style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
@@ -8465,18 +8753,48 @@ ${banner ? `<tr><td style="padding:0;"><img src="${banner}" alt="" style="width:
           <p style={{fontSize:11,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,margin:0}}>Event setup</p>
           <p style={{fontSize:12,fontWeight:600,color:C.navy,margin:"4px 0 0",lineHeight:1.3,wordBreak:"break-word"}}>{ex.name}</p>
         </div>
-        {SECTIONS.map(s=>(
-          <button key={s.id} onClick={()=>setActiveSection(s.id)}
-            style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 16px",border:"none",cursor:"pointer",fontFamily:F,textAlign:"left",
-              background:activeSection===s.id?"#EFF6FF":"transparent",
-              borderRight:activeSection===s.id?`3px solid ${C.navy}`:"3px solid transparent",
-              color:activeSection===s.id?C.navy:C.muted,
-              fontWeight:activeSection===s.id?700:500, fontSize:12,
-            }}>
-            <span style={{fontSize:15,flexShrink:0}}>{s.icon}</span>
-            {s.label}
-          </button>
-        ))}
+        {(()=>{
+          const sp = computeSetupProgress(form, offerings);
+          const spColor = sp>=90?"#16A34A":sp>=60?"#D97706":"#DC2626";
+          const sectionDone = {
+            overview: !!(form.venue&&form.venue.trim().length>0&&form.country&&form.country.trim().length>0&&form.dateFrom&&form.dateTo),
+            company:  !!(form.company&&form.company.trim().length>2&&form.website&&form.website.trim().length>4&&form.boothSize),
+            offerings: offerings.length>=1,
+            categories: (form.cats||[]).length>=3,
+            icp: (form.icpRole||[]).length>0&&(form.icpSize||[]).length>0&&(form.icpReason||[]).length>0,
+            intent: !!(form.intentWhy&&form.intentWhy.trim().length>20&&form.intentBuyers&&form.intentBuyers.trim().length>20&&(form.intentSignals||[]).length>0),
+            finetune: true,
+            email: true,
+            danger: true,
+          };
+          return (<>
+            <div style={{padding:"8px 16px 12px",borderBottom:"1px solid #E2E8F0",marginBottom:4}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <span style={{fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Setup progress</span>
+                <span style={{fontSize:11,fontWeight:800,color:spColor}}>{sp}%</span>
+              </div>
+              <div style={{height:5,borderRadius:99,background:"#E2E8F0",overflow:"hidden"}}>
+                <div style={{height:"100%",width:sp+"%",background:spColor,borderRadius:99,transition:"width .4s"}}/>
+              </div>
+              {sp<90&&<p style={{fontSize:10,color:"#94A3B8",margin:"4px 0 0"}}>Need 50% to unlock all features</p>}
+            </div>
+            {SECTIONS.map(s=>(
+              <button key={s.id} onClick={()=>setActiveSection(s.id)}
+                style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"10px 16px",border:"none",cursor:"pointer",fontFamily:F,textAlign:"left",
+                  background:activeSection===s.id?"#EFF6FF":"transparent",
+                  borderRight:activeSection===s.id?`3px solid ${C.navy}`:"3px solid transparent",
+                  color:activeSection===s.id?C.navy:C.muted,
+                  fontWeight:activeSection===s.id?700:500, fontSize:12,
+                }}>
+                <span style={{fontSize:15,flexShrink:0}}>{s.icon}</span>
+                <span style={{flex:1}}>{s.label}</span>
+                {["overview","company","offerings","categories","icp","intent"].includes(s.id) && (
+                  <span style={{fontSize:14,flexShrink:0}}>{sectionDone[s.id]?"✅":"⭕"}</span>
+                )}
+              </button>
+            ))}
+          </>);
+        })()}
         {saved && (
           <div style={{margin:"16px 12px 0",padding:"8px 12px",background:C.ltgrn,borderRadius:8,border:"1px solid #86EFAC"}}>
             <p style={{fontSize:11,color:"#14532D",fontWeight:700,margin:0}}>✓ Changes saved</p>
@@ -8972,6 +9290,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {id:"outcomes",    label:"Outcomes",         icon:"📊"},
         {id:"export",      label:"Export Leads",     icon:"↑"},
         {id:"event-setup", label:"Event Setup",      icon:"⚙️"},
+    
       ]
     },
   ];
@@ -9237,9 +9556,392 @@ function GdprContent() {
 // ═══════════════════════════════════════════════════════════════════
 // ROOT
 // ═══════════════════════════════════════════════════════════════════
+
+
+// ── Organiser Data Screen ─────────────────────────────────────────────────────
+function OrgDataScreen({ ex }) {
+  const [rows, setRows]           = useState([]);
+  const [total, setTotal]         = useState(0);
+  const [page, setPage]           = useState(1);
+  const [loading, setLoading]     = useState(true);
+  const [allocation, setAllocation] = useState(0);
+  const [consumed, setConsumed]   = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  const [selected, setSelected]   = useState(new Set());
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState("");
+  const PAGE_SIZE = 50;
+
+  const COLS = [
+    { key:"first_name",  label:"First Name" },
+    { key:"last_name",   label:"Last Name" },
+    { key:"email",       label:"Email" },
+    { key:"company",     label:"Company" },
+    { key:"job_title",   label:"Job Title" },
+    { key:"country",     label:"Country" },
+    { key:"city",        label:"City" },
+  ];
+
+  const load = async (p = 1) => {
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(
+        `/api/proxy?slug=v1/organiser/pool/${ex.organiser_event_id}&page=${p}&page_size=${PAGE_SIZE}`,
+        { headers: { "x-fingoh-auth": `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail);
+      setRows(data.rows || []);
+      setTotal(data.total || 0);
+      setAllocation(data.allocation || 0);
+      setConsumed(data.consumed || 0);
+      setRemaining(data.remaining || 0);
+      setPage(p);
+    } catch(e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(1); }, [ex.organiser_event_id]);
+
+  const toggleSelect = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selected.size === rows.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(rows.map(r => r.id)));
+    }
+  };
+
+  const handleImport = async () => {
+    if (selected.size === 0) return;
+    if (selected.size > remaining) {
+      setImportMsg(`✗ Selection (${selected.size}) exceeds remaining allocation (${remaining})`);
+      return;
+    }
+    setImporting(true); setImportMsg("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+      const res = await fetch(`/api/proxy?slug=v1/organiser/import/${ex.organiser_event_id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${token}` },
+        body: JSON.stringify({ row_ids: [...selected], event_id: ex.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || "Import failed");
+      setImportMsg(`✓ ${data.imported} visitors imported to your audience`);
+      setSelected(new Set());
+      load(page);
+    } catch(e) { setImportMsg("✗ " + e.message); }
+    setImporting(false);
+  };
+
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const pct = allocation > 0 ? Math.round((consumed / allocation) * 100) : 0;
+
+  return (
+    <div style={{padding:"24px 32px", maxWidth:1200, margin:"0 auto"}}>
+      <div style={{marginBottom:24}}>
+        <h2 style={{fontSize:18, fontWeight:700, color:C.navy, margin:"0 0 4px"}}>Organiser Data</h2>
+        <p style={{fontSize:12, color:C.muted, margin:0}}>Browse and import visitor data shared by the event organiser</p>
+      </div>
+
+      {/* Quota bar */}
+      <div style={{background:C.white, border:"1px solid #E2E8F0", borderRadius:12, padding:20, marginBottom:20}}>
+        <div style={{display:"flex", justifyContent:"space-between", marginBottom:8}}>
+          <span style={{fontSize:13, fontWeight:600, color:C.navy}}>Your data allocation</span>
+          <span style={{fontSize:13, color:C.muted}}>{consumed} used / {allocation} allocated · {remaining} remaining</span>
+        </div>
+        <div style={{height:8, background:"#E2E8F0", borderRadius:99, overflow:"hidden"}}>
+          <div style={{height:"100%", width:`${pct}%`, background: pct > 90 ? "#DC2626" : "#7C3AED", borderRadius:99, transition:"width .3s"}}/>
+        </div>
+      </div>
+
+      {/* Action bar */}
+      <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16}}>
+        <div style={{display:"flex", alignItems:"center", gap:12}}>
+          <span style={{fontSize:13, color:C.muted}}>{total} rows available · {selected.size} selected</span>
+          {importMsg && (
+            <span style={{fontSize:12, color:importMsg.startsWith("✓") ? "#16A34A" : "#DC2626", fontWeight:600}}>
+              {importMsg}
+            </span>
+          )}
+        </div>
+        <button onClick={handleImport} disabled={importing || selected.size === 0 || remaining === 0}
+          style={{
+            padding:"8px 20px",
+            background: selected.size === 0 || remaining === 0 ? "#E2E8F0" : C.navy,
+            color: selected.size === 0 || remaining === 0 ? C.muted : C.white,
+            border:"none", borderRadius:8, fontSize:12, fontWeight:700,
+            cursor: selected.size === 0 || remaining === 0 ? "not-allowed" : "pointer", fontFamily:F
+          }}>
+          {importing ? "Importing…" : `Import ${selected.size > 0 ? selected.size : ""} Selected →`}
+        </button>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div style={{padding:60, textAlign:"center", color:C.muted}}>Loading visitor data…</div>
+      ) : rows.length === 0 ? (
+        <div style={{background:C.white, border:"1px solid #E2E8F0", borderRadius:12, padding:40, textAlign:"center", color:C.muted, fontSize:13}}>
+          No visitor data available yet — the organiser hasn't uploaded any data
+        </div>
+      ) : (
+        <div style={{background:C.white, border:"1px solid #E2E8F0", borderRadius:12, overflow:"auto"}}>
+          <table style={{width:"100%", borderCollapse:"collapse", fontSize:12}}>
+            <thead>
+              <tr style={{background:"#F8FAFC"}}>
+                <th style={{padding:"8px 12px", borderBottom:"1px solid #E2E8F0", width:40}}>
+                  <input type="checkbox"
+                    checked={selected.size === rows.length && rows.length > 0}
+                    onChange={toggleAll}/>
+                </th>
+                {COLS.map(col => (
+                  <th key={col.key} style={{padding:"8px 12px", textAlign:"left", fontSize:10, fontWeight:700, color:C.muted, textTransform:"uppercase", borderBottom:"1px solid #E2E8F0", whiteSpace:"nowrap"}}>
+                    {col.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, i) => {
+                const d = row.raw_data || {};
+                const isSelected = selected.has(row.id);
+                return (
+                  <tr key={row.id}
+                    onClick={() => toggleSelect(row.id)}
+                    style={{
+                      borderBottom: i < rows.length-1 ? "1px solid #E2E8F0" : "none",
+                      background: isSelected ? "#EFF6FF" : "white",
+                      cursor:"pointer"
+                    }}>
+                    <td style={{padding:"8px 12px"}}>
+                      <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(row.id)} onClick={e => e.stopPropagation()}/>
+                    </td>
+                    {COLS.map(col => (
+                      <td key={col.key} style={{padding:"8px 12px", color:C.dark, maxWidth:160}}>
+                        <span style={{overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", display:"block", maxWidth:150}}>
+                          {d[col.key] || "—"}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 16px", borderTop:"1px solid #E2E8F0"}}>
+              <span style={{fontSize:12, color:C.muted}}>Page {page} of {totalPages} · {total} rows</span>
+              <div style={{display:"flex", gap:6}}>
+                <button onClick={() => load(page - 1)} disabled={page === 1}
+                  style={{padding:"5px 12px", background:C.white, color:page===1?C.muted:C.navy, border:"1px solid #E2E8F0", borderRadius:6, fontSize:12, cursor:page===1?"not-allowed":"pointer", fontFamily:F}}>
+                  ← Prev
+                </button>
+                <button onClick={() => load(page + 1)} disabled={page === totalPages}
+                  style={{padding:"5px 12px", background:C.white, color:page===totalPages?C.muted:C.navy, border:"1px solid #E2E8F0", borderRadius:6, fontSize:12, cursor:page===totalPages?"not-allowed":"pointer", fontFamily:F}}>
+                  Next →
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Organiser Invite Screen ───────────────────────────────────────────────────
+function OrgInviteScreen({ token, onLogin, onRegister }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState("");
+  const [accepting, setAccepting] = useState(false);
+  const [accepted, setAccepted]   = useState(false);
+
+  useEffect(() => {
+    if (!token) { setError("Invalid invite link"); setLoading(false); return; }
+    fetch(`/api/proxy?slug=v1/organiser/invite/validate/${token}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.detail) throw new Error(d.detail);
+        setData(d);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [sessionToken, setSessionToken] = useState("");
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({data:{session}}) => {
+      setIsLoggedIn(!!session);
+      setSessionToken(session?.access_token || "");
+      setCheckingAuth(false);
+    });
+  }, []);
+
+  const handleAcceptWithSession = async (session) => {
+    setAccepting(true);
+    try {
+      const res = await fetch(`/api/proxy?slug=v1/organiser/invite/accept/${token}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-fingoh-auth": `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.detail || "Failed to accept invite");
+      setAccepted(true);
+    } catch(e) { setError(e.message); }
+    setAccepting(false);
+  };
+
+  const handleAccept = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.access_token) {
+      sessionStorage.setItem("pending_org_invite", token);
+      onLogin();
+      return;
+    }
+    handleAcceptWithSession(session);
+  };
+
+  const F = "'Inter', -apple-system, sans-serif";
+  const C = { navy:"#0D1B3E", blue:"#2563EB", white:"#FFFFFF", muted:"#94A3B8", border:"#E2E8F0", green:"#16A34A", ltgrn:"#F0FDF4", red:"#DC2626" };
+
+  if (loading) return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F }}>
+      <div style={{ color:"rgba(255,255,255,0.6)", fontSize:14 }}>Validating invite…</div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F }}>
+      <div style={{ background:C.white, borderRadius:16, padding:40, maxWidth:420, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:32, marginBottom:16 }}>⚠️</div>
+        <h2 style={{ fontSize:18, fontWeight:700, color:C.navy, marginBottom:8 }}>Invalid Invite</h2>
+        <p style={{ fontSize:13, color:C.muted, marginBottom:24 }}>{error}</p>
+        <button onClick={onLogin}
+          style={{ padding:"10px 24px", background:C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+          Go to Login
+        </button>
+      </div>
+    </div>
+  );
+
+  if (accepted) return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F }}>
+      <div style={{ background:C.white, borderRadius:16, padding:40, maxWidth:420, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:40, marginBottom:16 }}>🎉</div>
+        <h2 style={{ fontSize:18, fontWeight:700, color:C.navy, marginBottom:8 }}>You're in!</h2>
+        <p style={{ fontSize:13, color:C.muted, marginBottom:8 }}>
+          You've joined <strong>{data?.event?.name}</strong> powered by <strong>{data?.organiser?.name}</strong>.
+        </p>
+        <p style={{ fontSize:12, color:C.muted, marginBottom:24 }}>
+          Your event has been created. Set up your ICP and start exploring visitor data.
+        </p>
+        <button onClick={onLogin}
+          style={{ width:"100%", padding:"11px 0", background:C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+          Go to Dashboard →
+        </button>
+      </div>
+    </div>
+  );
+
+  const { event, organiser, link } = data || {};
+
+  return (
+    <div style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", justifyContent:"center", fontFamily:F, padding:24 }}>
+      <div style={{ background:C.white, borderRadius:16, padding:40, maxWidth:480, width:"100%" }}>
+        {/* Organiser branding */}
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          {organiser?.logo_url && (
+            <img src={organiser.logo_url} alt={organiser.name} style={{ maxHeight:48, marginBottom:12, display:"block", margin:"0 auto 12px" }}/>
+          )}
+          <div style={{ fontSize:11, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:".08em" }}>
+            {organiser?.name} invites you to
+          </div>
+          <h1 style={{ fontSize:22, fontWeight:800, color:C.navy, margin:"8px 0 4px", letterSpacing:"-0.02em" }}>
+            {event?.name}
+          </h1>
+          <p style={{ fontSize:13, color:C.muted, margin:0 }}>
+            {event?.venue} · {event?.start_date || "TBD"}
+          </p>
+        </div>
+
+        {/* What you get */}
+        <div style={{ background:"#F8FAFC", borderRadius:10, padding:16, marginBottom:24 }}>
+          <p style={{ fontSize:12, fontWeight:700, color:C.navy, margin:"0 0 10px" }}>As an exhibitor you'll get:</p>
+          {[
+            `${link?.data_allocation || 0} visitor data rows from ${organiser?.name}`,
+            "IEI scoring to identify your highest-intent visitors",
+            "Meeting management and outcome tracking",
+            "Staff app for real-time lead capture",
+          ].map((item, i) => (
+            <div key={i} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6, fontSize:12, color:"#374151" }}>
+              <span style={{ color:C.green, fontWeight:700 }}>✓</span> {item}
+            </div>
+          ))}
+        </div>
+
+        {/* Actions */}
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {checkingAuth ? (
+            <div style={{ textAlign:"center", color:C.muted, fontSize:13, padding:"12px 0" }}>Checking session…</div>
+          ) : isLoggedIn ? (
+            <button onClick={handleAccept} disabled={accepting}
+              style={{ width:"100%", padding:"12px 0", background:accepting?"#CBD5E1":C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:accepting?"not-allowed":"pointer", fontFamily:F }}>
+              {accepting ? "Accepting…" : "Accept Invite & Join Event →"}
+            </button>
+          ) : (
+            <>
+              <button onClick={handleAccept}
+                style={{ width:"100%", padding:"12px 0", background:C.navy, color:C.white, border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:F }}>
+                Sign in to Accept →
+              </button>
+              <button onClick={onRegister}
+                style={{ width:"100%", padding:"12px 0", background:C.white, color:C.navy, border:`1.5px solid ${C.border}`, borderRadius:8, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:F }}>
+                New to Fingoh? Register first
+              </button>
+            </>
+          )}
+        </div>
+
+        <p style={{ fontSize:11, color:C.muted, textAlign:"center", margin:"16px 0 0" }}>
+          Powered by Fingoh · Exhibitor Intelligence Platform
+        </p>
+      </div>
+    </div>
+  );
+}
+
   export default function App() {
   const [screen, setScreen]     = useState(()=>{
-    try { return sessionStorage.getItem("fingoh_screen") || "login"; } catch { return "login"; }
+    try {
+      // Check for organiser invite token in URL
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("org_invite")) return "org-invite";
+      return sessionStorage.getItem("fingoh_screen") || "login";
+    } catch { return "login"; }
+  });
+  const [orgInviteToken, setOrgInviteToken] = useState(()=>{
+    try { return new URLSearchParams(window.location.search).get("org_invite") || ""; } catch { return ""; }
   });
   const [ex, setEx]             = useState(()=>{
     try {
@@ -9269,12 +9971,22 @@ function GdprContent() {
   const [selP, setSelP]         = useState(null);
   const [agentOpen, setAgentOpen] = useState(false);
   const [ieiCredits, setIeiCredits] = useState(null);
+  const [setupOfferings, setSetupOfferings] = useState([]);
+  const [setupOfferingsLoaded, setSetupOfferingsLoaded] = useState(false);
 
   // ── Research state — lives at App level so tab switches don't kill in-flight fetches ──
   const [researchData, setResearchData]     = useState({});
   const [researchLoadingIds, setResearchLoadingIds] = useState(new Set());
   const researchLoading = researchLoadingIds.size > 0;
   const [researchError, setResearchError]   = useState("");
+
+  // Fetch offerings for setup progress
+  React.useEffect(() => {
+    if (!ex?.id) return;
+    fetch(`/api/proxy?slug=v1/offerings/event/${ex.id}`, {
+      headers: {"x-fingoh-auth": `Bearer ${localStorage.getItem("sb_token")}`}
+    }).then(r=>r.json()).then(d=>{setSetupOfferings(Array.isArray(d)?d:[]);setSetupOfferingsLoaded(true);}).catch(()=>{setSetupOfferings([]);setSetupOfferingsLoaded(true);});
+  }, [ex?.id]);
 
   // Reset research state when switching events
   React.useEffect(() => { setResearchData({}); setResearchError(""); }, [ex?.id]);
@@ -9933,12 +10645,28 @@ function RegistrationPage({ eventId }) {
       Loading...
     </div>
   )
+  if(screen==="org-invite")
+    return <OrgInviteScreen
+      token={orgInviteToken}
+      onLogin={()=>{ setScreen("login"); }}
+      onRegister={()=>{ setScreen("login"); }}
+    />;
+
   if(screen==="login")
-    return <LoginScreen onLogin={()=>setScreen("events")}/>;
+    return <LoginScreen onLogin={()=>{
+      // Check for pending org invite after login
+      const pendingToken = sessionStorage.getItem("pending_org_invite");
+      if (pendingToken) {
+        setOrgInviteToken(pendingToken);
+        setScreen("org-invite");
+      } else {
+        setScreen("events");
+      }
+    }}/>;
   if(screen==="events")
     return <EventHome
       profile={profile}
-      onLaunch={cfg=>{setEx(cfg);setScreen("audience");}}
+      onLaunch={cfg=>{setEx(cfg);const needsSetup=cfg.organiser_event_id&&(!cfg.company||!cfg.icpRole||cfg.icpRole.length===0);setScreen(needsSetup?"event-setup":"audience");}}
       onCreateEvent={()=>setScreen("create-event")}/>;
 
   if(screen==="create-event")
@@ -9952,16 +10680,25 @@ function RegistrationPage({ eventId }) {
   return (
     <>
       <NavShell screen={screen} onNav={s=>{setScreen(s);setSelP(null);}} ex={ex} onAgent={()=>setAgentOpen(true)} agentCount={agentQueueCount} onBackToEvents={()=>{setScreen("events");setSelP(null);}} profile={profile} planFeatures={profile?.plan_features} ieiCredits={ieiCredits}>
-        {screen==="audience"    && <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>}
-        {screen==="iei"         && <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchLoadingIds={researchLoadingIds} researchError={researchError} fetchResearch={fetchResearch}/>}
-        {screen==="meetings"    && <MeetingsScreen ex={ex}/>}
-        {screen==="live"        && !selP && <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>}
+        {screen==="audience"    && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <AudienceUpload key={screen} ex={ex} onNext={()=>setScreen("iei")} planFeatures={profile?.plan_features}/>)}
+        {screen==="iei"         && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <IEIAnalysis ex={ex} planFeatures={profile?.plan_features} ieiCredits={ieiCredits} setIeiCredits={setIeiCredits} researchData={researchData} setResearchData={setResearchData} researchLoading={researchLoading} researchLoadingIds={researchLoadingIds} researchError={researchError} fetchResearch={fetchResearch}/>)}
+        {screen==="meetings"    && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <MeetingsScreen ex={ex}/>)}
+        {screen==="live"        && !selP && ((setupOfferingsLoaded && computeSetupProgress(ex,setupOfferings)<SETUP_THRESHOLD)
+          ? <SetupGate progress={computeSetupProgress(ex,setupOfferings)} onGoSetup={()=>setScreen("event-setup")}/>
+          : <LiveDashboard ex={ex} onParticipant={p=>setSelP(p)} onStaff={()=>setScreen("staff")}/>)}
         {screen==="live"        && selP  && <ParticipantDetail p={selP} onBack={()=>setSelP(null)}/>}
         {screen==="outcomes"    && <OutcomesDashboard ex={ex}/>}
         {screen==="export"      && <LeadExport ex={ex}/>}
         {screen==="agent"       && <AgentPage ex={ex} onQueueLoaded={setAgentQueueCount}/>}
         {screen==="staff"       && <StaffApp ex={ex} verifyStaff={verifyStaff}/>}
-        {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}}/>}
+        {screen==="event-setup" && <EventSetup ex={ex} onUpdate={setEx} onDelete={()=>{setEx(null);setScreen("events");}} sharedOfferings={setupOfferings} onOfferingsChange={setSetupOfferings}/>}
+        {screen==="org-data"    && <OrgDataScreen ex={ex}/>}
       </NavShell>
 
     </>
