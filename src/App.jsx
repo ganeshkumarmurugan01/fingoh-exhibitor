@@ -10349,7 +10349,7 @@ function RegistrationPage({ eventId }) {
   if(screen==="events")
     return <EventHome
       profile={profile}
-      onLaunch={cfg=>{setEx(cfg);setScreen("audience");}}
+      onLaunch={cfg=>{setEx(cfg);const needsSetup=cfg.organiser_event_id&&(!cfg.company||!cfg.icpRole||cfg.icpRole.length===0);setScreen(needsSetup?"event-setup":"audience");}}
       onCreateEvent={()=>setScreen("create-event")}/>;
 
   if(screen==="create-event")
