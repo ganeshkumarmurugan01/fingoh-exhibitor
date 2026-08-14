@@ -1372,9 +1372,9 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
               {(()=>{
                 const basicDone = ev.company && ev.venue && ev.country;
                 return (
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginTop:8}}>
+                  <div style={{display:"flex",justifyContent:"flex-end",alignItems:"center",gap:5,marginTop:6}}>
                     <div style={{width:7,height:7,borderRadius:"50%",background:basicDone?"#16A34A":"#DC2626",flexShrink:0}}/>
-                    <span style={{fontSize:11,color:basicDone?"#16A34A":"#DC2626",fontWeight:600}}>{basicDone?"Setup complete":"Setup incomplete"}</span>
+                    <span style={{fontSize:10,color:basicDone?"#16A34A":"#DC2626",fontWeight:600}}>{basicDone?"Setup complete":"Setup incomplete"}</span>
                   </div>
                 );
               })()}
