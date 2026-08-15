@@ -8948,8 +8948,20 @@ function UserMenu({ profile } = {}) {
   const [nameOk, setNameOk]           = useState(false);
   const [loading, setLoading]         = useState(false);
   const [theme, setTheme]             = useState(() => ({ accent:"#0D1B3E", ...getTheme() }));
+  const [invites, setInvites]         = useState([]);
+  const [invitesLoaded, setInvitesLoaded] = useState(false);
 
   React.useEffect(() => { if (profile?.name) setUserName(profile.name); }, [profile?.name]);
+
+  React.useEffect(() => {
+    if (!open || invitesLoaded) return;
+    supabase.auth.getSession().then(({data:{session}}) => {
+      const token = session?.access_token || "";
+      fetch("/api/proxy?slug=v1/organiser/my-invites", {
+        headers: {"x-fingoh-auth": `Bearer ${token}`}
+      }).then(r=>r.json()).then(d=>{ setInvites(Array.isArray(d)?d:[]); setInvitesLoaded(true); }).catch(()=>setInvitesLoaded(true));
+    });
+  }, [open]);
 
   React.useEffect(() => {
     applyTheme(theme);
@@ -9076,8 +9088,12 @@ function UserMenu({ profile } = {}) {
                     <span>👤 Edit profile & name</span><span style={{color:textMuted}}>›</span>
                   </button>
                   <button onClick={()=>setActiveSection("password")}
-                    style={{width:"100%",padding:"10px 14px",background:sectionBg,border:`1px solid ${border}`,borderRadius:8,textAlign:"left",fontSize:13,color:textMain,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    style={{width:"100%",padding:"10px 14px",background:sectionBg,border:`1px solid ${border}`,borderRadius:8,textAlign:"left",fontSize:13,color:textMain,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
                     <span>🔒 Change password</span><span style={{color:textMuted}}>›</span>
+                  </button>
+                  <button onClick={()=>setActiveSection("invites")}
+                    style={{width:"100%",padding:"10px 14px",background:sectionBg,border:`1px solid ${border}`,borderRadius:8,textAlign:"left",fontSize:13,color:textMain,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <span>📬 Organiser invites {invites.length>0?`(${invites.length})`:""}</span><span style={{color:textMuted}}>›</span>
                   </button>
                 </div>
 
@@ -9143,7 +9159,30 @@ function UserMenu({ profile } = {}) {
                 </div>
               )}
 
-              {/* ── Change password section ── */}
+              {/* ── Organiser invites section ── */}
+              {activeSection === "invites" && (
+                <div style={{padding:"20px"}}>
+                  <button onClick={()=>setActiveSection("main")} style={{background:"none",border:"none",cursor:"pointer",color:textMuted,fontSize:12,padding:0,marginBottom:16,fontFamily:F}}>← Back</button>
+                  <p style={{fontSize:14,fontWeight:700,color:textMain,margin:"0 0 16px"}}>📬 Organiser Invites</p>
+                  {invites.length === 0 ? (
+                    <div style={{textAlign:"center",padding:"32px 0",color:textMuted,fontSize:13}}>No pending invites</div>
+                  ) : invites.map(inv => (
+                    <div key={inv.link_id} style={{background:sectionBg,border:`1px solid ${border}`,borderRadius:10,padding:14,marginBottom:12}}>
+                      <p style={{fontSize:13,fontWeight:700,color:textMain,margin:"0 0 2px"}}>{inv.event?.name||"Event"}</p>
+                      <p style={{fontSize:11,color:textMuted,margin:"0 0 2px"}}>by {inv.organiser?.name||"Organiser"}</p>
+                      {inv.event?.venue && <p style={{fontSize:11,color:textMuted,margin:"0 0 2px"}}>📍 {inv.event.venue}</p>}
+                      {inv.event?.start_date && <p style={{fontSize:11,color:textMuted,margin:"0 0 8px"}}>📅 {inv.event.start_date} – {inv.event.end_date}</p>}
+                      <p style={{fontSize:11,color:textMuted,margin:"0 0 10px"}}>Data allocation: {inv.data_allocation} rows</p>
+                      <button onClick={()=>{ setOpen(false); window.location.href=`/?org_invite=${inv.invite_token}`; }}
+                        style={{width:"100%",padding:"9px 0",background:accentColor,color:"#fff",border:"none",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                        Accept Invite →
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── Change password section ── */}}
               {activeSection === "password" && (
                 <div style={{padding:"16px 20px"}}>
                   <button onClick={()=>{ setActiveSection("main"); setErr(""); setPw({n:"",c:""}); }}
