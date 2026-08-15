@@ -9173,8 +9173,23 @@ function UserMenu({ profile } = {}) {
                       {inv.event?.venue && <p style={{fontSize:11,color:textMuted,margin:"0 0 2px"}}>📍 {inv.event.venue}</p>}
                       {inv.event?.start_date && <p style={{fontSize:11,color:textMuted,margin:"0 0 8px"}}>📅 {inv.event.start_date} – {inv.event.end_date}</p>}
                       <p style={{fontSize:11,color:textMuted,margin:"0 0 10px"}}>Data allocation: {inv.data_allocation} rows</p>
-                      <button onClick={()=>{ setOpen(false); window.location.href=`/?org_invite=${inv.invite_token}`; }}
-                        style={{width:"100%",padding:"9px 0",background:accentColor,color:"#fff",border:"none",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
+                      <button onClick={async()=>{
+                        try {
+                          const {data:{session}} = await supabase.auth.getSession();
+                          const token = session?.access_token||"";
+                          const res = await fetch(`/api/proxy?slug=v1/organiser/invite/accept/${inv.invite_token}`,{
+                            method:"POST", headers:{"x-fingoh-auth":`Bearer ${token}`}
+                          });
+                          if(res.ok){
+                            setInvites(prev=>prev.filter(i=>i.link_id!==inv.link_id));
+                            setOpen(false);
+                            window.location.reload();
+                          } else {
+                            const d = await res.json();
+                            alert(d.detail||"Failed to accept invite");
+                          }
+                        } catch(e){ alert("Failed to accept invite"); }
+                      }} style={{width:"100%",padding:"9px 0",background:accentColor,color:"#fff",border:"none",borderRadius:7,fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:F}}>
                         Accept Invite →
                       </button>
                     </div>
