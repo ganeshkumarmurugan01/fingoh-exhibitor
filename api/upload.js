@@ -29,6 +29,8 @@ export default async function handler(req, res) {
     let uploadUrl
     if (slug === 'v1/products/upload-asset') {
       uploadUrl = `${backendUrl}/api/v1/products/upload-asset`
+    } else if (slug === 'v1/products/upload-logo') {
+      uploadUrl = `${backendUrl}/api/v1/products/upload-logo`
     } else {
       uploadUrl = `${backendUrl}/api/v1/audience/upload/${eventId}`
     }
