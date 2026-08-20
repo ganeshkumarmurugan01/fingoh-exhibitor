@@ -1,3 +1,4 @@
+import OfferingAssets from './components/OfferingAssets';
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff, getOfferings, createOffering, updateOffering, deleteOffering } from "./lib/api.js";
@@ -8158,6 +8159,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                   </div>
                   {o.category?.length > 0 && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Categories: {(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</p>}
                   {o.short_description && <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{o.short_description}</p>}
+                  {o.id && <OfferingAssets offeringId={o.id} eventId={ex.id} />}
                   {o.key_specifications?.length > 0 && (
                     <ul style={{margin:"4px 0 0",paddingLeft:16}}>
                       {o.key_specifications.map((s,i) => <li key={i} style={{fontSize:11,color:C.muted,marginBottom:2}}>{s}</li>)}

@@ -24,9 +24,17 @@ export default async function handler(req, res) {
     const auth = req.headers['authorization'] || req.headers['x-fingoh-auth'] || ''
 
     const backendUrl = process.env.BACKEND_URL || 'https://api.fingoh.ai'
+    const slug = req.query.slug
+
+    let uploadUrl
+    if (slug === 'v1/products/upload-asset') {
+      uploadUrl = `${backendUrl}/api/v1/products/upload-asset`
+    } else {
+      uploadUrl = `${backendUrl}/api/v1/audience/upload/${eventId}`
+    }
 
     const upstream = await fetch(
-      `${backendUrl}/api/v1/audience/upload/${eventId}`,
+      uploadUrl,
       {
         method: 'POST',
         headers: { 'x-fingoh-auth': auth, 'content-type': contentType },
