@@ -7871,6 +7871,61 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
       <EventSetupInput label="Website"            value={form.website}   onChange={v=>upd("website",v)}   placeholder="https://"/>
       <EventSetupInput label="LinkedIn page"      value={form.linkedin_url||""} onChange={v=>upd("linkedin_url",v)} placeholder="https://linkedin.com/company/yourcompany"/>
       <EventSetupInput label="Booth size (m²)"    value={form.boothSize} onChange={v=>upd("boothSize",v)} placeholder="e.g. 36"/>
+
+      {/* Company logo */}
+      <div style={{marginBottom:20}}>
+        <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:6,textTransform:"uppercase",letterSpacing:.06}}>Company logo</label>
+        <p style={{fontSize:11,color:C.muted,margin:"0 0 10px",lineHeight:1.5}}>Shown on your visitor registration page. JPG, PNG, WEBP or SVG · max 2MB.</p>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          {ex.logo_url
+            ? <img src={ex.logo_url} alt="Logo" style={{height:52,maxWidth:140,objectFit:"contain",borderRadius:8,border:"1px solid #E2E8F0",padding:6,background:"#fff"}}/>
+            : <div style={{width:52,height:52,borderRadius:8,border:"1px dashed #CBD5E1",background:"#F8FAFC",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>🏢</div>
+          }
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            <label style={{padding:"7px 14px",borderRadius:7,border:"1px solid #E2E8F0",background:"#fff",fontSize:12,fontWeight:600,color:C.navy,cursor:"pointer",display:"inline-block"}}>
+              📁 {ex.logo_url ? "Replace logo" : "Upload logo"}
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" style={{display:"none"}}
+                onChange={async e => {
+                  const f = e.target.files?.[0];
+                  if (!f) return;
+                  const fd = new FormData();
+                  fd.append("file", f);
+                  fd.append("event_id", ex.id);
+                  const { data: { session } } = await supabase.auth.getSession();
+                  const tok = session?.access_token || "";
+                  try {
+                    const res = await fetch("/api/upload?slug=v1/products/upload-logo", {
+                      method: "POST",
+                      headers: { "x-fingoh-auth": `Bearer ${tok}` },
+                      body: fd,
+                    });
+                    const data = await res.json();
+                    if (data.logo_url) {
+                      setMyEvents(prev => prev.map(ev => ev.id === ex.id ? {...ev, logo_url: data.logo_url} : ev));
+                    }
+                  } catch(err) { alert("Logo upload failed"); }
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {ex.logo_url && (
+              <button onClick={async () => {
+                const { data: { session } } = await supabase.auth.getSession();
+                const tok = session?.access_token || "";
+                await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${tok}` },
+                  body: JSON.stringify({ logo_url: "" }),
+                });
+                setMyEvents(prev => prev.map(ev => ev.id === ex.id ? {...ev, logo_url: ""} : ev));
+              }} style={{fontSize:11,color:"#DC2626",background:"none",border:"none",cursor:"pointer",textAlign:"left",padding:0}}>
+                Remove logo
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       <SaveBar/>
     </div>
   );
@@ -10163,7 +10218,7 @@ function RegistrationPage({ eventId }) {
   const [eventInfo, setEventInfo] = React.useState(null);
   const [loading,   setLoading]   = React.useState(true);
   const [offerings, setOfferings] = React.useState([]);
-  const [step,      setStep]      = React.useState(1); // 1=details, 2=intent, 3=success
+  const [step,      setStep]      = React.useState(0); // 0=landing, 1=details, 2=intent, 3=success
   const [saving,      setSaving]      = React.useState(false);
   const [error,       setError]       = React.useState("");
   const [result,      setResult]      = React.useState(null);
@@ -10219,8 +10274,10 @@ function RegistrationPage({ eventId }) {
   React.useEffect(() => {
     try {
       const savedStep = sessionStorage.getItem(STEP_KEY);
-
-      if (savedStep && step === 1) setStep(parseInt(savedStep));
+      if (savedStep && step === 0) {
+        const s = parseInt(savedStep);
+        if (s > 0) setStep(s);
+      }
     } catch {}
   }, []);
 
@@ -10378,7 +10435,7 @@ function RegistrationPage({ eventId }) {
           </p>
 
           {/* Progress steps */}
-          {step < 3 && (
+          {step > 0 && step < 3 && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20 }}>
               {[["1", "Your Details"], ["2", "Visit Intent"]].map(([n, label], i) => {
                 const active = step === i + 1;
@@ -10410,6 +10467,129 @@ function RegistrationPage({ eventId }) {
 
       {/* Form */}
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "24px 16px 48px" }}>
+
+        {/* ── Step 0: Landing page ── */}
+        {step === 0 && (() => {
+          const photos = offerings.flatMap(o => o.assets?.photos || []).slice(0,3);
+          return (
+            <div>
+              {/* Hero card */}
+              <div style={{background:"#fff",borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:"1px solid #E2E8F0",marginBottom:16}}>
+                {/* Logo + company */}
+                <div style={{padding:"24px 24px 20px",borderBottom:"1px solid #F1F5F9"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+                    {eventInfo.logo_url
+                      ? <img src={eventInfo.logo_url} alt={eventInfo.company} style={{height:56,maxWidth:120,objectFit:"contain",borderRadius:8,border:"1px solid #E2E8F0",padding:6,background:"#fff",flexShrink:0}}/>
+                      : <div style={{width:56,height:56,borderRadius:12,background:"linear-gradient(135deg,#0D1B3E,#1A2A5E)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🏢</div>
+                    }
+                    <div>
+                      <h2 style={{fontSize:18,fontWeight:800,color:"#0D1B3E",margin:"0 0 2px",letterSpacing:"-0.02em"}}>{eventInfo.company}</h2>
+                      <p style={{fontSize:12,color:"#64748B",margin:0}}>{eventInfo.name}</p>
+                    </div>
+                  </div>
+                  {eventInfo.intent_why && (
+                    <p style={{fontSize:13,color:"#374151",lineHeight:1.65,margin:"0 0 16px",fontStyle:"italic"}}>
+                      "{eventInfo.intent_why.length > 180 ? eventInfo.intent_why.slice(0,180).trim() + "…" : eventInfo.intent_why}"
+                    </p>
+                  )}
+                  <button onClick={()=>{setStep(1);window.scrollTo(0,0);}}
+                    style={{width:"100%",padding:"13px 0",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:9,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,letterSpacing:"-0.01em"}}>
+                    Register your visit →
+                  </button>
+                </div>
+
+                {/* Photo strip */}
+                {photos.length > 0 && (
+                  <div style={{display:"flex",gap:2,height:140,overflow:"hidden"}}>
+                    {photos.map((url,i) => (
+                      <img key={i} src={url} alt="" style={{flex:1,objectFit:"cover",minWidth:0}}/>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Products */}
+              {offerings.length > 0 && (
+                <div style={{marginBottom:16}}>
+                  <h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"0 0 10px",textTransform:"uppercase",letterSpacing:.06}}>What we're showcasing</h3>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                    {offerings.map(o => {
+                      const thumb = o.assets?.photos?.[0];
+                      return (
+                        <div key={o.id} style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",overflow:"hidden",display:"flex",gap:0}}>
+                          {thumb
+                            ? <img src={thumb} alt={o.name} style={{width:88,height:88,objectFit:"cover",flexShrink:0}}/>
+                            : <div style={{width:88,height:88,background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0}}>📦</div>
+                          }
+                          <div style={{padding:"12px 14px",flex:1,minWidth:0}}>
+                            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:4}}>
+                              <p style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:0,lineHeight:1.3}}>{o.name}</p>
+                              {o.category?.length > 0 && (
+                                <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontWeight:600,flexShrink:0}}>
+                                  {Array.isArray(o.category)?o.category[0]:o.category}
+                                </span>
+                              )}
+                            </div>
+                            {o.short_description && <p style={{fontSize:11,color:"#64748B",margin:"0 0 6px",lineHeight:1.45}}>{o.short_description}</p>}
+                            <div style={{display:"flex",gap:10}}>
+                              {o.assets?.brochure && (
+                                <a href={o.assets.brochure} target="_blank" rel="noreferrer"
+                                  style={{fontSize:11,color:"#2563eb",textDecoration:"none",fontWeight:600}}>📄 Brochure</a>
+                              )}
+                              {o.assets?.video && (
+                                <a href={o.assets.video} target="_blank" rel="noreferrer"
+                                  style={{fontSize:11,color:"#2563eb",textDecoration:"none",fontWeight:600}}>🎬 Video</a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Who we want to meet */}
+              {(eventInfo.icp_roles?.length > 0 || eventInfo.intent_buyers) && (
+                <div style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",padding:"16px 18px",marginBottom:16}}>
+                  <h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"0 0 10px"}}>👥 Who we want to meet</h3>
+                  {eventInfo.icp_roles?.length > 0 && (
+                    <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                      {eventInfo.icp_roles.slice(0,6).map((r,i) => (
+                        <span key={i} style={{fontSize:11,padding:"4px 10px",borderRadius:99,background:"#F0FDF4",color:"#15803D",border:"1px solid #86EFAC",fontWeight:600}}>{r}</span>
+                      ))}
+                    </div>
+                  )}
+                  {eventInfo.intent_buyers && (
+                    <p style={{fontSize:12,color:"#374151",margin:0,lineHeight:1.6}}>
+                      {eventInfo.intent_buyers.length > 160 ? eventInfo.intent_buyers.slice(0,160).trim() + "…" : eventInfo.intent_buyers}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Meeting availability */}
+              <div style={{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,border:"1px solid #BFDBFE",padding:"14px 18px",marginBottom:20,display:"flex",gap:12,alignItems:"center"}}>
+                <span style={{fontSize:22,flexShrink:0}}>📅</span>
+                <div>
+                  <p style={{fontSize:13,fontWeight:700,color:"#1D4ED8",margin:"0 0 2px"}}>Dedicated meeting slots available</p>
+                  <p style={{fontSize:11,color:"#3B82F6",margin:0}}>Register below to request a 1:1 meeting with our team at the event.</p>
+                </div>
+              </div>
+
+              {/* Bottom CTA */}
+              <button onClick={()=>{setStep(1);window.scrollTo(0,0);}}
+                style={{width:"100%",padding:"14px 0",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,letterSpacing:"-0.01em",boxShadow:"0 4px 14px rgba(13,27,62,0.25)"}}>
+                Secure your visit slot →
+              </button>
+
+              {/* Powered by */}
+              <p style={{textAlign:"center",fontSize:11,color:"#94A3B8",marginTop:16}}>
+                Powered by <strong style={{color:"#0D1B3E"}}>Fingoh</strong> · Event Intelligence Platform
+              </p>
+            </div>
+          );
+        })()}
 
         {/* ── Step 1: Details ── */}
         {step === 1 && (
