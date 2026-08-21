@@ -10341,7 +10341,7 @@ function RegistrationPage({ eventId }) {
       const savedStep = sessionStorage.getItem(STEP_KEY);
       if (savedStep && step === 0) {
         const s = parseInt(savedStep);
-        if (s > 0) setStep(s);
+        if (s > 1) setStep(s); // Only restore step 2+ (not step 1, always show landing first)
       }
     } catch {}
   }, []);
@@ -10795,10 +10795,16 @@ function RegistrationPage({ eventId }) {
               </div>
             )}
 
-            <button onClick={() => { if (validateStep1()) { setStep(2); window.scrollTo(0, 0); } }}
-              style={{ width: "100%", padding: "12px 0", background: navy, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F, marginTop: 8 }}>
-              Next — Tell us about your visit →
-            </button>
+            <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+              <button onClick={() => { setStep(0); window.scrollTo(0, 0); }}
+                style={{ flex: 1, padding: "12px 0", background: "#fff", color: "#64748B", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
+                ← Back
+              </button>
+              <button onClick={() => { if (validateStep1()) { setStep(2); window.scrollTo(0, 0); } }}
+                style={{ flex: 2, padding: "12px 0", background: navy, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F }}>
+                Next — Tell us about your visit →
+              </button>
+            </div>
           </div>
         )}
 
