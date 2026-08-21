@@ -7903,11 +7903,15 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                       headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${tok}` },
                       body: JSON.stringify({ event_id: ex.id, file_base64: base64, file_name: f.name, content_type: f.type }),
                     });
-                    const data = await res.json();
+                    const text = await res.text();
+                    let data;
+                    try { data = JSON.parse(text); } catch { data = {}; }
                     if (data.logo_url) {
                       setMyEvents(prev => prev.map(ev => ev.id === ex.id ? {...ev, logo_url: data.logo_url} : ev));
+                    } else {
+                      alert("Logo upload failed: " + (data.detail || text));
                     }
-                  } catch(err) { alert("Logo upload failed"); }
+                  } catch(err) { alert("Logo upload failed: " + err.message); }
                   e.target.value = "";
                 }}
               />
