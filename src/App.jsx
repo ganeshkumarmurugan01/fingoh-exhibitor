@@ -10359,9 +10359,15 @@ function RegistrationPage({ eventId }) {
   // Fetch event info on mount — cache in sessionStorage to avoid re-fetching
   React.useEffect(() => {
     const cacheKey = `reg_info_${eventId}`;
+    const offsKey = `reg_offs_${eventId}`;
     const cached = sessionStorage.getItem(cacheKey);
+    const cachedOffs = sessionStorage.getItem(offsKey);
     if (cached) {
-      try { setEventInfo(JSON.parse(cached)); setLoading(false); return; } catch {}
+      try {
+        setEventInfo(JSON.parse(cached));
+        setOfferings(cachedOffs ? JSON.parse(cachedOffs) : []);
+        setLoading(false); return;
+      } catch {}
     }
     Promise.all([
       fetch(`/api/proxy?slug=v1/audience/register/${eventId}/info`).then(r => r.json()),
@@ -10370,6 +10376,7 @@ function RegistrationPage({ eventId }) {
         setEventInfo(data);
         setOfferings(Array.isArray(offs) ? offs : []);
         sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        sessionStorage.setItem(offsKey, JSON.stringify(Array.isArray(offs) ? offs : []));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -10428,6 +10435,7 @@ function RegistrationPage({ eventId }) {
           sessionStorage.removeItem(`reg_form_${eventId}`);
           sessionStorage.removeItem(`reg_step_${eventId}`);
           sessionStorage.removeItem(`reg_info_${eventId}`);
+          sessionStorage.removeItem(`reg_offs_${eventId}`);
         } catch {}
       } else {
         setError(data.detail || "Registration failed. Please try again.");
