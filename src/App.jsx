@@ -7889,15 +7889,19 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                   const f = e.target.files?.[0];
                   if (!f) return;
                   const fd = new FormData();
-                  fd.append("file", f);
-                  fd.append("event_id", ex.id);
                   const { data: { session } } = await supabase.auth.getSession();
                   const tok = session?.access_token || "";
                   try {
-                    const res = await fetch("/api/upload?slug=v1/products/upload-logo", {
+                    const base64 = await new Promise((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = () => resolve(reader.result.split(",")[1]);
+                      reader.onerror = reject;
+                      reader.readAsDataURL(f);
+                    });
+                    const res = await fetch("/api/proxy?slug=v1/products/upload-logo", {
                       method: "POST",
-                      headers: { "x-fingoh-auth": `Bearer ${tok}` },
-                      body: fd,
+                      headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${tok}` },
+                      body: JSON.stringify({ event_id: ex.id, file_base64: base64, file_name: f.name, content_type: f.type }),
                     });
                     const data = await res.json();
                     if (data.logo_url) {
