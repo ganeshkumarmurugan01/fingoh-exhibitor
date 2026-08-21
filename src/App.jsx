@@ -7934,6 +7934,63 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
         </div>
       </div>
 
+      {/* Banner image */}
+      <div style={{marginBottom:20}}>
+        <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:6,textTransform:"uppercase",letterSpacing:.06}}>Cover banner</label>
+        <p style={{fontSize:11,color:C.muted,margin:"0 0 10px",lineHeight:1.5}}>Wide cover image shown on your registration page (like a LinkedIn banner). JPG, PNG or WEBP · max 5MB. Recommended: 1200×300px.</p>
+        {ex.banner_url && (
+          <img src={ex.banner_url} alt="Banner" style={{width:"100%",height:80,objectFit:"cover",borderRadius:8,border:"1px solid #E2E8F0",marginBottom:10,display:"block"}}/>
+        )}
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <label style={{padding:"7px 14px",borderRadius:7,border:"1px solid #E2E8F0",background:"#fff",fontSize:12,fontWeight:600,color:C.navy,cursor:"pointer",display:"inline-block"}}>
+            🖼 {ex.banner_url ? "Replace banner" : "Upload banner"}
+            <input type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}}
+              onChange={async e => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                const { data: { session } } = await supabase.auth.getSession();
+                const tok = session?.access_token || "";
+                try {
+                  const base64 = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result.split(",")[1]);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(f);
+                  });
+                  const res = await fetch("/api/proxy?slug=v1/products/upload-banner", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${tok}` },
+                    body: JSON.stringify({ event_id: ex.id, file_base64: base64, file_name: f.name, content_type: f.type }),
+                  });
+                  const text = await res.text();
+                  let data; try { data = JSON.parse(text); } catch { data = {}; }
+                  if (data.banner_url) {
+                    onUpdate({ ...ex, banner_url: data.banner_url });
+                  } else {
+                    alert("Banner upload failed: " + (data.detail || text));
+                  }
+                } catch(err) { alert("Banner upload failed: " + err.message); }
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {ex.banner_url && (
+            <button onClick={async () => {
+              const { data: { session } } = await supabase.auth.getSession();
+              const tok = session?.access_token || "";
+              await fetch(`/api/proxy?slug=v1/events/${ex.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${tok}` },
+                body: JSON.stringify({ banner_url: "" }),
+              });
+              onUpdate({ ...ex, banner_url: "" });
+            }} style={{fontSize:11,color:"#DC2626",background:"none",border:"none",cursor:"pointer",padding:0}}>
+              Remove banner
+            </button>
+          )}
+        </div>
+      </div>
+
       <SaveBar/>
     </div>
   );
@@ -10478,89 +10535,122 @@ function RegistrationPage({ eventId }) {
 
         {/* ── Step 0: Landing page ── */}
         {step === 0 && (() => {
-          const photos = offerings.flatMap(o => o.assets?.photos || []).slice(0,3);
+          const navy = "#0D1B3E";
+          const bannerUrl = eventInfo.banner_url || "";
+          const logoUrl = eventInfo.logo_url || "";
           return (
-            <div>
-              {/* Hero card */}
+            <div style={{fontFamily:F}}>
+
+              {/* ── Banner + Logo (LinkedIn style) ── */}
               <div style={{background:"#fff",borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:"1px solid #E2E8F0",marginBottom:16}}>
-                {/* Logo + company */}
-                <div style={{padding:"24px 24px 20px",borderBottom:"1px solid #F1F5F9"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
-                    {eventInfo.logo_url
-                      ? <img src={eventInfo.logo_url} alt={eventInfo.company} style={{height:56,maxWidth:120,objectFit:"contain",borderRadius:8,border:"1px solid #E2E8F0",padding:6,background:"#fff",flexShrink:0}}/>
-                      : <div style={{width:56,height:56,borderRadius:12,background:"linear-gradient(135deg,#0D1B3E,#1A2A5E)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🏢</div>
-                    }
-                    <div>
-                      <h2 style={{fontSize:18,fontWeight:800,color:"#0D1B3E",margin:"0 0 2px",letterSpacing:"-0.02em"}}>{eventInfo.company}</h2>
-                      <p style={{fontSize:12,color:"#64748B",margin:0}}>{eventInfo.name}</p>
-                    </div>
+                {/* Banner */}
+                <div style={{
+                  height:130,
+                  background: bannerUrl ? `url(${bannerUrl}) center/cover no-repeat` : `linear-gradient(135deg,${navy} 0%,#1e3a6e 60%,#2a4a8e 100%)`,
+                  position:"relative",
+                }}>
+                  {/* Event badge */}
+                  <div style={{position:"absolute",top:12,right:12,background:"rgba(255,255,255,0.15)",backdropFilter:"blur(8px)",borderRadius:99,padding:"4px 12px",border:"1px solid rgba(255,255,255,0.25)"}}>
+                    <span style={{fontSize:11,fontWeight:600,color:"#fff"}}>{eventInfo.name}</span>
                   </div>
+                </div>
+
+                {/* Logo overlaid on banner bottom */}
+                <div style={{padding:"0 20px 20px",position:"relative"}}>
+                  <div style={{
+                    width:72,height:72,borderRadius:12,
+                    border:"3px solid #fff",
+                    background:"#fff",
+                    marginTop:-36,
+                    marginBottom:12,
+                    boxShadow:"0 2px 8px rgba(0,0,0,0.12)",
+                    overflow:"hidden",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                  }}>
+                    {logoUrl
+                      ? <img src={logoUrl} alt={eventInfo.company} style={{width:"100%",height:"100%",objectFit:"contain",padding:4}}/>
+                      : <span style={{fontSize:28}}>🏢</span>
+                    }
+                  </div>
+
+                  {/* Company info */}
+                  <h1 style={{fontSize:20,fontWeight:800,color:navy,margin:"0 0 2px",letterSpacing:"-0.02em"}}>{eventInfo.company}</h1>
+                  <p style={{fontSize:12,color:"#64748B",margin:"0 0 2px"}}>
+                    📍 {eventInfo.venue}{eventInfo.country ? `, ${eventInfo.country}` : ""}
+                  </p>
+                  <p style={{fontSize:12,color:"#94A3B8",margin:"0 0 16px"}}>
+                    🗓 {new Date(eventInfo.date_from).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})} – {new Date(eventInfo.date_to).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}
+                  </p>
+
+                  {/* About */}
                   {eventInfo.intent_why && (
-                    <p style={{fontSize:13,color:"#374151",lineHeight:1.65,margin:"0 0 16px",fontStyle:"italic"}}>
-                      "{eventInfo.intent_why.length > 180 ? eventInfo.intent_why.slice(0,180).trim() + "…" : eventInfo.intent_why}"
+                    <p style={{fontSize:13,color:"#374151",lineHeight:1.7,margin:"0 0 20px",borderLeft:"3px solid #BFDBFE",paddingLeft:12}}>
+                      {eventInfo.intent_why.length > 220 ? eventInfo.intent_why.slice(0,220).trim() + "…" : eventInfo.intent_why}
                     </p>
                   )}
+
+                  {/* CTA */}
                   <button onClick={()=>{setStep(1);window.scrollTo(0,0);}}
-                    style={{width:"100%",padding:"13px 0",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:9,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,letterSpacing:"-0.01em"}}>
+                    style={{width:"100%",padding:"13px 0",background:navy,color:"#fff",border:"none",borderRadius:9,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,letterSpacing:"-0.01em",boxShadow:"0 4px 14px rgba(13,27,62,0.2)"}}>
                     Register your visit →
                   </button>
                 </div>
-
-                {/* Photo strip */}
-                {photos.length > 0 && (
-                  <div style={{display:"flex",gap:2,height:140,overflow:"hidden"}}>
-                    {photos.map((url,i) => (
-                      <img key={i} src={url} alt="" style={{flex:1,objectFit:"cover",minWidth:0}}/>
-                    ))}
-                  </div>
-                )}
               </div>
 
-              {/* Products */}
+              {/* ── What we're showcasing ── */}
               {offerings.length > 0 && (
                 <div style={{marginBottom:16}}>
-                  <h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"0 0 10px",textTransform:"uppercase",letterSpacing:.06}}>What we're showcasing</h3>
-                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                    {offerings.map(o => {
-                      const thumb = o.assets?.photos?.[0];
-                      return (
-                        <div key={o.id} style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",overflow:"hidden",display:"flex",gap:0}}>
-                          {thumb
-                            ? <img src={thumb} alt={o.name} style={{width:88,height:88,objectFit:"cover",flexShrink:0}}/>
-                            : <div style={{width:88,height:88,background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0}}>📦</div>
-                          }
-                          <div style={{padding:"12px 14px",flex:1,minWidth:0}}>
-                            <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:8,marginBottom:4}}>
-                              <p style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:0,lineHeight:1.3}}>{o.name}</p>
-                              {o.category?.length > 0 && (
-                                <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontWeight:600,flexShrink:0}}>
-                                  {Array.isArray(o.category)?o.category[0]:o.category}
-                                </span>
-                              )}
-                            </div>
-                            {o.short_description && <p style={{fontSize:11,color:"#64748B",margin:"0 0 6px",lineHeight:1.45}}>{o.short_description}</p>}
-                            <div style={{display:"flex",gap:10}}>
-                              {o.assets?.brochure && (
-                                <a href={o.assets.brochure} target="_blank" rel="noreferrer"
-                                  style={{fontSize:11,color:"#2563eb",textDecoration:"none",fontWeight:600}}>📄 Brochure</a>
-                              )}
-                              {o.assets?.video && (
-                                <a href={o.assets.video} target="_blank" rel="noreferrer"
-                                  style={{fontSize:11,color:"#2563eb",textDecoration:"none",fontWeight:600}}>🎬 Video</a>
-                              )}
-                            </div>
+                  <h2 style={{fontSize:13,fontWeight:700,color:navy,margin:"0 0 12px",textTransform:"uppercase",letterSpacing:.08}}>What we're showcasing</h2>
+                  <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                    {offerings.map(o => (
+                      <div key={o.id} style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",overflow:"hidden"}}>
+                        {/* Product photo */}
+                        {o.assets?.photos?.[0] && (
+                          <img src={o.assets.photos[0]} alt={o.name}
+                            style={{width:"100%",height:160,objectFit:"cover",display:"block"}}/>
+                        )}
+                        <div style={{padding:"14px 16px"}}>
+                          {/* Name + category */}
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                            <h3 style={{fontSize:15,fontWeight:700,color:navy,margin:0}}>{o.name}</h3>
+                            {o.category?.length > 0 && (
+                              <span style={{fontSize:10,padding:"3px 8px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontWeight:700,flexShrink:0,marginLeft:8}}>
+                                {Array.isArray(o.category)?o.category[0]:o.category}
+                              </span>
+                            )}
                           </div>
+                          {/* Description */}
+                          {o.short_description && (
+                            <p style={{fontSize:12,color:"#64748B",margin:"0 0 10px",lineHeight:1.6}}>{o.short_description}</p>
+                          )}
+                          {/* Links */}
+                          {(o.assets?.brochure || o.assets?.video) && (
+                            <div style={{display:"flex",gap:12,borderTop:"1px solid #F1F5F9",paddingTop:10}}>
+                              {o.assets.brochure && (
+                                <a href={o.assets.brochure} target="_blank" rel="noreferrer"
+                                  style={{fontSize:12,color:"#2563EB",textDecoration:"none",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                                  📄 Download brochure
+                                </a>
+                              )}
+                              {o.assets.video && (
+                                <a href={o.assets.video} target="_blank" rel="noreferrer"
+                                  style={{fontSize:12,color:"#2563EB",textDecoration:"none",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                                  🎬 Watch video
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* Who we want to meet */}
+              {/* ── Who we want to meet ── */}
               {(eventInfo.icp_roles?.length > 0 || eventInfo.intent_buyers) && (
                 <div style={{background:"#fff",borderRadius:12,border:"1px solid #E2E8F0",padding:"16px 18px",marginBottom:16}}>
-                  <h3 style={{fontSize:13,fontWeight:700,color:"#0D1B3E",margin:"0 0 10px"}}>👥 Who we want to meet</h3>
+                  <h2 style={{fontSize:13,fontWeight:700,color:navy,margin:"0 0 12px",textTransform:"uppercase",letterSpacing:.08}}>👥 Who we want to meet</h2>
                   {eventInfo.icp_roles?.length > 0 && (
                     <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
                       {eventInfo.icp_roles.slice(0,6).map((r,i) => (
@@ -10569,31 +10659,31 @@ function RegistrationPage({ eventId }) {
                     </div>
                   )}
                   {eventInfo.intent_buyers && (
-                    <p style={{fontSize:12,color:"#374151",margin:0,lineHeight:1.6}}>
-                      {eventInfo.intent_buyers.length > 160 ? eventInfo.intent_buyers.slice(0,160).trim() + "…" : eventInfo.intent_buyers}
+                    <p style={{fontSize:12,color:"#374151",margin:0,lineHeight:1.7}}>
+                      {eventInfo.intent_buyers.length > 200 ? eventInfo.intent_buyers.slice(0,200).trim() + "…" : eventInfo.intent_buyers}
                     </p>
                   )}
                 </div>
               )}
 
-              {/* Meeting availability */}
-              <div style={{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,border:"1px solid #BFDBFE",padding:"14px 18px",marginBottom:20,display:"flex",gap:12,alignItems:"center"}}>
-                <span style={{fontSize:22,flexShrink:0}}>📅</span>
+              {/* ── Meeting CTA ── */}
+              <div style={{background:"linear-gradient(135deg,#EFF6FF,#DBEAFE)",borderRadius:12,border:"1px solid #BFDBFE",padding:"16px 18px",marginBottom:20,display:"flex",gap:14,alignItems:"center"}}>
+                <span style={{fontSize:28,flexShrink:0}}>📅</span>
                 <div>
-                  <p style={{fontSize:13,fontWeight:700,color:"#1D4ED8",margin:"0 0 2px"}}>Dedicated meeting slots available</p>
-                  <p style={{fontSize:11,color:"#3B82F6",margin:0}}>Register below to request a 1:1 meeting with our team at the event.</p>
+                  <p style={{fontSize:13,fontWeight:700,color:"#1D4ED8",margin:"0 0 3px"}}>Dedicated meeting slots available</p>
+                  <p style={{fontSize:12,color:"#3B82F6",margin:0,lineHeight:1.5}}>Register to request a 1:1 meeting with our team at the booth.</p>
                 </div>
               </div>
 
-              {/* Bottom CTA */}
+              {/* ── Bottom CTA ── */}
               <button onClick={()=>{setStep(1);window.scrollTo(0,0);}}
-                style={{width:"100%",padding:"14px 0",background:"#0D1B3E",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:F,letterSpacing:"-0.01em",boxShadow:"0 4px 14px rgba(13,27,62,0.25)"}}>
+                style={{width:"100%",padding:"15px 0",background:navy,color:"#fff",border:"none",borderRadius:10,fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:F,letterSpacing:"-0.01em",boxShadow:"0 4px 16px rgba(13,27,62,0.25)",marginBottom:20}}>
                 Secure your visit slot →
               </button>
 
               {/* Powered by */}
-              <p style={{textAlign:"center",fontSize:11,color:"#94A3B8",marginTop:16}}>
-                Powered by <strong style={{color:"#0D1B3E"}}>Fingoh</strong> · Event Intelligence Platform
+              <p style={{textAlign:"center",fontSize:11,color:"#94A3B8",marginBottom:32}}>
+                Powered by <strong style={{color:navy}}>Fingoh</strong> · Event Intelligence Platform
               </p>
             </div>
           );
