@@ -7907,7 +7907,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                     let data;
                     try { data = JSON.parse(text); } catch { data = {}; }
                     if (data.logo_url) {
-                      setMyEvents(prev => prev.map(ev => ev.id === ex.id ? {...ev, logo_url: data.logo_url} : ev));
+                      onUpdate({ ...ex, logo_url: data.logo_url });
                     } else {
                       alert("Logo upload failed: " + (data.detail || text));
                     }
@@ -7925,7 +7925,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                   headers: { "Content-Type": "application/json", "x-fingoh-auth": `Bearer ${tok}` },
                   body: JSON.stringify({ logo_url: "" }),
                 });
-                setMyEvents(prev => prev.map(ev => ev.id === ex.id ? {...ev, logo_url: ""} : ev));
+                onUpdate({ ...ex, logo_url: "" });
               }} style={{fontSize:11,color:"#DC2626",background:"none",border:"none",cursor:"pointer",textAlign:"left",padding:0}}>
                 Remove logo
               </button>
