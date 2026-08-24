@@ -2598,8 +2598,17 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                     {uploading ? (
                       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
                         <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.blue}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-                        <p style={{fontSize:12,color:C.blue,fontWeight:600,margin:0}}>Analysing visitors with IEI framework…</p>
-                        <p style={{fontSize:11,color:C.muted,margin:0}}>Fingoh is enriching profiles · XGBoost scoring 41 signals · This may take 20–30 seconds</p>
+                        <p style={{fontSize:12,color:C.blue,fontWeight:600,margin:0}}>
+                          Saving {uploadRowCount > 0 ? uploadRowCount.toLocaleString() : ""} contacts…
+                        </p>
+                        <p style={{fontSize:11,color:C.muted,margin:0}}>
+                          Uploading to Fingoh · XGBoost scoring · AI enrichment will run in background
+                        </p>
+                        {uploadRowCount > 0 && (
+                          <p style={{fontSize:11,color:C.muted,margin:0}}>
+                            ⏱ Estimated time: ~{Math.ceil(uploadRowCount / 100) * 5}–{Math.ceil(uploadRowCount / 100) * 10} seconds
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <label htmlFor="csv-upload"
@@ -2614,10 +2623,24 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                   <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"14px 18px",marginBottom:12,display:"flex",gap:12,alignItems:"center"}}>
                     <span style={{fontSize:24}}>✓</span>
                     <div>
-                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{uploadSummary?.uploaded ?? totalRecords} contacts imported · IEI scoring complete</p>
-                      <p style={{fontSize:11,color:"#166534",margin:0}}>Fingoh enrichment complete · XGBoost scored against IEI framework</p>
+                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{uploadSummary?.uploaded ?? totalRecords} contacts saved · IEI scoring complete</p>
+                      <p style={{fontSize:11,color:"#166534",margin:0}}>AI enrichment running in background · Check Visitor List for updates</p>
                     </div>
                   </div>
+                  {enrichStatus && (
+                    <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:"12px 18px",marginBottom:12}}>
+                      <p style={{fontSize:12,fontWeight:700,color:"#1D4ED8",margin:"0 0 8px"}}>⚡ Background enrichment progress</p>
+                      <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:8}}>
+                        <span style={{fontSize:11,color:"#166534",fontWeight:600}}>✓ {enrichStatus.done} enriched</span>
+                        <span style={{fontSize:11,color:"#92400E",fontWeight:600}}>⏳ {enrichStatus.pending + enrichStatus.enriching} remaining</span>
+                        {enrichStatus.skipped > 0 && <span style={{fontSize:11,color:"#64748B",fontWeight:600}}>⊘ {enrichStatus.skipped} skipped</span>}
+                        {enrichStatus.failed > 0 && <span style={{fontSize:11,color:"#DC2626",fontWeight:600}}>✗ {enrichStatus.failed} failed</span>}
+                      </div>
+                      <div style={{height:6,background:"#DBEAFE",borderRadius:99,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${Math.round(((enrichStatus.done+enrichStatus.skipped)/Math.max(enrichStatus.total,1))*100)}%`,background:"#2563EB",borderRadius:99,transition:"width 1s"}}/>
+                      </div>
+                    </div>
+                  )}
                   {uploadSummary?.rejected > 0 && (
                     <div style={{background:"#FFF0F0",border:"1px solid #FECACA",borderRadius:10,padding:"12px 18px",marginBottom:12,display:"flex",gap:12,alignItems:"center"}}>
                       <span style={{fontSize:20}}>⚠</span>
