@@ -1794,8 +1794,11 @@ function VisitorList({eventId, refreshKey}) {
     setSelectedIds(new Set());
   };
 
+  const [enriching, setEnriching] = React.useState(false);
+
   const bulkEnrich = async () => {
-    if (!selectedIds.size) return;
+    if (!selectedIds.size || enriching) return;
+    setEnriching(true);
     const {data:{session}} = await supabase.auth.getSession();
     const token = session?.access_token || "";
     const ids = [...selectedIds];
@@ -1816,7 +1819,9 @@ function VisitorList({eventId, refreshKey}) {
       } catch {}
     }));
     setSelectedIds(new Set());
-    if (enriched > 0) alert(`✓ ${enriched} contact(s) enriched and rescored.`);
+    setEnriching(false);
+    if (enriched > 0) alert(`✓ ${enriched} contact(s) enriched and rescored. Scores updated.`);
+    else alert("Enrichment complete — no scores changed.");
   };
 
   const deleteContact = async (contactId, name) => {
@@ -1983,8 +1988,14 @@ function VisitorList({eventId, refreshKey}) {
       {selectedIds.size > 0 && (
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"8px 14px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
             <span style={{fontSize:12,fontWeight:600,color:"#1E40AF"}}>{selectedIds.size} visitor{selectedIds.size>1?"s":""} selected</span>
-            <button onClick={bulkEnrich} style={{padding:"5px 14px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-              ⚡ Enrich selected
+            <button onClick={bulkEnrich} disabled={enriching}
+              style={{padding:"5px 14px",background:enriching?"#93C5FD":"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:enriching?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:6}}>
+              {enriching ? (
+                <>
+                  <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.4)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                  Enriching {selectedIds.size} contact{selectedIds.size>1?"s":""}…
+                </>
+              ) : "⚡ Enrich selected"}
             </button>
             <button onClick={bulkDelete} style={{padding:"5px 14px",background:"#DC2626",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
               🗑 Delete selected
