@@ -2480,7 +2480,9 @@ function AudienceUpload({ex, onNext, planFeatures}) {
   const [sfCrmConnected, setSfCrmConnected] = useState(false);
   const [sfCrmLoading, setSfCrmLoading]     = useState(false);
   const [regLive, setRegLive]         = useState(false);
-  const [uploading, setUploading]     = useState(false);
+  const [uploading, setUploading]         = useState(false);
+  const [uploadRowCount, setUploadRowCount] = useState(0);
+  const [enrichStatus, setEnrichStatus]     = useState(null);
   const [totalRecords, setTotalRecords] = useState(0);
 
 
