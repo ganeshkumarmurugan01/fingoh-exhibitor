@@ -1794,6 +1794,31 @@ function VisitorList({eventId, refreshKey}) {
     setSelectedIds(new Set());
   };
 
+  const bulkEnrich = async () => {
+    if (!selectedIds.size) return;
+    const {data:{session}} = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const ids = [...selectedIds];
+    let enriched = 0;
+    await Promise.all(ids.map(async id => {
+      try {
+        const res = await fetch(`/api/proxy?slug=v1/audience/enrich-one/${eventId}/${id}`, {
+          method: "POST",
+          headers: {"x-fingoh-auth": `Bearer ${token}`}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.iei_score !== undefined) {
+            setContacts(prev => prev.map(c => c.id === id ? {...c, iei_score: data.iei_score, reg_prob: data.reg_prob, enrichment_status: "done"} : c));
+            enriched++;
+          }
+        }
+      } catch {}
+    }));
+    setSelectedIds(new Set());
+    if (enriched > 0) alert(`✓ ${enriched} contact(s) enriched and rescored.`);
+  };
+
   const deleteContact = async (contactId, name) => {
     if (!window.confirm(`Delete ${name}? This will remove all their signals and meetings for this event.`)) return;
     try {
@@ -1958,6 +1983,9 @@ function VisitorList({eventId, refreshKey}) {
       {selectedIds.size > 0 && (
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"8px 14px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
             <span style={{fontSize:12,fontWeight:600,color:"#1E40AF"}}>{selectedIds.size} visitor{selectedIds.size>1?"s":""} selected</span>
+            <button onClick={bulkEnrich} style={{padding:"5px 14px",background:"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+              ⚡ Enrich selected
+            </button>
             <button onClick={bulkDelete} style={{padding:"5px 14px",background:"#DC2626",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
               🗑 Delete selected
             </button>
