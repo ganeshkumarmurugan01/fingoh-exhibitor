@@ -2367,9 +2367,22 @@ function ContactStats({contacts}) {
   );
 }
 
-async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary) {
+async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary, setUploadRowCount, setEnrichStatus) {
   const file = e.target.files[0];
   if (!file || !ex?.id) return;
+
+  // Count rows before upload so we can show estimate
+  try {
+    if (file.name.endsWith(".csv")) {
+      const text = await file.text();
+      const rowCount = text.split("\n").filter(l => l.trim()).length - 1; // minus header
+      setUploadRowCount(Math.max(0, rowCount));
+    } else {
+      // For xlsx just show file size estimate (can't parse xlsx in browser easily)
+      setUploadRowCount(0);
+    }
+  } catch {}
+
   setUploading(true);
   const form = new FormData();
   form.append("file", file);
@@ -2386,9 +2399,26 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploadi
       setUploadDone(true);
       setTotalRecords(data.uploaded || 0);
       setUploadSummary({ uploaded: data.uploaded || 0, rejected: data.rejected || 0 });
+
+      // Start polling enrichment status
+      const pollEnrichment = async () => {
+        try {
+          const statusRes = await fetch(`/api/proxy?slug=v1/audience/enrich/status/${ex.id}`, {
+            headers: { "x-fingoh-auth": `Bearer ${token}` },
+          });
+          if (statusRes.ok) {
+            const s = await statusRes.json();
+            setEnrichStatus(s);
+            const stillRunning = (s.pending || 0) + (s.enriching || 0) > 0;
+            if (stillRunning) setTimeout(pollEnrichment, 5000);
+          }
+        } catch {}
+      };
+      setTimeout(pollEnrichment, 3000);
     }
   } finally {
     setUploading(false);
+    setUploadRowCount(0);
   }
 }
 function AudienceUpload({ex, onNext, planFeatures}) {
@@ -2560,7 +2590,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                     <p style={{fontSize:14,fontWeight:600,color:C.muted,marginBottom:4}}>Drop CSV / Excel here or click to browse</p>
                     <p style={{fontSize:11,color:C.muted2,marginBottom:16}}>Max 10,000 rows · .csv or .xlsx · UTF-8 encoding</p>
                     <input type="file" accept=".csv,.xlsx" style={{display:"none"}} id="csv-upload"
-                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary)}
+                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary, setUploadRowCount, setEnrichStatus)}
                       disabled={uploading}
                     />
                     {uploading ? (
