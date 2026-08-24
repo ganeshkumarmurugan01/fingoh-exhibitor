@@ -2022,6 +2022,7 @@ function VisitorList({eventId, refreshKey}) {
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Tier</th>
               <SortTh label="Attend Prob" col="reg_prob"/>
               <th style={{padding:"10px 14px",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,textAlign:"left"}}>Registered</th>
+              <SortTh label="Added" col="created_at"/>
               <th style={{padding:"10px 14px"}}></th>
             </tr>
           </thead>
@@ -2079,6 +2080,9 @@ function VisitorList({eventId, refreshKey}) {
                       ? <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#DCFCE7",color:"#14532D",fontWeight:700}}>✓ Yes</span>
                       : <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#FEE2E2",color:"#991B1B",fontWeight:700}}>✗ No</span>
                     }
+                </td>
+                <td style={{padding:"8px 12px",color:C.muted,fontSize:11,whiteSpace:"nowrap"}}>
+                  {c.created_at ? new Date(c.created_at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "—"}
                 </td>
                 <td style={{padding:"8px 12px"}}>
                   <button onClick={()=>deleteContact(c.id, c.name||"this visitor")}
@@ -2440,20 +2444,21 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploadi
       setUploadSummary({ uploaded: data.uploaded || 0, rejected: data.rejected || 0 });
 
       // Start polling enrichment status
+      const uploadedAt = new Date(Date.now() - 5000).toISOString(); // 5s buffer
       const pollEnrichment = async () => {
         try {
-          const statusRes = await fetch(`/api/proxy?slug=v1/audience/enrich/status/${ex.id}`, {
+          const statusRes = await fetch(`/api/proxy?slug=v1/audience/enrich/status/${ex.id}&since=${encodeURIComponent(uploadedAt)}`, {
             headers: { "x-fingoh-auth": `Bearer ${token}` },
           });
           if (statusRes.ok) {
             const s = await statusRes.json();
             setEnrichStatus(s);
             const stillRunning = (s.pending || 0) + (s.enriching || 0) > 0;
-            if (stillRunning) setTimeout(pollEnrichment, 5000);
+            if (stillRunning) setTimeout(pollEnrichment, 4000);
           }
         } catch {}
       };
-      setTimeout(pollEnrichment, 3000);
+      pollEnrichment();
     }
   } finally {
     setUploading(false);
