@@ -1794,6 +1794,36 @@ function VisitorList({eventId, refreshKey}) {
     setSelectedIds(new Set());
   };
 
+  const [enriching, setEnriching] = React.useState(false);
+
+  const bulkEnrich = async () => {
+    if (!selectedIds.size || enriching) return;
+    setEnriching(true);
+    const {data:{session}} = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const ids = [...selectedIds];
+    let enriched = 0;
+    await Promise.all(ids.map(async id => {
+      try {
+        const res = await fetch(`/api/proxy?slug=v1/audience/enrich-one/${eventId}/${id}`, {
+          method: "POST",
+          headers: {"x-fingoh-auth": `Bearer ${token}`}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.iei_score !== undefined) {
+            setContacts(prev => prev.map(c => c.id === id ? {...c, iei_score: data.iei_score, reg_prob: data.reg_prob, enrichment_status: "done"} : c));
+            enriched++;
+          }
+        }
+      } catch {}
+    }));
+    setSelectedIds(new Set());
+    setEnriching(false);
+    if (enriched > 0) alert(`✓ ${enriched} contact(s) enriched and rescored. Scores updated.`);
+    else alert("Enrichment complete — no scores changed.");
+  };
+
   const deleteContact = async (contactId, name) => {
     if (!window.confirm(`Delete ${name}? This will remove all their signals and meetings for this event.`)) return;
     try {
@@ -1958,6 +1988,15 @@ function VisitorList({eventId, refreshKey}) {
       {selectedIds.size > 0 && (
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10,padding:"8px 14px",background:"#EFF6FF",borderRadius:8,border:"1px solid #BFDBFE"}}>
             <span style={{fontSize:12,fontWeight:600,color:"#1E40AF"}}>{selectedIds.size} visitor{selectedIds.size>1?"s":""} selected</span>
+            <button onClick={bulkEnrich} disabled={enriching}
+              style={{padding:"5px 14px",background:enriching?"#93C5FD":"#2563EB",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:enriching?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:6}}>
+              {enriching ? (
+                <>
+                  <div style={{width:10,height:10,border:"2px solid rgba(255,255,255,0.4)",borderTop:"2px solid #fff",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+                  Enriching {selectedIds.size} contact{selectedIds.size>1?"s":""}…
+                </>
+              ) : "⚡ Enrich selected"}
+            </button>
             <button onClick={bulkDelete} style={{padding:"5px 14px",background:"#DC2626",color:"#fff",border:"none",borderRadius:6,fontSize:12,fontWeight:700,cursor:"pointer"}}>
               🗑 Delete selected
             </button>
@@ -2367,9 +2406,22 @@ function ContactStats({contacts}) {
   );
 }
 
-async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary) {
+async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary, setUploadRowCount, setEnrichStatus) {
   const file = e.target.files[0];
   if (!file || !ex?.id) return;
+
+  // Count rows before upload so we can show estimate
+  try {
+    if (file.name.endsWith(".csv")) {
+      const text = await file.text();
+      const rowCount = text.split("\n").filter(l => l.trim()).length - 1; // minus header
+      setUploadRowCount(Math.max(0, rowCount));
+    } else {
+      // For xlsx just show file size estimate (can't parse xlsx in browser easily)
+      setUploadRowCount(0);
+    }
+  } catch {}
+
   setUploading(true);
   const form = new FormData();
   form.append("file", file);
@@ -2386,9 +2438,26 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploadi
       setUploadDone(true);
       setTotalRecords(data.uploaded || 0);
       setUploadSummary({ uploaded: data.uploaded || 0, rejected: data.rejected || 0 });
+
+      // Start polling enrichment status
+      const pollEnrichment = async () => {
+        try {
+          const statusRes = await fetch(`/api/proxy?slug=v1/audience/enrich/status/${ex.id}`, {
+            headers: { "x-fingoh-auth": `Bearer ${token}` },
+          });
+          if (statusRes.ok) {
+            const s = await statusRes.json();
+            setEnrichStatus(s);
+            const stillRunning = (s.pending || 0) + (s.enriching || 0) > 0;
+            if (stillRunning) setTimeout(pollEnrichment, 5000);
+          }
+        } catch {}
+      };
+      setTimeout(pollEnrichment, 3000);
     }
   } finally {
     setUploading(false);
+    setUploadRowCount(0);
   }
 }
 function AudienceUpload({ex, onNext, planFeatures}) {
@@ -2450,7 +2519,9 @@ function AudienceUpload({ex, onNext, planFeatures}) {
   const [sfCrmConnected, setSfCrmConnected] = useState(false);
   const [sfCrmLoading, setSfCrmLoading]     = useState(false);
   const [regLive, setRegLive]         = useState(false);
-  const [uploading, setUploading]     = useState(false);
+  const [uploading, setUploading]         = useState(false);
+  const [uploadRowCount, setUploadRowCount] = useState(0);
+  const [enrichStatus, setEnrichStatus]     = useState(null);
   const [totalRecords, setTotalRecords] = useState(0);
 
 
@@ -2560,14 +2631,23 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                     <p style={{fontSize:14,fontWeight:600,color:C.muted,marginBottom:4}}>Drop CSV / Excel here or click to browse</p>
                     <p style={{fontSize:11,color:C.muted2,marginBottom:16}}>Max 10,000 rows · .csv or .xlsx · UTF-8 encoding</p>
                     <input type="file" accept=".csv,.xlsx" style={{display:"none"}} id="csv-upload"
-                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary)}
+                      onChange={e => handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploading, setUploadSummary, setUploadRowCount, setEnrichStatus)}
                       disabled={uploading}
                     />
                     {uploading ? (
                       <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
                         <div style={{width:36,height:36,border:"3px solid #E2E8F0",borderTop:`3px solid ${C.blue}`,borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-                        <p style={{fontSize:12,color:C.blue,fontWeight:600,margin:0}}>Analysing visitors with IEI framework…</p>
-                        <p style={{fontSize:11,color:C.muted,margin:0}}>Fingoh is enriching profiles · XGBoost scoring 41 signals · This may take 20–30 seconds</p>
+                        <p style={{fontSize:12,color:C.blue,fontWeight:600,margin:0}}>
+                          Saving {uploadRowCount > 0 ? uploadRowCount.toLocaleString() : ""} contacts…
+                        </p>
+                        <p style={{fontSize:11,color:C.muted,margin:0}}>
+                          Uploading to Fingoh · XGBoost scoring · AI enrichment will run in background
+                        </p>
+                        {uploadRowCount > 0 && (
+                          <p style={{fontSize:11,color:C.muted,margin:0}}>
+                            ⏱ Estimated time: ~{Math.ceil(uploadRowCount / 100) * 5}–{Math.ceil(uploadRowCount / 100) * 10} seconds
+                          </p>
+                        )}
                       </div>
                     ) : (
                       <label htmlFor="csv-upload"
@@ -2582,10 +2662,24 @@ function AudienceUpload({ex, onNext, planFeatures}) {
                   <div style={{background:C.ltgrn,border:"1px solid #86EFAC",borderRadius:10,padding:"14px 18px",marginBottom:12,display:"flex",gap:12,alignItems:"center"}}>
                     <span style={{fontSize:24}}>✓</span>
                     <div>
-                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{uploadSummary?.uploaded ?? totalRecords} contacts imported · IEI scoring complete</p>
-                      <p style={{fontSize:11,color:"#166534",margin:0}}>Fingoh enrichment complete · XGBoost scored against IEI framework</p>
+                      <p style={{fontSize:13,fontWeight:700,color:"#14532D",margin:0}}>{uploadSummary?.uploaded ?? totalRecords} contacts saved · IEI scoring complete</p>
+                      <p style={{fontSize:11,color:"#166534",margin:0}}>AI enrichment running in background · Check Visitor List for updates</p>
                     </div>
                   </div>
+                  {enrichStatus && (
+                    <div style={{background:"#EFF6FF",border:"1px solid #BFDBFE",borderRadius:10,padding:"12px 18px",marginBottom:12}}>
+                      <p style={{fontSize:12,fontWeight:700,color:"#1D4ED8",margin:"0 0 8px"}}>⚡ Background enrichment progress</p>
+                      <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:8}}>
+                        <span style={{fontSize:11,color:"#166534",fontWeight:600}}>✓ {enrichStatus.done} enriched</span>
+                        <span style={{fontSize:11,color:"#92400E",fontWeight:600}}>⏳ {enrichStatus.pending + enrichStatus.enriching} remaining</span>
+                        {enrichStatus.skipped > 0 && <span style={{fontSize:11,color:"#64748B",fontWeight:600}}>⊘ {enrichStatus.skipped} skipped</span>}
+                        {enrichStatus.failed > 0 && <span style={{fontSize:11,color:"#DC2626",fontWeight:600}}>✗ {enrichStatus.failed} failed</span>}
+                      </div>
+                      <div style={{height:6,background:"#DBEAFE",borderRadius:99,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${Math.round(((enrichStatus.done+enrichStatus.skipped)/Math.max(enrichStatus.total,1))*100)}%`,background:"#2563EB",borderRadius:99,transition:"width 1s"}}/>
+                      </div>
+                    </div>
+                  )}
                   {uploadSummary?.rejected > 0 && (
                     <div style={{background:"#FFF0F0",border:"1px solid #FECACA",borderRadius:10,padding:"12px 18px",marginBottom:12,display:"flex",gap:12,alignItems:"center"}}>
                       <span style={{fontSize:20}}>⚠</span>
