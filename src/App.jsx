@@ -2017,6 +2017,7 @@ function VisitorList({eventId, refreshKey}) {
               <SortTh label="Company" col="company"/>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Role</th>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Location</th>
+              <SortTh label="Added" col="created_at"/>
               <SortTh label="Pre IEI" col="iei_score"/>
               <SortTh label="Onsite IEI" col="onsite_iei_score"/>
               <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Tier</th>
@@ -2045,6 +2046,9 @@ function VisitorList({eventId, refreshKey}) {
                 </td>
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.designation||"—"}</td>
                 <td style={{padding:"12px 14px",color:C.muted,fontSize:12}}>{c.country||"—"}</td>
+                <td style={{padding:"12px 14px",color:C.muted,fontSize:11,whiteSpace:"nowrap"}}>
+                  {c.created_at ? new Date(c.created_at).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}) : "—"}
+                </td>
                 <td style={{padding:"12px 14px"}}>
                   <span style={{fontSize:16,fontWeight:800,whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:2,color:
                     c.prev_iei_score == null ? (TIER_COLORS[c.iei_tier]||C.muted) :
@@ -2440,20 +2444,21 @@ async function handleCsvUpload(e, ex, setUploadDone, setTotalRecords, setUploadi
       setUploadSummary({ uploaded: data.uploaded || 0, rejected: data.rejected || 0 });
 
       // Start polling enrichment status
+      const uploadedAt = new Date(Date.now() - 5000).toISOString(); // 5s buffer
       const pollEnrichment = async () => {
         try {
-          const statusRes = await fetch(`/api/proxy?slug=v1/audience/enrich/status/${ex.id}`, {
+          const statusRes = await fetch(`/api/proxy?slug=v1/audience/enrich/status/${ex.id}&since=${encodeURIComponent(uploadedAt)}`, {
             headers: { "x-fingoh-auth": `Bearer ${token}` },
           });
           if (statusRes.ok) {
             const s = await statusRes.json();
             setEnrichStatus(s);
             const stillRunning = (s.pending || 0) + (s.enriching || 0) > 0;
-            if (stillRunning) setTimeout(pollEnrichment, 5000);
+            if (stillRunning) setTimeout(pollEnrichment, 4000);
           }
         } catch {}
       };
-      setTimeout(pollEnrichment, 3000);
+      pollEnrichment();
     }
   } finally {
     setUploading(false);
