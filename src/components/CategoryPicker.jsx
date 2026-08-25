@@ -9,12 +9,13 @@ const C = {
   ltblue: "#EFF6FF",
 };
 
-async function fetchCategories(level, parentId = null) {
+async function fetchCategories(level, parentId = null, industry = "pharma") {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token || "";
-  let url = `/api/proxy?slug=v1/categories?industry=pharma&level=${level}`;
-  if (parentId) url += `&parent_id=${parentId}`;
-  const res = await fetch(url, {
+  // Build query params separately so proxy slug doesn't include them
+  let params = `industry=${industry}&level=${level}`;
+  if (parentId) params += `&parent_id=${parentId}`;
+  const res = await fetch(`/api/proxy?slug=v1/categories&${params}`, {
     headers: { "x-fingoh-auth": `Bearer ${token}` },
   });
   return res.ok ? res.json() : [];
