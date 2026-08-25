@@ -10728,9 +10728,11 @@ function RegistrationPage({ eventId }) {
                           {/* Name + category */}
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                             <h3 style={{fontSize:15,fontWeight:700,color:navy,margin:0}}>{o.name}</h3>
-                            {o.category?.length > 0 && (
+                            {((o.category_master||[]).length > 0 || o.category?.length > 0) && (
                               <span style={{fontSize:10,padding:"3px 8px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontWeight:700,flexShrink:0,marginLeft:8}}>
-                                {Array.isArray(o.category)?o.category[0]:o.category}
+                                {(o.category_master||[]).length > 0
+                                  ? (o.category_master||[])[0]?.name
+                                  : Array.isArray(o.category)?o.category[0]:o.category}
                               </span>
                             )}
                           </div>
