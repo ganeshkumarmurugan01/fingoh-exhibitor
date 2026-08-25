@@ -10876,20 +10876,56 @@ function RegistrationPage({ eventId }) {
               </select>
             </div>
 
-            {/* Categories */}
-            {eventInfo.categories?.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={lS}>Product categories of interest</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+            {/* Categories of Interest — from category master */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={lS}>Product categories of interest</label>
+              <p style={{ fontSize: 11, color: "#94A3B8", margin: "2px 0 8px" }}>
+                Select the product categories you are interested in exploring
+              </p>
+              {/* Exhibitor's own categories as quick-select */}
+              {offerings.length > 0 && (() => {
+                const exhibitorCats = offerings.flatMap(o => o.category_master || [])
+                  .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i);
+                if (exhibitorCats.length === 0) return null;
+                return (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: .06, marginBottom: 6 }}>
+                      {eventInfo.company}'s categories
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                      {exhibitorCats.map(cat => {
+                        const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
+                        const sel = cats.includes(cat.name);
+                        return (
+                          <button key={cat.id} onClick={() => {
+                            const next = sel ? cats.filter(c => c !== cat.name) : [...cats, cat.name];
+                            upd("categories_interest", next.join(", "));
+                          }} style={{
+                            padding: "5px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
+                            border: `1.5px solid ${sel ? navy : "#E2E8F0"}`,
+                            background: sel ? navy : "#fff", color: sel ? "#fff" : "#64748B",
+                            cursor: "pointer", fontFamily: F,
+                          }}>
+                            {cat.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Legacy event categories fallback */}
+              {offerings.flatMap(o => o.category_master || []).length === 0 && eventInfo.categories?.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {eventInfo.categories.map(cat => {
-                    const sel = (form.categories_interest || "").includes(cat);
+                    const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
+                    const sel = cats.includes(cat);
                     return (
                       <button key={cat} onClick={() => {
-                        const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
                         const next = sel ? cats.filter(c => c !== cat) : [...cats, cat];
                         upd("categories_interest", next.join(", "));
                       }} style={{
-                        padding: "6px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
+                        padding: "5px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
                         border: `1.5px solid ${sel ? navy : "#E2E8F0"}`,
                         background: sel ? navy : "#fff", color: sel ? "#fff" : "#64748B",
                         cursor: "pointer", fontFamily: F,
@@ -10899,8 +10935,14 @@ function RegistrationPage({ eventId }) {
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+              {/* Show selected as text input too */}
+              {form.categories_interest && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "#64748B" }}>
+                  Selected: <strong>{form.categories_interest}</strong>
+                </div>
+              )}
+            </div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <button onClick={() => { setStep(0); window.scrollTo(0, 0); }}
