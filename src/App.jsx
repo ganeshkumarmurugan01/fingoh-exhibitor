@@ -8336,6 +8336,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
   const startEditOffering = (o) => {
     setOfferingForm({
       type: o.type, name: o.name, category: o.category || '',
+      category_master: o.category_master || [],
       short_description: o.short_description || '',
       key_specifications: o.key_specifications || [],
       target_industries: o.target_industries || []
