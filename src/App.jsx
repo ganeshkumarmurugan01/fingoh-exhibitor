@@ -662,7 +662,13 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                             {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
                           </span>
                           <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
-                          {o.category?.length > 0 && <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</span>}
+                          {((o.category_master||[]).length > 0 || o.category?.length > 0) && (
+                            <span style={{fontSize:11,color:C.muted,marginLeft:8}}>
+                              {(o.category_master||[]).length > 0
+                                ? (o.category_master||[]).map(c=>c.name).join(', ')
+                                : (Array.isArray(o.category)?o.category:[o.category]).join(', ')}
+                            </span>
+                          )}
                         </div>
                         <button onClick={()=>setOfferings(prev=>prev.filter(o2=>o2.id!==o.id))}
                           style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
@@ -8378,7 +8384,14 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                       <button onClick={()=>handleDeleteOffering(o.id)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>Delete</button>
                     </div>
                   </div>
-                  {o.category?.length > 0 && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Categories: {(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</p>}
+                  {((o.category_master||[]).length > 0 || o.category?.length > 0) && (
+                    <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>
+                      Categories: {(o.category_master||[]).length > 0
+                        ? (o.category_master||[]).map(c=>c.name).join(', ')
+                        : (Array.isArray(o.category)?o.category:[o.category]).join(', ')
+                      }
+                    </p>
+                  )}
                   {o.short_description && <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{o.short_description}</p>}
                   {o.id && <OfferingAssets offeringId={o.id} eventId={ex.id} />}
                   {o.key_specifications?.length > 0 && (
