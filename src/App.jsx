@@ -1,4 +1,5 @@
 import OfferingAssets from './components/OfferingAssets';
+import CategoryPicker from './components/CategoryPicker';
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff, getOfferings, createOffering, updateOffering, deleteOffering } from "./lib/api.js";
@@ -661,7 +662,13 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
                             {OFFERING_TYPES.find(t=>t.value===o.type)?.label || o.type}
                           </span>
                           <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{o.name}</span>
-                          {o.category?.length > 0 && <span style={{fontSize:11,color:C.muted,marginLeft:8}}>{(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</span>}
+                          {((o.category_master||[]).length > 0 || o.category?.length > 0) && (
+                            <span style={{fontSize:11,color:C.muted,marginLeft:8}}>
+                              {(o.category_master||[]).length > 0
+                                ? (o.category_master||[]).map(c=>c.name).join(', ')
+                                : (Array.isArray(o.category)?o.category:[o.category]).join(', ')}
+                            </span>
+                          )}
                         </div>
                         <button onClick={()=>setOfferings(prev=>prev.filter(o2=>o2.id!==o.id))}
                           style={{fontSize:11,padding:"3px 8px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>✕</button>
@@ -8335,6 +8342,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
   const startEditOffering = (o) => {
     setOfferingForm({
       type: o.type, name: o.name, category: o.category || '',
+      category_master: o.category_master || [],
       short_description: o.short_description || '',
       key_specifications: o.key_specifications || [],
       target_industries: o.target_industries || []
@@ -8376,7 +8384,14 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                       <button onClick={()=>handleDeleteOffering(o.id)} style={{fontSize:11,padding:"3px 10px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",cursor:"pointer",color:"#DC2626"}}>Delete</button>
                     </div>
                   </div>
-                  {o.category?.length > 0 && <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>Categories: {(Array.isArray(o.category)?o.category:[o.category]).join(', ')}</p>}
+                  {((o.category_master||[]).length > 0 || o.category?.length > 0) && (
+                    <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>
+                      Categories: {(o.category_master||[]).length > 0
+                        ? (o.category_master||[]).map(c=>c.name).join(', ')
+                        : (Array.isArray(o.category)?o.category:[o.category]).join(', ')
+                      }
+                    </p>
+                  )}
                   {o.short_description && <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{o.short_description}</p>}
                   {o.id && <OfferingAssets offeringId={o.id} eventId={ex.id} />}
                   {o.key_specifications?.length > 0 && (
@@ -8419,19 +8434,12 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
 
               {/* Category */}
               <div style={{marginBottom:12}}>
-                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {(ex.cats||[]).length===0 && <p style={{fontSize:11,color:"#94A3B8",margin:0}}>No categories defined yet — complete <strong>Visitor categories</strong> in Event Setup first.</p>}
-                  {(ex.cats||[]).map(cat => (
-                    <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:(f.category||[]).includes(cat)?(f.category||[]).filter(c=>c!==cat):[...(f.category||[]),cat]}))}
-                      style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
-                        borderColor:(offeringForm.category||[]).includes(cat)?C.navy:"#E2E8F0",
-                        background:(offeringForm.category||[]).includes(cat)?C.navy:"white",
-                        color:(offeringForm.category||[]).includes(cat)?"white":C.muted,fontWeight:600}}>
-                      {cat}
-                    </button>
-                  ))}
-                </div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>PRODUCT CATEGORIES</label>
+                <CategoryPicker
+                  selected={offeringForm.category_master || []}
+                  onChange={cats => setOfferingForm(f => ({...f, category_master: cats}))}
+                  industry={ex.industry_vertical === "pharma" ? "pharma" : "pharma"}
+                />
               </div>
 
               {/* Short description */}
@@ -10720,9 +10728,11 @@ function RegistrationPage({ eventId }) {
                           {/* Name + category */}
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                             <h3 style={{fontSize:15,fontWeight:700,color:navy,margin:0}}>{o.name}</h3>
-                            {o.category?.length > 0 && (
+                            {((o.category_master||[]).length > 0 || o.category?.length > 0) && (
                               <span style={{fontSize:10,padding:"3px 8px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontWeight:700,flexShrink:0,marginLeft:8}}>
-                                {Array.isArray(o.category)?o.category[0]:o.category}
+                                {(o.category_master||[]).length > 0
+                                  ? (o.category_master||[])[0]?.name
+                                  : Array.isArray(o.category)?o.category[0]:o.category}
                               </span>
                             )}
                           </div>
@@ -10868,20 +10878,56 @@ function RegistrationPage({ eventId }) {
               </select>
             </div>
 
-            {/* Categories */}
-            {eventInfo.categories?.length > 0 && (
-              <div style={{ marginBottom: 14 }}>
-                <label style={lS}>Product categories of interest</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+            {/* Categories of Interest — from category master */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={lS}>Product categories of interest</label>
+              <p style={{ fontSize: 11, color: "#94A3B8", margin: "2px 0 8px" }}>
+                Select the product categories you are interested in exploring
+              </p>
+              {/* Exhibitor's own categories as quick-select */}
+              {offerings.length > 0 && (() => {
+                const exhibitorCats = offerings.flatMap(o => o.category_master || [])
+                  .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i);
+                if (exhibitorCats.length === 0) return null;
+                return (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#94A3B8", textTransform: "uppercase", letterSpacing: .06, marginBottom: 6 }}>
+                      {eventInfo.company}'s categories
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                      {exhibitorCats.map(cat => {
+                        const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
+                        const sel = cats.includes(cat.name);
+                        return (
+                          <button key={cat.id} onClick={() => {
+                            const next = sel ? cats.filter(c => c !== cat.name) : [...cats, cat.name];
+                            upd("categories_interest", next.join(", "));
+                          }} style={{
+                            padding: "5px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
+                            border: `1.5px solid ${sel ? navy : "#E2E8F0"}`,
+                            background: sel ? navy : "#fff", color: sel ? "#fff" : "#64748B",
+                            cursor: "pointer", fontFamily: F,
+                          }}>
+                            {cat.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+              {/* Legacy event categories fallback */}
+              {offerings.flatMap(o => o.category_master || []).length === 0 && eventInfo.categories?.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                   {eventInfo.categories.map(cat => {
-                    const sel = (form.categories_interest || "").includes(cat);
+                    const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
+                    const sel = cats.includes(cat);
                     return (
                       <button key={cat} onClick={() => {
-                        const cats = form.categories_interest ? form.categories_interest.split(",").map(s => s.trim()).filter(Boolean) : [];
                         const next = sel ? cats.filter(c => c !== cat) : [...cats, cat];
                         upd("categories_interest", next.join(", "));
                       }} style={{
-                        padding: "6px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
+                        padding: "5px 12px", borderRadius: 99, fontSize: 11, fontWeight: sel ? 700 : 400,
                         border: `1.5px solid ${sel ? navy : "#E2E8F0"}`,
                         background: sel ? navy : "#fff", color: sel ? "#fff" : "#64748B",
                         cursor: "pointer", fontFamily: F,
@@ -10891,8 +10937,14 @@ function RegistrationPage({ eventId }) {
                     );
                   })}
                 </div>
-              </div>
-            )}
+              )}
+              {/* Show selected as text input too */}
+              {form.categories_interest && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "#64748B" }}>
+                  Selected: <strong>{form.categories_interest}</strong>
+                </div>
+              )}
+            </div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
               <button onClick={() => { setStep(0); window.scrollTo(0, 0); }}
