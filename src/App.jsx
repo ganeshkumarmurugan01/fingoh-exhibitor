@@ -1,4 +1,5 @@
 import OfferingAssets from './components/OfferingAssets';
+import CategoryPicker from './components/CategoryPicker';
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 import { getEvents, getEvent, getStaff, addStaff as apiAddStaff, removeStaff as apiRemoveStaff, createEvent as apiCreateEvent, getMyProfile, verifyStaff, getOfferings, createOffering, updateOffering, deleteOffering } from "./lib/api.js";
@@ -8419,19 +8420,12 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
 
               {/* Category */}
               <div style={{marginBottom:12}}>
-                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>CATEGORY</label>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {(ex.cats||[]).length===0 && <p style={{fontSize:11,color:"#94A3B8",margin:0}}>No categories defined yet — complete <strong>Visitor categories</strong> in Event Setup first.</p>}
-                  {(ex.cats||[]).map(cat => (
-                    <button key={cat} onClick={()=>setOfferingForm(f=>({...f,category:(f.category||[]).includes(cat)?(f.category||[]).filter(c=>c!==cat):[...(f.category||[]),cat]}))}
-                      style={{fontSize:11,padding:"5px 12px",borderRadius:99,border:"1px solid",cursor:"pointer",
-                        borderColor:(offeringForm.category||[]).includes(cat)?C.navy:"#E2E8F0",
-                        background:(offeringForm.category||[]).includes(cat)?C.navy:"white",
-                        color:(offeringForm.category||[]).includes(cat)?"white":C.muted,fontWeight:600}}>
-                      {cat}
-                    </button>
-                  ))}
-                </div>
+                <label style={{fontSize:11,fontWeight:600,color:C.muted,display:"block",marginBottom:4}}>PRODUCT CATEGORIES</label>
+                <CategoryPicker
+                  selected={offeringForm.category_master || []}
+                  onChange={cats => setOfferingForm(f => ({...f, category_master: cats}))}
+                  industry={ex.industry_vertical === "pharma" ? "pharma" : "pharma"}
+                />
               </div>
 
               {/* Short description */}
