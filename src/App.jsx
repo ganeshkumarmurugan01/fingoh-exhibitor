@@ -10277,9 +10277,12 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
   // Fetch offerings for setup progress
   React.useEffect(() => {
     if (!ex?.id) return;
-    fetch(`/api/proxy?slug=v1/offerings/event/${ex.id}`, {
-      headers: {"x-fingoh-auth": `Bearer ${localStorage.getItem("sb_token")}`}
-    }).then(r=>r.json()).then(d=>{setSetupOfferings(Array.isArray(d)?d:[]);setSetupOfferingsLoaded(true);}).catch(()=>{setSetupOfferings([]);setSetupOfferingsLoaded(true);});
+    supabase.auth.getSession().then(({data:{session}}) => {
+      const token = session?.access_token || "";
+      fetch(`/api/proxy?slug=v1/offerings/event/${ex.id}`, {
+        headers: {"x-fingoh-auth": `Bearer ${token}`}
+      }).then(r=>r.json()).then(d=>{setSetupOfferings(Array.isArray(d)?d:[]);setSetupOfferingsLoaded(true);}).catch(()=>{setSetupOfferings([]);setSetupOfferingsLoaded(true);});
+    });
   }, [ex?.id]);
 
   // Reset research state when switching events
