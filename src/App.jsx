@@ -2268,6 +2268,17 @@ function VisitorProfile({eventId, contactId, onClose, onDeleted}) {
                     <strong>Enrichment notes:</strong> {rd.enrichment_notes}
                   </div>
                 )}
+                {(c.category_match_score != null && c.category_match_score > 0) && (
+                  <div style={{marginTop:8,padding:"10px 14px",background:"#F0FDF4",borderRadius:8,fontSize:12,color:"#14532D",lineHeight:1.6}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                      <strong>Category Match</strong>
+                      <span style={{fontSize:13,fontWeight:800,color:c.category_match_score>=0.7?"#16A34A":c.category_match_score>=0.5?"#2563EB":"#D97706"}}>
+                        {Math.round(c.category_match_score*100)}%
+                      </span>
+                    </div>
+                    {c.match_reasoning && <div style={{fontSize:11,color:"#166534"}}>{c.match_reasoning}</div>}
+                  </div>
+                )}
               </div>
 
               {/* Previous event history */}
@@ -3606,7 +3617,7 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                   signals:[c.company||"—", `ICP fit: ${c.iei_score>=75?"Perfect match":c.iei_score>=50?"Good match":c.iei_score>=25?"Partial match":"Weak match"}`],
                   inference:`Company matched against your ICP definition from event setup.`},
                 {color:C.amber, lt:C.amberLt, title:"Key projects & initiatives",
-                  signals:[c.raw_data?.primary_reason?`Visit reason: ${c.raw_data.primary_reason}`:"No visit reason declared",
+                  signals:[c.raw_data?.primary_reason?`Visit reason: ${(c.raw_data.primary_reason||"").split("|")[0].trim()}`:"No visit reason declared",
                            c.raw_data?.categories_interest?`Interests: ${c.raw_data.categories_interest}`:"No categories declared"],
                   inference:`Signals derived from registration data and Claude web research.`},
                 {color:C.coral, lt:C.coralLt, title:"Need gap analysis",
@@ -3615,7 +3626,7 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                   inference:`Score computed from 41 signals across registration, firmographic, and contextual dimensions.`},
               ],
               dims:[
-                {type:"Primary", label:c.raw_data?.primary_reason||"Attending", tags:c.raw_data?.categories_interest?.split(",").slice(0,2)||[], desc:"Based on registration data."},
+                {type:"Primary", label:(c.raw_data?.primary_reason||"Attending").split("|")[0].trim(), tags:c.raw_data?.categories_interest?.split(",").slice(0,2)||[], desc:"Based on registration data."},
                 {type:"Secondary", label:"Market evaluation", tags:["Research"], desc:"Secondary intent inferred from profile."},
               ],
               recommendations:[],
@@ -4204,7 +4215,7 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                 )}
                 {(v.reason||v.timeline)&&(
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                    {v.reason&&(()=>{const parts=(v.reason||"").split("|").map(s=>s.trim()).filter(Boolean);const first=parts[0]||"";const rest=parts.length-1;const short=first.length>40?first.slice(0,40)+"…":first;return(<span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:v.reason==="sourcing"?C.ltgrn:v.reason==="research"?C.ltblue:C.ltnavy,color:v.reason==="sourcing"?"#14532D":v.reason==="research"?"#1E3A8A":C.muted,fontWeight:600}}>{short}{rest>0&&<span style={{marginLeft:4,background:"rgba(0,0,0,0.12)",borderRadius:99,padding:"0 5px",fontSize:8}}>+{rest}</span>}</span>);})()}
+                    {v.reason&&(()=>{const parts=(v.reason||"").split("|").map(s=>s.trim()).filter(Boolean);const first=parts[0]||"";const rest=parts.length-1;const short=first.length>40?first.slice(0,40)+"…":first;const rl=first.toLowerCase();const isSrc=rl.includes("sourc")||rl.includes("procur")||rl.includes("buy");const isRes=rl.includes("research")||rl.includes("learn")||rl.includes("evaluat");return(<span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:isSrc?C.ltgrn:isRes?C.ltblue:C.ltnavy,color:isSrc?"#14532D":isRes?"#1E3A8A":C.muted,fontWeight:600}}>{short}{rest>0&&<span style={{marginLeft:4,background:"rgba(0,0,0,0.12)",borderRadius:99,padding:"0 5px",fontSize:8}}>+{rest}</span>}</span>);})()}
                     {v.timeline&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:99,background:C.ltylw,color:"#633806",fontWeight:600}}>{v.timeline}</span>}
                   </div>
                 )}
