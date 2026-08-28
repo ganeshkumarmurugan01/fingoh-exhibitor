@@ -3186,6 +3186,10 @@ function MeetingsScreen({ex}) {
   const [showModal, setShowModal]   = useState(false);
   const [selContact, setSelContact] = useState(null);
   const [selProspect, setSelProspect] = useState(null);   // prospect detail panel
+  const [meetSearch,  setMeetSearch]  = useState("");
+  const [meetTier,    setMeetTier]    = useState("All");
+  const [meetMatch,   setMeetMatch]   = useState("All");
+  const [meetStatus,  setMeetStatus]  = useState("All");
   const [rescheduleId, setRescheduleId] = useState(null); // meeting id being rescheduled
   const [detailMeeting, setDetailMeeting] = useState(null); // completed meeting detail modal
   const [sending,   setSending]     = useState(false);
@@ -3313,9 +3317,40 @@ function MeetingsScreen({ex}) {
       {tab==="prospects" && (
         <div style={{display:"flex",gap:16,alignItems:"flex-start",width:"100%",position:"relative"}}>
         <div style={{flex:1,minWidth:0,background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
-          <div style={{padding:"10px 18px",background:"#FAFAFA",borderBottom:"1px solid #F1F5F9",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:11,fontWeight:600,color:C.muted,textTransform:"uppercase",letterSpacing:.06}}>Ranked by IEI-based match score</span>
-            <span style={{fontSize:11,color:C.muted}}>{prospects.length} contacts scored</span>
+          {/* Filter + Search bar */}
+          <div style={{padding:"10px 14px",background:"#FAFAFA",borderBottom:"1px solid #F1F5F9",display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+            <input
+              placeholder="Search name, company, country…"
+              value={meetSearch} onChange={e=>setMeetSearch(e.target.value)}
+              style={{flex:1,minWidth:160,padding:"5px 10px",border:"1px solid #E2E8F0",borderRadius:7,fontSize:12,fontFamily:F,color:C.navy,outline:"none"}}
+            />
+            {[["meetTier",["All","T1","T2","T3","T4"],setMeetTier,meetTier],
+              ["meetMatch",["All","High ≥70","Mid 50-69","Low <50"],setMeetMatch,meetMatch],
+              ["meetStatus",["All","Not sent","Sent","Accepted","Completed"],setMeetStatus,meetStatus]
+            ].map(([key,opts,setter,val])=>(
+              <select key={key} value={val} onChange={e=>setter(e.target.value)}
+                style={{padding:"5px 8px",border:"1px solid #E2E8F0",borderRadius:7,fontSize:11,fontFamily:F,color:C.navy,background:"#fff",cursor:"pointer"}}>
+                {opts.map(o=><option key={o} value={o}>{o}</option>)}
+              </select>
+            ))}
+            {(meetSearch||meetTier!=="All"||meetMatch!=="All"||meetStatus!=="All") && (
+              <button onClick={()=>{setMeetSearch("");setMeetTier("All");setMeetMatch("All");setMeetStatus("All");}}
+                style={{padding:"5px 10px",background:"none",border:"1px solid #E2E8F0",borderRadius:7,fontSize:11,color:C.muted,cursor:"pointer",fontFamily:F}}>
+                Clear
+              </button>
+            )}
+            <span style={{fontSize:11,color:C.muted,marginLeft:"auto",whiteSpace:"nowrap"}}>
+              {prospects.filter(p=>{
+                const q = meetSearch.toLowerCase();
+                const matchesSearch = !q || p.name?.toLowerCase().includes(q) || p.company?.toLowerCase().includes(q) || p.country?.toLowerCase().includes(q);
+                const matchesTier = meetTier==="All" || p.iei_tier===meetTier;
+                const ms = p.match_score||0;
+                const matchesMatch = meetMatch==="All"||(meetMatch==="High ≥70"&&ms>=70)||(meetMatch==="Mid 50-69"&&ms>=50&&ms<70)||(meetMatch==="Low <50"&&ms<50);
+                const status = sent[p.contact_id]||p.meeting_status;
+                const matchesStatus = meetStatus==="All"||(meetStatus==="Not sent"&&!status)||(meetStatus==="Sent"&&status==="pending")||(meetStatus==="Accepted"&&status==="accepted")||(meetStatus==="Completed"&&status==="completed");
+                return matchesSearch&&matchesTier&&matchesMatch&&matchesStatus;
+              }).length} of {prospects.length}
+            </span>
           </div>
           {/* Column headers */}
           <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 80px 80px 100px 120px",gap:8,padding:"6px 18px",background:"#F8FAFC",borderBottom:"1px solid #F1F5F9"}}>
@@ -3325,7 +3360,16 @@ function MeetingsScreen({ex}) {
           </div>
           {loading ? (
             <div style={{padding:40,textAlign:"center",color:C.muted}}>Loading prospects…</div>
-          ) : prospects.map((p,i)=>{
+          ) : prospects.filter(p=>{
+              const q = meetSearch.toLowerCase();
+              const matchesSearch = !q || p.name?.toLowerCase().includes(q) || p.company?.toLowerCase().includes(q) || p.country?.toLowerCase().includes(q);
+              const matchesTier = meetTier==="All" || p.iei_tier===meetTier;
+              const ms = p.match_score||0;
+              const matchesMatch = meetMatch==="All"||(meetMatch==="High ≥70"&&ms>=70)||(meetMatch==="Mid 50-69"&&ms>=50&&ms<70)||(meetMatch==="Low <50"&&ms<50);
+              const status = sent[p.contact_id]||p.meeting_status;
+              const matchesStatus = meetStatus==="All"||(meetStatus==="Not sent"&&!status)||(meetStatus==="Sent"&&status==="pending")||(meetStatus==="Accepted"&&status==="accepted")||(meetStatus==="Completed"&&status==="completed");
+              return matchesSearch&&matchesTier&&matchesMatch&&matchesStatus;
+            }).map((p,i)=>{
             const hasMeeting = p.meeting_status;
             const isSent     = sent[p.contact_id] || hasMeeting;
             const matchColor = p.match_score>=75?C.green:p.match_score>=50?C.blue:C.yellow;
