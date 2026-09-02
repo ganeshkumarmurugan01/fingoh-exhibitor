@@ -1,4 +1,5 @@
 import OfferingAssets from './components/OfferingAssets';
+import clientConfig, { applyBranding, FEATURES, CLIENT_NAME, CLIENT_LOGO_URL, CLIENT_LOGO_WHITE } from './client-config.js';
 import CategoryPicker from './components/CategoryPicker';
 import React, { useState, useEffect, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
@@ -461,7 +462,7 @@ function CreateEventWizard({onBack, onCreated, orgName=""}) {
       {/* Top bar */}
       <div style={{background:C.white,borderBottom:"1px solid #E2E8F0",height:54,display:"flex",alignItems:"center",padding:"0 28px",position:"sticky",top:0,zIndex:50}}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginRight:32}}>
-          <img src={LOGO_BLACK} alt="Fingoh" style={{height:24,display:"block"}}/>
+          <img src={CLIENT_LOGO_URL} alt={CLIENT_NAME} style={{height:24,display:"block"}}/>
           <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:C.ltblue,color:C.blue,fontWeight:600}}>Exhibitor</span>
         </div>
         <button onClick={onBack} style={{fontSize:12,color:C.muted,background:"none",border:"none",cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:5}}>← Back to events</button>
@@ -1238,7 +1239,7 @@ function EventHome({onLaunch, onCreateEvent, profile}) {
       {/* Nav */}
       <div style={{background:C.white,borderBottom:"1px solid #E2E8F0",height:54,display:"flex",alignItems:"center",padding:"0 28px",position:"sticky",top:0,zIndex:50}}>
         <div style={{display:"flex",alignItems:"center",gap:8,flex:1}}>
-          <img src={LOGO_BLACK} alt="Fingoh" style={{height:24,display:"block"}}/>
+          <img src={CLIENT_LOGO_URL} alt={CLIENT_NAME} style={{height:24,display:"block"}}/>
           <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:C.ltblue,color:C.blue,fontWeight:600}}>Exhibitor</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
@@ -1556,7 +1557,7 @@ function LoginScreen({onLogin}) {
         <div style={{width:"100%",maxWidth:420,position:"relative",zIndex:1}}>
           <div style={{textAlign:"center",marginBottom:36}}>
             <div style={{display:"inline-flex",marginBottom:10}}>
-              <img src={LOGO_BLACK} alt="Fingoh" style={{height:44,display:"block"}}/>
+              <img src={CLIENT_LOGO_URL} alt={CLIENT_NAME} style={{height:44,display:"block"}}/>
             </div>
             <p style={{fontSize:12,color:C.muted,margin:0}}>Intent Intelligence · Exhibitor Edition</p>
           </div>
@@ -9159,7 +9160,7 @@ function MeetingResponsePage({token}) {
       <div style={{maxWidth:480,width:"100%"}}>
         {/* Header */}
         <div style={{background:navy,borderRadius:"14px 14px 0 0",padding:"24px 28px",textAlign:"center"}}>
-          <img src="/Fingoh_White.png" alt="Fingoh" style={{height:28,marginBottom:12}} onError={e=>{e.target.style.display="none"}}/>
+          <img src={CLIENT_LOGO_WHITE} alt={CLIENT_NAME} style={{height:28,marginBottom:12}} onError={e=>{e.target.style.display="none"}}/>
           <h1 style={{color:"white",fontSize:22,fontWeight:800,margin:0}}>
             {accepted ? "✓ Meeting Confirmed!" : "Meeting Declined"}
           </h1>
@@ -9643,7 +9644,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {/* Row 1 — logo + event info + agent */}
         <div style={{height:48,display:"flex",alignItems:"center",padding:"0 24px",borderBottom:"1px solid #F1F5F9"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginRight:14}}>
-            <img src={LOGO_BLACK} alt="Fingoh" style={{height:22,display:"block"}}/>
+            <img src={CLIENT_LOGO_URL} alt={CLIENT_NAME} style={{height:22,display:"block"}}/>
             <span style={{fontSize:10,padding:"2px 7px",borderRadius:99,background:C.ltblue,color:C.blue,fontWeight:600}}>Exhibitor</span>
           </div>
           <button onClick={onBackToEvents}
@@ -10270,6 +10271,8 @@ function OrgInviteScreen({ token, onLogin, onRegister }) {
 }
 
   export default function App() {
+  // Apply client branding on mount
+  React.useEffect(() => { applyBranding(); }, []);
   const [screen, setScreen]     = useState(()=>{
     try {
       // Check for organiser invite token in URL
@@ -10660,7 +10663,7 @@ function RegistrationPage({ eventId }) {
       <div style={{ background: `linear-gradient(135deg, ${navy} 0%, #1A2A5E 100%)`, padding: "24px 24px 32px" }}>
         <div style={{ maxWidth: 560, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-            <img src="/Fingoh_White.png" alt="Fingoh" style={{ height: 24 }} onError={e => e.target.style.display = "none"}/>
+            <img src={CLIENT_LOGO_WHITE} alt={CLIENT_NAME} style={{ height: 24 }} onError={e => e.target.style.display = "none"}/>
           </div>
           <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: "0 0 6px", letterSpacing: "-0.02em" }}>
             {eventInfo.company}
