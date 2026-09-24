@@ -8459,28 +8459,39 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
 
   const confirmBrochureImport = async () => {
     if (!brochureExtracted) return;
-    const toImport = brochureExtracted.extracted.filter((_, i) => brochureSelected[i]);
-    if (!toImport.length) { alert('Select at least one product to import.'); return; }
+    const toPin = brochureExtracted.extracted.filter((_, i) => brochureSelected[i]);
+    if (!toPin.length) { alert('Select at least one product to pin.'); return; }
     const slotsAvailable = 5 - offerings.length;
-    if (toImport.length > slotsAvailable) {
-      alert(`You can only add ${slotsAvailable} more offering${slotsAvailable===1?'':'s'} (max 5 per event). Please deselect ${toImport.length - slotsAvailable} item${toImport.length - slotsAvailable===1?'':'s'}.`);
+    if (toPin.length > slotsAvailable) {
+      alert(`You can only pin ${slotsAvailable} more product${slotsAvailable===1?'':'s'} to visitor registration (max 5). Please deselect ${toPin.length - slotsAvailable} item${toPin.length - slotsAvailable===1?'':'s'}.`);
       return;
     }
     setBrochureUploading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || '';
+    const BACKEND = import.meta.env.VITE_BACKEND_URL ||
+      (window.location.hostname.includes('vercel.app') ? 'https://api-dev.fingoh.ai' : 'https://api.fingoh.ai');
     try {
-      for (let i = 0; i < toImport.length; i++) {
-        const item = toImport[i];
+      for (const item of toPin) {
+        if (item.intelligence_id) {
+          // Pin in product_intelligence table
+          await fetch(`${BACKEND}/api/v1/products/intelligence/${item.intelligence_id}/pin`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'x-fingoh-auth': `Bearer ${token}` },
+            body: JSON.stringify({ is_pinned: true, event_id: ex.id })
+          });
+        }
+        // Also create offering for visitor registration display
         await createOffering(ex.id, {
           type: item.type || 'product',
           name: item.name,
           short_description: item.short_description || '',
           category_master: item.category_master || [],
           key_specifications: item.key_specifications || [],
-          target_industries: item.target_industries || [],
-          display_order: offerings.length + i,
+          target_industries: item.target_customers || [],
+          display_order: offerings.length,
         });
       }
-      // Refresh offerings
       const updated = await getOfferings(ex.id);
       setOfferings(updated || []);
       setBrochureExtracted(null);
@@ -8640,8 +8651,8 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                 <div style={{border:"1px solid #A78BFA",borderRadius:12,padding:20,background:"#FAF5FF",marginBottom:16}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                     <div>
-                      <h3 style={{fontSize:14,fontWeight:800,color:"#5B21B6",margin:"0 0 2px"}}>✦ {brochureExtracted.count} products extracted</h3>
-                      <p style={{fontSize:11,color:"#7C3AED",margin:0}}>from {brochureExtracted.file_name} — you can import up to {5 - offerings.length} more offering{5 - offerings.length === 1 ? '' : 's'}</p>
+                      <h3 style={{fontSize:14,fontWeight:800,color:"#5B21B6",margin:"0 0 2px"}}>✦ {brochureExtracted.count} products extracted & stored</h3>
+                      <p style={{fontSize:11,color:"#7C3AED",margin:0}}>All products saved to knowledge base. Pin up to {5 - offerings.length} to show visitors during registration.</p>
                     </div>
                     <button onClick={()=>{setBrochureExtracted(null);setBrochureSelected({});}}
                       style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #DDD6FE",background:"white",cursor:"pointer",color:"#6B7280"}}>✕ Cancel</button>
@@ -8685,10 +8696,10 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                         style={{fontSize:11,padding:"5px 12px",borderRadius:6,border:"1px solid #DDD6FE",background:"white",cursor:"pointer",color:"#5B21B6",fontWeight:600}}>Select all</button>
                       <button onClick={confirmBrochureImport} disabled={brochureUploading || !Object.values(brochureSelected).some(Boolean) || Object.values(brochureSelected).filter(Boolean).length > (5 - offerings.length)}
                         style={{fontSize:12,padding:"6px 16px",borderRadius:7,border:"none",background:"#7C3AED",color:"white",cursor:"pointer",fontWeight:700,opacity:brochureUploading?0.6:1}}>
-                        {brochureUploading ? "Importing..." : (() => {
+                        {brochureUploading ? "Pinning..." : (() => {
                           const sel = Object.values(brochureSelected).filter(Boolean).length;
                           const slots = 5 - offerings.length;
-                          return sel > slots ? `⚠ Select max ${slots} (${sel} selected)` : `Import ${sel} product${sel===1?"":"s"} →`;
+                          return sel > slots ? `⚠ Pin max ${slots} to registration` : `📌 Pin ${sel} to registration →`;
                         })()}
                       </button>
                     </div>
