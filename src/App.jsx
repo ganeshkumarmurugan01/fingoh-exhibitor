@@ -8865,21 +8865,22 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
               )}
 
               {/* Action buttons */}
-              {!brochureExtracted && offerings.length < 5 && (
-                <div style={{display:"flex",gap:10,marginBottom:10}}>
-                  <button onClick={()=>setShowAddOffering(true)}
-                    style={{flex:1,padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy}}>
-                    + Add {offerings.length === 0 ? "your first offering" : "another offering"} ({offerings.length}/5)
-                  </button>
+              {!brochureExtracted && (
+                <div style={{display:"flex",gap:10,marginBottom:10,flexWrap:"wrap"}}>
+                  {offerings.length < 5 && (
+                    <button onClick={()=>setShowAddOffering(true)}
+                      style={{flex:1,minWidth:160,padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy}}>
+                      + Add {offerings.length === 0 ? "your first offering" : "another offering"} ({offerings.length}/5)
+                    </button>
+                  )}
                   <label style={{display:"flex",alignItems:"center",gap:6,padding:"10px 16px",borderRadius:8,border:"2px dashed #DDD6FE",background:"#FAF5FF",fontSize:13,fontWeight:600,cursor:brochureUploading?"not-allowed":"pointer",color:"#5B21B6",whiteSpace:"nowrap"}}>
                     {brochureUploading ? <><span style={{display:"inline-block",width:12,height:12,border:"2px solid #7C3AED",borderTop:"2px solid transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}></span> Reading brochure...</> : "📄 Extract from brochure"}
                     <input type="file" accept="application/pdf" onChange={handleBrochureUpload} style={{display:"none"}} disabled={brochureUploading}/>
                   </label>
                 </div>
               )}
-
               {offerings.length >= 5 && !brochureExtracted && (
-                <p style={{fontSize:12,color:C.muted,textAlign:"center",padding:"12px 0"}}>Maximum 5 offerings reached.</p>
+                <p style={{fontSize:11,color:C.muted,margin:"0 0 8px"}}>Max 5 pinned to registration. Use Knowledge Base tab to manage all products.</p>
               )}
             </div>
           )}
