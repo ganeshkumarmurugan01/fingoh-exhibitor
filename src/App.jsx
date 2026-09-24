@@ -8432,10 +8432,14 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
       });
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
-      const res = await fetch('/api/proxy?slug=v1/products/extract-from-brochure', {
+      // Use upload endpoint (no body size limit, 120s timeout)
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('event_id', ex.id);
+      const res = await fetch('/api/upload?slug=v1/products/extract-from-brochure', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-fingoh-auth': `Bearer ${token}` },
-        body: JSON.stringify({ event_id: ex.id, file_base64: b64, file_name: file.name })
+        headers: { 'x-fingoh-auth': `Bearer ${token}` },
+        body: formData
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || 'Extraction failed');
