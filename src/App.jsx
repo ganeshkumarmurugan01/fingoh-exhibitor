@@ -8344,6 +8344,9 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
   const setOfferings = onOfferingsChange || (()=>{});
   const [offeringsLoading, setOfferingsLoading] = React.useState(false);
   const [showAddOffering, setShowAddOffering] = React.useState(false);
+  const [offeringsTab, setOfferingsTab] = React.useState('pinned'); // 'pinned' | 'knowledge'
+  const [productIntelligence, setProductIntelligence] = React.useState([]);
+  const [piLoading, setPiLoading] = React.useState(false);
   const [brochureUploading, setBrochureUploading] = React.useState(false);
   const [brochureExtracted, setBrochureExtracted] = React.useState(null); // {extracted:[], file_name:''}
   const [brochureSelected, setBrochureSelected] = React.useState({}); // {idx: true/false}
@@ -8415,6 +8418,70 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
     { value: 'solution', label: '💡 Solution' },
     { value: 'spare',    label: '🔩 Spare & Consumable' },
   ];
+
+  const loadProductIntelligence = async () => {
+    if (!ex?.id) return;
+    setPiLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const BACKEND = import.meta.env.VITE_BACKEND_URL ||
+        (window.location.hostname.includes('vercel.app') ? 'https://api-dev.fingoh.ai' : 'https://api.fingoh.ai');
+      const res = await fetch(`${BACKEND}/api/v1/products/intelligence/${ex.id}`, {
+        headers: { 'x-fingoh-auth': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setProductIntelligence(Array.isArray(data) ? data : []);
+    } catch(e) {
+      console.warn('Failed to load product intelligence:', e);
+    }
+    setPiLoading(false);
+  };
+
+  React.useEffect(() => {
+    if (offeringsTab === 'knowledge' && ex?.id) loadProductIntelligence();
+  }, [offeringsTab, ex?.id]);
+
+  const togglePin = async (item) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || '';
+    const BACKEND = import.meta.env.VITE_BACKEND_URL ||
+      (window.location.hostname.includes('vercel.app') ? 'https://api-dev.fingoh.ai' : 'https://api.fingoh.ai');
+    const newPinned = !item.is_pinned;
+    if (newPinned && offerings.length >= 5) {
+      alert('Maximum 5 products can be pinned to visitor registration. Unpin one first.');
+      return;
+    }
+    try {
+      await fetch(`${BACKEND}/api/v1/products/intelligence/${item.id}/pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-fingoh-auth': `Bearer ${token}` },
+        body: JSON.stringify({ is_pinned: newPinned, event_id: ex.id })
+      });
+      if (newPinned) {
+        // Also create offering
+        const created = await createOffering(ex.id, {
+          type: item.type || 'product',
+          name: item.name,
+          short_description: item.short_description || '',
+          category_master: item.category_master || [],
+          key_specifications: (item.features || []).slice(0,4),
+          display_order: offerings.length,
+        });
+        setOfferings(prev => [...prev, created]);
+      } else {
+        // Remove matching offering
+        const match = offerings.find(o => o.name === item.name);
+        if (match) {
+          await deleteOffering(match.id);
+          setOfferings(prev => prev.filter(o => o.id !== match.id));
+        }
+      }
+      setProductIntelligence(prev => prev.map(p => p.id === item.id ? {...p, is_pinned: newPinned} : p));
+    } catch(e) {
+      alert('Failed to update pin: ' + e.message);
+    }
+  };
 
   const handleBrochureUpload = async (e) => {
     const file = e.target.files[0];
@@ -8505,11 +8572,101 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
   const renderOfferings = () => (
     <div>
       <h2 style={{fontSize:16,fontWeight:800,color:C.navy,margin:"0 0 4px"}}>📦 Products & Services</h2>
-      <p style={{fontSize:12,color:C.muted,margin:"0 0 24px"}}>What you are showcasing at this event. Visitors will see these during registration.</p>
+      <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Manage your product catalog and knowledge base.</p>
 
-      {offeringsLoading ? (
+      {/* Tabs */}
+      <div style={{display:"flex",gap:0,marginBottom:20,borderBottom:"2px solid #E2E8F0"}}>
+        <button onClick={()=>setOfferingsTab('pinned')}
+          style={{padding:"8px 16px",fontSize:12,fontWeight:700,border:"none",background:"none",cursor:"pointer",
+            color:offeringsTab==='pinned'?C.navy:C.muted,
+            borderBottom:offeringsTab==='pinned'?`2px solid ${C.navy}`:"2px solid transparent",
+            marginBottom:-2}}>
+          📌 Registration ({offerings.length}/5)
+        </button>
+        <button onClick={()=>setOfferingsTab('knowledge')}
+          style={{padding:"8px 16px",fontSize:12,fontWeight:700,border:"none",background:"none",cursor:"pointer",
+            color:offeringsTab==='knowledge'?'#5B21B6':C.muted,
+            borderBottom:offeringsTab==='knowledge'?'2px solid #5B21B6':"2px solid transparent",
+            marginBottom:-2}}>
+          ✦ Knowledge Base {productIntelligence.length > 0 ? `(${productIntelligence.length})` : ''}
+        </button>
+      </div>
+
+      {/* Knowledge Base Tab */}
+      {offeringsTab === 'knowledge' && (
+        <div>
+          {piLoading ? (
+            <p style={{fontSize:13,color:C.muted}}>Loading knowledge base...</p>
+          ) : productIntelligence.length === 0 ? (
+            <div style={{textAlign:"center",padding:"40px 20px",border:"2px dashed #DDD6FE",borderRadius:12,background:"#FAF5FF"}}>
+              <div style={{fontSize:32,marginBottom:8}}>✦</div>
+              <p style={{fontSize:14,fontWeight:700,color:"#5B21B6",margin:"0 0 6px"}}>No product knowledge yet</p>
+              <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Upload a product brochure to extract your complete product catalog</p>
+              <button onClick={()=>setOfferingsTab('pinned')} style={{fontSize:12,padding:"7px 16px",borderRadius:7,border:"1.5px solid #7C3AED",background:"white",color:"#5B21B6",cursor:"pointer",fontWeight:600}}>
+                Go to Registration tab to upload brochure
+              </button>
+            </div>
+          ) : (
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>
+                All products extracted from your brochures. Pin up to 5 to show visitors during registration.
+              </p>
+              {productIntelligence.map(item => (
+                <div key={item.id} style={{border:`1.5px solid ${item.is_pinned?"#7C3AED":"#E2E8F0"}`,borderRadius:10,padding:"14px 16px",background:item.is_pinned?"#FAF5FF":"#FAFAFA"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+                    <div style={{flex:1}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                        <span style={{fontSize:10,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"1px 7px",borderRadius:99}}>{item.type}</span>
+                        <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{item.name}</span>
+                        {item.is_pinned && <span style={{fontSize:10,fontWeight:700,color:"#5B21B6",background:"#EDE9FE",padding:"1px 7px",borderRadius:99}}>📌 Pinned</span>}
+                      </div>
+                      {(item.category_master||[]).length > 0 && (
+                        <p style={{fontSize:10,color:"#7C3AED",margin:"0 0 4px",fontWeight:600}}>
+                          📂 {item.category_master.map(c=>c.name).join(' › ')}
+                        </p>
+                      )}
+                      <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{item.short_description}</p>
+                      {item.full_description && item.full_description !== item.short_description && (
+                        <p style={{fontSize:11,color:C.muted,margin:"0 0 6px",lineHeight:1.5}}>{item.full_description}</p>
+                      )}
+                      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:4}}>
+                        {(item.features||[]).length > 0 && (
+                          <div>
+                            <span style={{fontSize:10,fontWeight:700,color:C.muted}}>FEATURES: </span>
+                            {item.features.map((f,i)=><span key={i} style={{fontSize:10,background:"#EFF6FF",color:C.navy,padding:"1px 6px",borderRadius:99,marginRight:3}}>{f}</span>)}
+                          </div>
+                        )}
+                      </div>
+                      {(item.benefits||[]).length > 0 && (
+                        <div style={{marginBottom:3}}>
+                          <span style={{fontSize:10,fontWeight:700,color:C.muted}}>BENEFITS: </span>
+                          {item.benefits.map((b,i)=><span key={i} style={{fontSize:10,background:"#F0FDF4",color:"#166534",padding:"1px 6px",borderRadius:99,marginRight:3}}>{b}</span>)}
+                        </div>
+                      )}
+                      {(item.applications||[]).length > 0 && (
+                        <div>
+                          <span style={{fontSize:10,fontWeight:700,color:C.muted}}>APPLICATIONS: </span>
+                          {item.applications.map((a,i)=><span key={i} style={{fontSize:10,background:"#FFFBEB",color:"#92400E",padding:"1px 6px",borderRadius:99,marginRight:3}}>{a}</span>)}
+                        </div>
+                      )}
+                    </div>
+                    <button onClick={()=>togglePin(item)}
+                      style={{flexShrink:0,fontSize:11,padding:"6px 12px",borderRadius:7,border:`1.5px solid ${item.is_pinned?"#DC2626":"#7C3AED"}`,
+                        background:item.is_pinned?"#FEF2F2":"#EDE9FE",
+                        color:item.is_pinned?"#DC2626":"#5B21B6",cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>
+                      {item.is_pinned ? "Unpin" : "📌 Pin to reg."}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {offeringsTab === 'pinned' && offeringsLoading ? (
         <p style={{fontSize:13,color:C.muted}}>Loading...</p>
-      ) : (
+      ) : offeringsTab === 'pinned' && (
         <>
           {/* Existing offerings list */}
           {offerings.length > 0 && (
