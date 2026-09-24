@@ -8344,6 +8344,9 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
   const setOfferings = onOfferingsChange || (()=>{});
   const [offeringsLoading, setOfferingsLoading] = React.useState(false);
   const [showAddOffering, setShowAddOffering] = React.useState(false);
+  const [brochureUploading, setBrochureUploading] = React.useState(false);
+  const [brochureExtracted, setBrochureExtracted] = React.useState(null); // {extracted:[], file_name:''}
+  const [brochureSelected, setBrochureSelected] = React.useState({}); // {idx: true/false}
   const [editingOffering, setEditingOffering] = React.useState(null);
   const [offeringForm, setOfferingForm] = React.useState({
     type: 'product', name: '', category: '', short_description: '', 
@@ -8412,6 +8415,70 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
     { value: 'solution', label: '💡 Solution' },
     { value: 'spare',    label: '🔩 Spare & Consumable' },
   ];
+
+  const handleBrochureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.type !== 'application/pdf') { alert('Please upload a PDF file.'); return; }
+    if (file.size > 20 * 1024 * 1024) { alert('File too large. Max 20MB.'); return; }
+    setBrochureUploading(true);
+    setBrochureExtracted(null);
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || '';
+      const res = await fetch('/api/proxy?slug=v1/products/extract-from-brochure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-fingoh-auth': `Bearer ${token}` },
+        body: JSON.stringify({ event_id: ex.id, file_base64: b64, file_name: file.name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Extraction failed');
+      // Pre-select all extracted items
+      const sel = {};
+      (data.extracted || []).forEach((_, i) => { sel[i] = true; });
+      setBrochureSelected(sel);
+      setBrochureExtracted(data);
+    } catch(err) {
+      alert('Could not extract from brochure: ' + err.message);
+    }
+    setBrochureUploading(false);
+    e.target.value = '';
+  };
+
+  const confirmBrochureImport = async () => {
+    if (!brochureExtracted) return;
+    const toImport = brochureExtracted.extracted.filter((_, i) => brochureSelected[i]);
+    if (!toImport.length) { alert('Select at least one product to import.'); return; }
+    setBrochureUploading(true);
+    try {
+      for (let i = 0; i < toImport.length; i++) {
+        const item = toImport[i];
+        await createOffering(ex.id, {
+          type: item.type || 'product',
+          name: item.name,
+          short_description: item.short_description || '',
+          category_master: item.category_master || [],
+          key_specifications: item.key_specifications || [],
+          target_industries: item.target_industries || [],
+          display_order: offerings.length + i,
+        });
+      }
+      // Refresh offerings
+      const updated = await getOfferings(ex.id);
+      setOfferings(updated || []);
+      setBrochureExtracted(null);
+      setBrochureSelected({});
+    } catch(err) {
+      alert('Import failed: ' + err.message);
+    }
+    setBrochureUploading(false);
+  };
 
   const renderOfferings = () => (
     <div>
@@ -8556,16 +8623,86 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
               </div>
             </div>
           ) : (
-            offerings.length < 5 && (
-              <button onClick={()=>setShowAddOffering(true)}
-                style={{padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy,width:"100%"}}>
-                + Add {offerings.length === 0 ? "your first offering" : "another offering"} ({offerings.length}/5)
-              </button>
-            )
+            <div>
+              {/* Brochure extraction preview */}
+              {brochureExtracted && (
+                <div style={{border:"1px solid #A78BFA",borderRadius:12,padding:20,background:"#FAF5FF",marginBottom:16}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                    <div>
+                      <h3 style={{fontSize:14,fontWeight:800,color:"#5B21B6",margin:"0 0 2px"}}>✦ {brochureExtracted.count} products extracted</h3>
+                      <p style={{fontSize:11,color:"#7C3AED",margin:0}}>from {brochureExtracted.file_name} — select which to import</p>
+                    </div>
+                    <button onClick={()=>{setBrochureExtracted(null);setBrochureSelected({});}}
+                      style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #DDD6FE",background:"white",cursor:"pointer",color:"#6B7280"}}>✕ Cancel</button>
+                  </div>
+                  <div style={{maxHeight:360,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+                    {brochureExtracted.extracted.map((item, i) => (
+                      <div key={i} onClick={()=>setBrochureSelected(s=>({...s,[i]:!s[i]}))}
+                        style={{padding:"10px 12px",borderRadius:8,border:`1.5px solid ${brochureSelected[i]?"#7C3AED":"#E2E8F0"}`,background:brochureSelected[i]?"#EDE9FE":"white",cursor:"pointer",transition:"all 0.15s"}}>
+                        <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                          <div style={{width:18,height:18,borderRadius:4,border:`2px solid ${brochureSelected[i]?"#7C3AED":"#CBD5E1"}`,background:brochureSelected[i]?"#7C3AED":"white",flexShrink:0,marginTop:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                            {brochureSelected[i] && <span style={{color:"white",fontSize:11,fontWeight:800}}>✓</span>}
+                          </div>
+                          <div style={{flex:1}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                              <span style={{fontSize:11,fontWeight:700,background:"#EDE9FE",color:"#5B21B6",padding:"1px 7px",borderRadius:99}}>{item.type}</span>
+                              <span style={{fontSize:13,fontWeight:700,color:"#1E1B4B"}}>{item.name}</span>
+                            </div>
+                            {(item.category_master||[]).length > 0 && (
+                              <p style={{fontSize:10,color:"#7C3AED",margin:"0 0 3px",fontWeight:600}}>
+                                📂 {item.category_master.map(c=>c.name).join(' › ')}
+                              </p>
+                            )}
+                            <p style={{fontSize:11,color:"#374151",margin:"0 0 4px",lineHeight:1.5}}>{item.short_description}</p>
+                            {(item.key_specifications||[]).length > 0 && (
+                              <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+                                {item.key_specifications.slice(0,3).map((s,j)=>(
+                                  <span key={j} style={{fontSize:10,background:"#F1F5F9",color:"#475569",padding:"1px 6px",borderRadius:99}}>{s}</span>
+                                ))}
+                                {item.key_specifications.length > 3 && <span style={{fontSize:10,color:C.muted}}>+{item.key_specifications.length-3} more</span>}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                    <span style={{fontSize:11,color:"#6B7280"}}>{Object.values(brochureSelected).filter(Boolean).length} of {brochureExtracted.count} selected</span>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>setBrochureSelected(Object.fromEntries(brochureExtracted.extracted.map((_,i)=>[i,true])))}
+                        style={{fontSize:11,padding:"5px 12px",borderRadius:6,border:"1px solid #DDD6FE",background:"white",cursor:"pointer",color:"#5B21B6",fontWeight:600}}>Select all</button>
+                      <button onClick={confirmBrochureImport} disabled={brochureUploading || !Object.values(brochureSelected).some(Boolean)}
+                        style={{fontSize:12,padding:"6px 16px",borderRadius:7,border:"none",background:"#7C3AED",color:"white",cursor:"pointer",fontWeight:700,opacity:brochureUploading?0.6:1}}>
+                        {brochureUploading ? "Importing..." : `Import ${Object.values(brochureSelected).filter(Boolean).length} product${Object.values(brochureSelected).filter(Boolean).length===1?"":"s"} →`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {!brochureExtracted && offerings.length < 5 && (
+                <div style={{display:"flex",gap:10,marginBottom:10}}>
+                  <button onClick={()=>setShowAddOffering(true)}
+                    style={{flex:1,padding:"10px 20px",borderRadius:8,border:"2px dashed #BFDBFE",background:"#F8FAFF",fontSize:13,fontWeight:600,cursor:"pointer",color:C.navy}}>
+                    + Add {offerings.length === 0 ? "your first offering" : "another offering"} ({offerings.length}/5)
+                  </button>
+                  <label style={{display:"flex",alignItems:"center",gap:6,padding:"10px 16px",borderRadius:8,border:"2px dashed #DDD6FE",background:"#FAF5FF",fontSize:13,fontWeight:600,cursor:brochureUploading?"not-allowed":"pointer",color:"#5B21B6",whiteSpace:"nowrap"}}>
+                    {brochureUploading ? <><span style={{display:"inline-block",width:12,height:12,border:"2px solid #7C3AED",borderTop:"2px solid transparent",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}></span> Reading brochure...</> : "📄 Extract from brochure"}
+                    <input type="file" accept="application/pdf" onChange={handleBrochureUpload} style={{display:"none"}} disabled={brochureUploading}/>
+                  </label>
+                </div>
+              )}
+
+              {offerings.length >= 5 && !brochureExtracted && (
+                <p style={{fontSize:12,color:C.muted,textAlign:"center",padding:"12px 0"}}>Maximum 5 offerings reached.</p>
+              )}
+            </div>
           )}
 
-          {offerings.length >= 5 && !showAddOffering && (
-            <p style={{fontSize:12,color:C.muted,textAlign:"center",padding:"12px 0"}}>Maximum 5 offerings reached.</p>
+          {offerings.length >= 5 && !showAddOffering && !brochureExtracted && (
+            <p style={{fontSize:0,margin:0}}></p>
           )}
         </>
       )}
