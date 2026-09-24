@@ -8461,6 +8461,11 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
     if (!brochureExtracted) return;
     const toImport = brochureExtracted.extracted.filter((_, i) => brochureSelected[i]);
     if (!toImport.length) { alert('Select at least one product to import.'); return; }
+    const slotsAvailable = 5 - offerings.length;
+    if (toImport.length > slotsAvailable) {
+      alert(`You can only add ${slotsAvailable} more offering${slotsAvailable===1?'':'s'} (max 5 per event). Please deselect ${toImport.length - slotsAvailable} item${toImport.length - slotsAvailable===1?'':'s'}.`);
+      return;
+    }
     setBrochureUploading(true);
     try {
       for (let i = 0; i < toImport.length; i++) {
@@ -8636,7 +8641,7 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                     <div>
                       <h3 style={{fontSize:14,fontWeight:800,color:"#5B21B6",margin:"0 0 2px"}}>✦ {brochureExtracted.count} products extracted</h3>
-                      <p style={{fontSize:11,color:"#7C3AED",margin:0}}>from {brochureExtracted.file_name} — select which to import</p>
+                      <p style={{fontSize:11,color:"#7C3AED",margin:0}}>from {brochureExtracted.file_name} — you can import up to {5 - offerings.length} more offering{5 - offerings.length === 1 ? '' : 's'}</p>
                     </div>
                     <button onClick={()=>{setBrochureExtracted(null);setBrochureSelected({});}}
                       style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #DDD6FE",background:"white",cursor:"pointer",color:"#6B7280"}}>✕ Cancel</button>
@@ -8678,9 +8683,13 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
                     <div style={{display:"flex",gap:8}}>
                       <button onClick={()=>setBrochureSelected(Object.fromEntries(brochureExtracted.extracted.map((_,i)=>[i,true])))}
                         style={{fontSize:11,padding:"5px 12px",borderRadius:6,border:"1px solid #DDD6FE",background:"white",cursor:"pointer",color:"#5B21B6",fontWeight:600}}>Select all</button>
-                      <button onClick={confirmBrochureImport} disabled={brochureUploading || !Object.values(brochureSelected).some(Boolean)}
+                      <button onClick={confirmBrochureImport} disabled={brochureUploading || !Object.values(brochureSelected).some(Boolean) || Object.values(brochureSelected).filter(Boolean).length > (5 - offerings.length)}
                         style={{fontSize:12,padding:"6px 16px",borderRadius:7,border:"none",background:"#7C3AED",color:"white",cursor:"pointer",fontWeight:700,opacity:brochureUploading?0.6:1}}>
-                        {brochureUploading ? "Importing..." : `Import ${Object.values(brochureSelected).filter(Boolean).length} product${Object.values(brochureSelected).filter(Boolean).length===1?"":"s"} →`}
+                        {brochureUploading ? "Importing..." : (() => {
+                          const sel = Object.values(brochureSelected).filter(Boolean).length;
+                          const slots = 5 - offerings.length;
+                          return sel > slots ? `⚠ Select max ${slots} (${sel} selected)` : `Import ${sel} product${sel===1?"":"s"} →`;
+                        })()}
                       </button>
                     </div>
                   </div>
