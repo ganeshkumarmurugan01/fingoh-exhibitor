@@ -8432,11 +8432,13 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
       });
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token || '';
-      // Use upload endpoint (no body size limit, 120s timeout)
+      // Send directly to Railway backend — bypasses Vercel 4.5MB body limit
+      const BACKEND = import.meta.env.VITE_BACKEND_URL || 
+        (window.location.hostname.includes('vercel.app') ? 'https://api-dev.fingoh.ai' : 'https://api.fingoh.ai');
       const formData = new FormData();
       formData.append('file', file);
       formData.append('event_id', ex.id);
-      const res = await fetch('/api/upload?slug=v1/products/extract-from-brochure', {
+      const res = await fetch(`${BACKEND}/api/v1/products/extract-from-brochure`, {
         method: 'POST',
         headers: { 'x-fingoh-auth': `Bearer ${token}` },
         body: formData
