@@ -8347,6 +8347,8 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
   const [offeringsTab, setOfferingsTab] = React.useState('pinned'); // 'pinned' | 'knowledge'
   const [productIntelligence, setProductIntelligence] = React.useState([]);
   const [piLoading, setPiLoading] = React.useState(false);
+  const [brochureUploads, setBrochureUploads] = React.useState([]);
+  const [kbView, setKbView] = React.useState('documents'); // 'documents' | 'products'
   const [brochureUploading, setBrochureUploading] = React.useState(false);
   const [brochureExtracted, setBrochureExtracted] = React.useState(null); // {extracted:[], file_name:''}
   const [brochureSelected, setBrochureSelected] = React.useState({}); // {idx: true/false}
@@ -8427,15 +8429,30 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
       const token = session?.access_token || '';
       const BACKEND = import.meta.env.VITE_BACKEND_URL ||
         (window.location.hostname.includes('vercel.app') ? 'https://api-dev.fingoh.ai' : 'https://api.fingoh.ai');
-      const res = await fetch(`${BACKEND}/api/v1/products/intelligence/${ex.id}`, {
-        headers: { 'x-fingoh-auth': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      setProductIntelligence(Array.isArray(data) ? data : []);
+      const [piRes, brochureRes] = await Promise.all([
+        fetch(`${BACKEND}/api/v1/products/intelligence/${ex.id}`, { headers: { 'x-fingoh-auth': `Bearer ${token}` } }),
+        fetch(`${BACKEND}/api/v1/products/brochures/${ex.id}`, { headers: { 'x-fingoh-auth': `Bearer ${token}` } }),
+      ]);
+      const piData = await piRes.json();
+      const brochureData = await brochureRes.json();
+      setProductIntelligence(Array.isArray(piData) ? piData : []);
+      setBrochureUploads(Array.isArray(brochureData) ? brochureData : []);
     } catch(e) {
       console.warn('Failed to load product intelligence:', e);
     }
     setPiLoading(false);
+  };
+
+  const deleteBrochure = async (brochureId) => {
+    if (!window.confirm('Delete this document and all its extracted products from the knowledge base?')) return;
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || '';
+    const BACKEND = import.meta.env.VITE_BACKEND_URL ||
+      (window.location.hostname.includes('vercel.app') ? 'https://api-dev.fingoh.ai' : 'https://api.fingoh.ai');
+    await fetch(`${BACKEND}/api/v1/products/brochures/${brochureId}`, {
+      method: 'DELETE', headers: { 'x-fingoh-auth': `Bearer ${token}` }
+    });
+    await loadProductIntelligence();
   };
 
   React.useEffect(() => {
@@ -8517,6 +8534,8 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
       (data.extracted || []).forEach((_, i) => { sel[i] = true; });
       setBrochureSelected(sel);
       setBrochureExtracted(data);
+      // Refresh knowledge base if on that tab
+      if (offeringsTab === 'knowledge') loadProductIntelligence();
     } catch(err) {
       alert('Could not extract from brochure: ' + err.message);
     }
@@ -8597,69 +8616,131 @@ function EventSetup({ex, onUpdate, onDelete, sharedOfferings, onOfferingsChange}
         <div>
           {piLoading ? (
             <p style={{fontSize:13,color:C.muted}}>Loading knowledge base...</p>
-          ) : productIntelligence.length === 0 ? (
-            <div style={{textAlign:"center",padding:"40px 20px",border:"2px dashed #DDD6FE",borderRadius:12,background:"#FAF5FF"}}>
-              <div style={{fontSize:32,marginBottom:8}}>✦</div>
-              <p style={{fontSize:14,fontWeight:700,color:"#5B21B6",margin:"0 0 6px"}}>No product knowledge yet</p>
-              <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Upload a product brochure to extract your complete product catalog</p>
-              <button onClick={()=>setOfferingsTab('pinned')} style={{fontSize:12,padding:"7px 16px",borderRadius:7,border:"1.5px solid #7C3AED",background:"white",color:"#5B21B6",cursor:"pointer",fontWeight:600}}>
-                Go to Registration tab to upload brochure
-              </button>
-            </div>
           ) : (
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <p style={{fontSize:11,color:C.muted,margin:"0 0 4px"}}>
-                All products extracted from your brochures. Pin up to 5 to show visitors during registration.
-              </p>
-              {productIntelligence.map(item => (
-                <div key={item.id} style={{border:`1.5px solid ${item.is_pinned?"#7C3AED":"#E2E8F0"}`,borderRadius:10,padding:"14px 16px",background:item.is_pinned?"#FAF5FF":"#FAFAFA"}}>
-                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
-                    <div style={{flex:1}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
-                        <span style={{fontSize:10,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"1px 7px",borderRadius:99}}>{item.type}</span>
-                        <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{item.name}</span>
-                        {item.is_pinned && <span style={{fontSize:10,fontWeight:700,color:"#5B21B6",background:"#EDE9FE",padding:"1px 7px",borderRadius:99}}>📌 Pinned</span>}
-                      </div>
-                      {(item.category_master||[]).length > 0 && (
-                        <p style={{fontSize:10,color:"#7C3AED",margin:"0 0 4px",fontWeight:600}}>
-                          📂 {item.category_master.map(c=>c.name).join(' › ')}
-                        </p>
-                      )}
-                      <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5}}>{item.short_description}</p>
-                      {item.full_description && item.full_description !== item.short_description && (
-                        <p style={{fontSize:11,color:C.muted,margin:"0 0 6px",lineHeight:1.5}}>{item.full_description}</p>
-                      )}
-                      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:4}}>
-                        {(item.features||[]).length > 0 && (
-                          <div>
-                            <span style={{fontSize:10,fontWeight:700,color:C.muted}}>FEATURES: </span>
-                            {item.features.map((f,i)=><span key={i} style={{fontSize:10,background:"#EFF6FF",color:C.navy,padding:"1px 6px",borderRadius:99,marginRight:3}}>{f}</span>)}
-                          </div>
-                        )}
-                      </div>
-                      {(item.benefits||[]).length > 0 && (
-                        <div style={{marginBottom:3}}>
-                          <span style={{fontSize:10,fontWeight:700,color:C.muted}}>BENEFITS: </span>
-                          {item.benefits.map((b,i)=><span key={i} style={{fontSize:10,background:"#F0FDF4",color:"#166534",padding:"1px 6px",borderRadius:99,marginRight:3}}>{b}</span>)}
-                        </div>
-                      )}
-                      {(item.applications||[]).length > 0 && (
-                        <div>
-                          <span style={{fontSize:10,fontWeight:700,color:C.muted}}>APPLICATIONS: </span>
-                          {item.applications.map((a,i)=><span key={i} style={{fontSize:10,background:"#FFFBEB",color:"#92400E",padding:"1px 6px",borderRadius:99,marginRight:3}}>{a}</span>)}
-                        </div>
-                      )}
-                    </div>
-                    <button onClick={()=>togglePin(item)}
-                      style={{flexShrink:0,fontSize:11,padding:"6px 12px",borderRadius:7,border:`1.5px solid ${item.is_pinned?"#DC2626":"#7C3AED"}`,
-                        background:item.is_pinned?"#FEF2F2":"#EDE9FE",
-                        color:item.is_pinned?"#DC2626":"#5B21B6",cursor:"pointer",fontWeight:700,whiteSpace:"nowrap"}}>
-                      {item.is_pinned ? "Unpin" : "📌 Pin to reg."}
-                    </button>
-                  </div>
+            <>
+              {/* KB Header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                <div>
+                  <p style={{fontSize:12,color:C.muted,margin:0}}>
+                    {brochureUploads.length === 0 ? "No documents uploaded yet" :
+                      `${brochureUploads.length} document${brochureUploads.length===1?'':'s'} · ${productIntelligence.length} knowledge items`}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <div style={{display:"flex",gap:6}}>
+                  <button onClick={()=>setKbView('documents')}
+                    style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #E2E8F0",
+                      background:kbView==='documents'?C.navy:"white",color:kbView==='documents'?"white":C.muted,cursor:"pointer",fontWeight:600}}>
+                    📄 Documents
+                  </button>
+                  <button onClick={()=>setKbView('products')}
+                    style={{fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #E2E8F0",
+                      background:kbView==='products'?C.navy:"white",color:kbView==='products'?"white":C.muted,cursor:"pointer",fontWeight:600}}>
+                    📦 Products ({productIntelligence.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Documents view */}
+              {kbView === 'documents' && (
+                <div>
+                  {brochureUploads.length === 0 ? (
+                    <div style={{textAlign:"center",padding:"40px 20px",border:"2px dashed #DDD6FE",borderRadius:12,background:"#FAF5FF"}}>
+                      <div style={{fontSize:32,marginBottom:8}}>✦</div>
+                      <p style={{fontSize:14,fontWeight:700,color:"#5B21B6",margin:"0 0 6px"}}>No documents in knowledge base</p>
+                      <p style={{fontSize:12,color:C.muted,margin:"0 0 16px"}}>Upload brochures, catalogs, or spec sheets to build your product knowledge base</p>
+                      <button onClick={()=>setOfferingsTab('pinned')} style={{fontSize:12,padding:"7px 16px",borderRadius:7,border:"1.5px solid #7C3AED",background:"white",color:"#5B21B6",cursor:"pointer",fontWeight:600}}>
+                        Go to Registration tab → Extract from brochure
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                      {brochureUploads.map(doc => (
+                        <div key={doc.id} style={{border:"1.5px solid #E2E8F0",borderRadius:10,padding:"14px 16px",background:"#FAFAFA"}}>
+                          <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+                            <div style={{flex:1}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                                <span style={{fontSize:18}}>📄</span>
+                                <div>
+                                  <div style={{fontSize:13,fontWeight:700,color:C.navy}}>{doc.file_name}</div>
+                                  <div style={{fontSize:10,color:C.muted}}>{new Date(doc.created_at).toLocaleDateString()}</div>
+                                </div>
+                                <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:99,
+                                  background:doc.extraction_status==='done'?"#F0FDF4":"#FEF3C7",
+                                  color:doc.extraction_status==='done'?"#166534":"#92400E"}}>
+                                  {doc.extraction_status==='done'?'✓ Extracted':doc.extraction_status}
+                                </span>
+                              </div>
+                              {doc.document_summary && (
+                                <p style={{fontSize:12,color:"#374151",margin:"0 0 6px",lineHeight:1.5,fontStyle:"italic"}}>
+                                  "{doc.document_summary}"
+                                </p>
+                              )}
+                              {(doc.key_facts||[]).length > 0 && (
+                                <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                                  <span style={{fontSize:10,fontWeight:700,color:C.muted}}>Categories: </span>
+                                  {doc.key_facts.map((f,i)=>(
+                                    <span key={i} style={{fontSize:10,background:"#EDE9FE",color:"#5B21B6",padding:"1px 7px",borderRadius:99}}>{f}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <button onClick={()=>deleteBrochure(doc.id)}
+                              style={{flexShrink:0,fontSize:11,padding:"4px 10px",borderRadius:6,border:"1px solid #FCA5A5",background:"#FEF2F2",color:"#DC2626",cursor:"pointer",fontWeight:600}}>
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      <p style={{fontSize:11,color:C.muted,textAlign:"center",padding:"8px 0"}}>
+                        Upload more documents from the Registration tab → Extract from brochure
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Products view */}
+              {kbView === 'products' && (
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {productIntelligence.length === 0 ? (
+                    <p style={{fontSize:13,color:C.muted,textAlign:"center",padding:"20px 0"}}>No products extracted yet</p>
+                  ) : productIntelligence.map(item => (
+                    <div key={item.id} style={{border:`1.5px solid ${item.is_pinned?"#7C3AED":"#E2E8F0"}`,borderRadius:10,padding:"12px 14px",background:item.is_pinned?"#FAF5FF":"#FAFAFA"}}>
+                      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10}}>
+                        <div style={{flex:1}}>
+                          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                            <span style={{fontSize:10,fontWeight:700,background:"#EFF6FF",color:C.navy,padding:"1px 7px",borderRadius:99}}>{item.type}</span>
+                            <span style={{fontSize:13,fontWeight:700,color:C.navy}}>{item.name}</span>
+                            {item.is_pinned && <span style={{fontSize:10,fontWeight:700,color:"#5B21B6",background:"#EDE9FE",padding:"1px 7px",borderRadius:99}}>📌</span>}
+                          </div>
+                          {(item.category_master||[]).length > 0 && (
+                            <p style={{fontSize:10,color:"#7C3AED",margin:"0 0 3px",fontWeight:600}}>📂 {item.category_master.map(c=>c.name).join(' › ')}</p>
+                          )}
+                          <p style={{fontSize:11,color:"#374151",margin:"0 0 4px",lineHeight:1.5}}>{item.short_description}</p>
+                          {(item.features||[]).length > 0 && (
+                            <div style={{marginBottom:3}}>
+                              <span style={{fontSize:10,fontWeight:700,color:C.muted}}>FEATURES: </span>
+                              {item.features.slice(0,3).map((f,i)=><span key={i} style={{fontSize:10,background:"#EFF6FF",color:C.navy,padding:"1px 6px",borderRadius:99,marginRight:3}}>{f}</span>)}
+                            </div>
+                          )}
+                          {(item.benefits||[]).length > 0 && (
+                            <div style={{marginBottom:3}}>
+                              <span style={{fontSize:10,fontWeight:700,color:C.muted}}>BENEFITS: </span>
+                              {item.benefits.slice(0,2).map((b,i)=><span key={i} style={{fontSize:10,background:"#F0FDF4",color:"#166534",padding:"1px 6px",borderRadius:99,marginRight:3}}>{b}</span>)}
+                            </div>
+                          )}
+                        </div>
+                        <button onClick={()=>togglePin(item)}
+                          style={{flexShrink:0,fontSize:11,padding:"5px 10px",borderRadius:7,border:`1.5px solid ${item.is_pinned?"#DC2626":"#7C3AED"}`,
+                            background:item.is_pinned?"#FEF2F2":"#EDE9FE",color:item.is_pinned?"#DC2626":"#5B21B6",cursor:"pointer",fontWeight:700}}>
+                          {item.is_pinned ? "Unpin" : "📌 Pin"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
