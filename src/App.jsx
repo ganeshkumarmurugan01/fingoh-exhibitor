@@ -6150,7 +6150,7 @@ function PredictedFunnel({ex}) {
   const atRiskVisitors = contacts.filter(c => (c.iei_tier==="T1"||c.iei_tier==="T2") && (c.reg_prob||0.5) < 0.5);
 
   const PRED_STAGES = [
-    { id:"uploaded", label:"Uploaded", icon:"📤",
+    { id:"uploaded", label:"Invited", icon:"📤",
       actual: total, predicted: null, lo: null, hi: null,
       color: C.blue,
       desc: "Your uploaded list — fixed baseline",
@@ -6439,9 +6439,9 @@ function OutcomesDashboard({ex}) {
 
   // Funnel data — flows consistently from upload through to leads
   const FUNNEL = [
-    { id:"uploaded",   icon:"📤", label:"Uploaded",          n:totalUploaded||0,  rate:null,
+    { id:"uploaded",   icon:"📤", label:"Invited",          n:totalUploaded||0,  rate:null,
       color:C.blue,    lt:C.ltblue,   tc:"#1E3A8A",
-      desc:"Total contacts uploaded — CSV imports, manual entries, and registrations.",
+      desc:"Total contacts invited — CSV imports, manual entries, and registrations.",
       breakdown:[
         {label:"Hot tier (IEI ≥ 75)",  n:hotTier},
         {label:"Warm tier (IEI 50–74)", n:warmTier},
@@ -6456,7 +6456,7 @@ function OutcomesDashboard({ex}) {
         {label:"Staff signals logged",  n:visitedBooth},
         {label:"Not yet logged",        n:Math.max(0,totalUploaded-visitedBooth)},
       ],
-      insight:`${visitedBooth} of ${totalUploaded} uploaded visitors had on-site conversations logged via Staff App.`
+      insight:`${visitedBooth} of ${totalUploaded} invited visitors had on-site conversations logged via Staff App.`
     },
     { id:"meetings",   icon:"🤝", label:"Meetings booked",    n:meetingsBooked||0, rate:visitedBooth>0?((meetingsBooked/visitedBooth)*100).toFixed(0):0,
       color:C.purple,  lt:C.ltpur,    tc:"#4C1D95",
@@ -6532,7 +6532,7 @@ function OutcomesDashboard({ex}) {
           ))}
         </div>
         <p style={{fontSize:11,color:C.muted,marginTop:12,textAlign:"center"}}>
-          Click any stage to see the breakdown · End-to-end: <strong style={{color:C.navy}}>{totalUploaded} uploaded → {visitedBooth} visited booth → {meetingsBooked} meetings → ${(pipelineActual/1000000).toFixed(1)}M pipeline</strong>
+          Click any stage to see the breakdown · End-to-end: <strong style={{color:C.navy}}>{totalUploaded} invited → {visitedBooth} visited booth → {meetingsBooked} meetings → ${(pipelineActual/1000000).toFixed(1)}M pipeline</strong>
         </p>
       </div>
 
