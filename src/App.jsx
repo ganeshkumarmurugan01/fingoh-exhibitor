@@ -4025,15 +4025,27 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
               if(layers.length) {
                 sectionHeader("Intelligence Layers", "#1E3A8A");
                 layers.forEach(l => {
-                  checkY(20);
+                  checkY(30);
+                  // Layer title
                   doc.setFont("helvetica","bold"); doc.setFontSize(9); setColor("#1E40AF");
                   doc.text((l.title||"").toUpperCase(), margin, y); y+=5;
+                  // Signals — each on its own line if needed
                   if(l.signals?.length) {
                     doc.setFont("helvetica","normal"); doc.setFontSize(8); setColor("#64748B");
-                    doc.text("Signals: "+l.signals.join("  ·  "), margin, y, {maxWidth:cw}); y+=5;
+                    const sigText = "Signals: "+l.signals.join("  ·  ");
+                    const sigLines = doc.splitTextToSize(sigText, cw);
+                    sigLines.forEach(line=>{ checkY(5); doc.text(line, margin, y); y+=4.5; });
+                    y+=2;
                   }
-                  textBlock("→ "+(l.inference||""), 9, false, "#475569", 0);
-                  y+=3;
+                  // Inference
+                  if(l.inference) {
+                    doc.setFont("helvetica","italic"); doc.setFontSize(9); setColor("#334155");
+                    const infLines = doc.splitTextToSize("→ "+l.inference, cw);
+                    infLines.forEach(line=>{ checkY(5); doc.text(line, margin, y); y+=4.5; });
+                  }
+                  y+=6;
+                  // Divider
+                  setDraw("#E2E8F0"); doc.line(margin, y, W-margin, y); y+=5;
                 });
               }
 
