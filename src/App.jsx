@@ -10969,6 +10969,15 @@ function RegistrationPage({ eventId }) {
       } else {
         setEmailStatus("new");
         setFErrors(fe => ({...fe, email: null}));
+        // Clear all fields except email so unknown contacts get a blank form
+        setForm(f => ({
+          name: "", email: f.email, company: "", job_title: "",
+          country: "", phone: "", city: "",
+          primary_reason: "", categories_interest: "", specific_product_interest: "", offerings_interest: [],
+          visited_booth_last_year: null, had_meeting_last_year: null,
+          is_existing_customer: null, actively_sourcing: null,
+          purchase_timeline: null, wants_meeting: null, preferred_visit_day: null,
+        }));
         setStep(2); window.scrollTo(0, 0);
       }
     } catch(e) { /* silent fail */ }
