@@ -4276,10 +4276,16 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
             )}
           </div>
         </div>
-        <button onClick={()=>{setShowAdd(!showAdd);if(!showAdd)setSelId(null);}}
-          style={{padding:"9px 18px",background:showAdd?"transparent":C.navy,color:showAdd?C.navy:C.white,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-          {showAdd?"✕ Cancel":"+ Add visitor & analyse"}
-        </button>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <button onClick={()=>window.print()}
+            style={{padding:"9px 14px",background:"transparent",color:C.navy,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:6}}>
+            ⬇ Export PDF
+          </button>
+          <button onClick={()=>{setShowAdd(!showAdd);if(!showAdd)setSelId(null);}}
+            style={{padding:"9px 18px",background:showAdd?"transparent":C.navy,color:showAdd?C.navy:C.white,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+            {showAdd?"✕ Cancel":"+ Add visitor & analyse"}
+          </button>
+        </div>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:18,minHeight:600}}>
