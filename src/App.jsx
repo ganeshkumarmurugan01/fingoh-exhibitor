@@ -2360,6 +2360,33 @@ function VisitorProfile({eventId, contactId, onClose, onDeleted}) {
                 </div>
               )}
 
+              {/* Registration Intent */}
+              {(rd.primary_reason || rd.categories_interest || rd.purchase_timeline || rd.preferred_visit_day || rd.specific_product_interest || rd.offerings_interest?.length > 0 || rd.is_existing_customer != null || rd.actively_sourcing != null || rd.wants_meeting != null) && (
+                <div style={{marginBottom:20}}>
+                  <SectionTitle>Registration Intent</SectionTitle>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"8px 20px"}}>
+                    {rd.primary_reason && <Field label="Visit Reason" value={rd.primary_reason}/>}
+                    {rd.categories_interest && <Field label="Categories of Interest" value={rd.categories_interest}/>}
+                    {rd.specific_product_interest && <Field label="Specific Product Interest" value={rd.specific_product_interest}/>}
+                    {rd.purchase_timeline && <Field label="Purchase Timeline" value={rd.purchase_timeline}/>}
+                    {rd.preferred_visit_day && <Field label="Preferred Visit Day" value={rd.preferred_visit_day}/>}
+                    {rd.is_existing_customer != null && <Field label="Existing Customer" value={rd.is_existing_customer}/>}
+                    {rd.actively_sourcing != null && <Field label="Actively Sourcing" value={rd.actively_sourcing ? "Yes" : "No"}/>}
+                    {rd.wants_meeting != null && <Field label="Wants Meeting" value={rd.wants_meeting === "yes" || rd.wants_meeting === true ? "✓ Yes" : "✗ No"}/>}
+                  </div>
+                  {rd.offerings_interest?.length > 0 && (
+                    <div style={{marginTop:8}}>
+                      <div style={{fontSize:10,color:"#64748B",fontWeight:600,textTransform:"uppercase",letterSpacing:.04,marginBottom:6}}>Offerings of Interest</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                        {rd.offerings_interest.map((o,i) => (
+                          <span key={i} style={{padding:"4px 10px",borderRadius:99,background:"#EFF6FF",color:"#1D4ED8",fontSize:11,fontWeight:600}}>{o}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Conversation signals */}
               <div style={{marginBottom:20}}>
                 <SectionTitle>Conversation Signals ({signals.length})</SectionTitle>
