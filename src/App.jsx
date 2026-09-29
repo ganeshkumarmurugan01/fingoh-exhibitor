@@ -4025,27 +4025,43 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
               if(layers.length) {
                 sectionHeader("Intelligence Layers", "#1E3A8A");
                 layers.forEach(l => {
-                  checkY(30);
-                  // Layer title
-                  doc.setFont("helvetica","bold"); doc.setFontSize(9); setColor("#1E40AF");
-                  doc.text((l.title||"").toUpperCase(), margin, y); y+=5;
-                  // Signals — each on its own line if needed
+                  // Estimate height needed for this layer
+                  const titleH = 8;
+                  const sigLines = l.signals?.length ? doc.splitTextToSize(l.signals.map((s,i)=>`${i+1}. ${s}`).join("  "), cw-4) : [];
+                  const infLines = l.inference ? doc.splitTextToSize("→ "+l.inference, cw-4) : [];
+                  const needed = titleH + sigLines.length*4.5 + infLines.length*4.5 + 14;
+                  checkY(needed);
+
+                  // Colored left bar + title background
+                  setFill("#EFF6FF"); doc.rect(margin, y, cw, 7, "F");
+                  setFill("#1E40AF"); doc.rect(margin, y, 3, 7, "F");
+                  doc.setFont("helvetica","bold"); doc.setFontSize(9); setColor("#1E3A8A");
+                  doc.text((l.title||"").toUpperCase(), margin+6, y+5);
+                  y+=10;
+
+                  // Each signal on its own wrapped line
                   if(l.signals?.length) {
-                    doc.setFont("helvetica","normal"); doc.setFontSize(8); setColor("#64748B");
-                    const sigText = "Signals: "+l.signals.join("  ·  ");
-                    const sigLines = doc.splitTextToSize(sigText, cw);
-                    sigLines.forEach(line=>{ checkY(5); doc.text(line, margin, y); y+=4.5; });
-                    y+=2;
+                    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setColor("#64748B");
+                    doc.text("SIGNALS", margin+4, y); y+=4;
+                    doc.setFont("helvetica","normal"); doc.setFontSize(8); setColor("#475569");
+                    l.signals.forEach(sig => {
+                      const sLines = doc.splitTextToSize("• "+sig, cw-8);
+                      sLines.forEach(line=>{ checkY(5); doc.text(line, margin+4, y); y+=4; });
+                    });
+                    y+=3;
                   }
+
                   // Inference
                   if(l.inference) {
-                    doc.setFont("helvetica","italic"); doc.setFontSize(9); setColor("#334155");
-                    const infLines = doc.splitTextToSize("→ "+l.inference, cw);
-                    infLines.forEach(line=>{ checkY(5); doc.text(line, margin, y); y+=4.5; });
+                    doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setColor("#64748B");
+                    doc.text("INFERENCE", margin+4, y); y+=4;
+                    doc.setFont("helvetica","italic"); doc.setFontSize(9); setColor("#1E293B");
+                    const iLines = doc.splitTextToSize(l.inference, cw-8);
+                    iLines.forEach(line=>{ checkY(5); doc.text(line, margin+4, y); y+=4.5; });
                   }
-                  y+=6;
-                  // Divider
-                  setDraw("#E2E8F0"); doc.line(margin, y, W-margin, y); y+=5;
+
+                  y+=5;
+                  setDraw("#E2E8F0"); doc.line(margin, y, W-margin, y); y+=6;
                 });
               }
 
