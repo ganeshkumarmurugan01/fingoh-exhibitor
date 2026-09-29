@@ -2636,7 +2636,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
   const hasData = uploadDone || dbConnected || regLive;
 
   const SOURCES = [
-    {id:"upload",       icon:"⬆",  label:"Upload list",             sub:"CSV / Excel import"},
+    {id:"upload",       icon:"⬆",  label:"Invite list",             sub:"CSV / Excel import"},
     ...(planFeatures?.has_crm_sync !== false ? [{id:"database", icon:"🗄️", label:"Contact database", sub:"CRM or data warehouse"}] : []),
     {id:"registration", icon:"🔗", label:"Live registration feed",  sub:"Registration system API"},
     {id:"manual",       icon:"✏️", label:"Manual entry",            sub:"Add single contact"},
@@ -2699,7 +2699,7 @@ function AudienceUpload({ex, onNext, planFeatures}) {
               {!uploadDone ? (
                 <div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                    <p style={{fontSize:14,fontWeight:700,color:C.navy,margin:0}}>Upload your pre-registered buyers list</p>
+                    <p style={{fontSize:14,fontWeight:700,color:C.navy,margin:0}}>Invite your buyer list</p>
                     <button onClick={()=>{
                       const headers = ["first_name","last_name","email","job_title","company","country","city","phone","primary_reason","categories_interest","meeting_interest","company_type","regulatory_market","specific_product_interest","visit_timeline","company_size","incumbent_vendor","previous_edition","linkedin_url","annual_procurement_value","export_markets"];
                       const notes =   ["First name","Last name","Work email *","Full job title *","Company name *","Country *","City *","Phone","Why attending","Comma-separated interests","yes / no","Manufacturer/API Producer/CMO-CDMO/Packaging/Distributor","FDA/EMA/WHO PQ/CDSCO/NMPA/ANVISA","Specific product they are sourcing","Within 3 months/3-6 months/6-12 months/Just exploring","1-50/51-200/201-500/501-1000/1000+","Current supplier","Yes/No","LinkedIn URL","e.g. USD 2M","Markets they export to e.g. USA,EU"];
@@ -10083,7 +10083,7 @@ function NavShell({screen, onNav, ex, children, onAgent, agentCount=0, onBackToE
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
         ...(hasMeetings ? [{id:"meetings", label:"Meetings", icon:"🤝"}] : []),
       ] : [
-        {id:"audience",    label:"Audience Upload",  icon:"⬆"},
+        {id:"audience",    label:"Audience",  icon:"⬆"},
         {id:"iei",         label:"IEI Analysis",     icon:"◎"},
         ...(hasMeetings ? [{id:"meetings", label:"Meetings", icon:"🤝"}] : []),
       ]
