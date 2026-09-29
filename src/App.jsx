@@ -2020,16 +2020,15 @@ function VisitorList({eventId, refreshKey}) {
                 <input type="checkbox" checked={selectedIds.size>0&&paginated.every(c=>selectedIds.has(c.id))}
                   onChange={()=>toggleAll(paginated.map(c=>c.id))}/>
               </th>
-              <SortTh label="Name" col="name"/>
-              <SortTh label="Company" col="company"/>
-              <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Role</th>
-              <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Location</th>
-              <SortTh label="Pre IEI" col="iei_score"/>
-              <SortTh label="Onsite IEI" col="onsite_iei_score"/>
-              <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0"}}>Tier</th>
-              <SortTh label="Attend Prob" col="reg_prob"/>
-              <th style={{padding:"10px 14px",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,textAlign:"left"}}>Registered</th>
-              <SortTh label="Added" col="created_at"/>
+              <SortTh label="Name" col="name" s={{minWidth:160}}/>
+              <SortTh label="Company" col="company" s={{minWidth:150}}/>
+              <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0",minWidth:180}}>Role</th>
+              <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0",minWidth:80}}>Location</th>
+              <SortTh label="Pre IEI" col="iei_score" s={{minWidth:70}}/>
+              <SortTh label="Onsite IEI" col="onsite_iei_score" s={{minWidth:80}}/>
+              <th style={{padding:"8px 12px",textAlign:"left",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.04,borderBottom:"1px solid #E2E8F0",minWidth:60}}>Tier</th>
+              <th style={{padding:"10px 14px",fontSize:10,fontWeight:700,color:C.muted,textTransform:"uppercase",letterSpacing:.06,textAlign:"left",minWidth:90}}>Registered</th>
+              <SortTh label="Added" col="created_at" s={{minWidth:100}}/>
               <th style={{padding:"10px 14px"}}></th>
             </tr>
           </thead>
@@ -2075,13 +2074,6 @@ function VisitorList({eventId, refreshKey}) {
                 <td style={{padding:"12px 14px"}}>
                   {c.iei_tier && <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:TIER_BG[c.iei_tier]||"#F1F5F9",color:TIER_TEXT[c.iei_tier]||C.muted,fontWeight:700}}>{c.iei_tier}</span>}
                 </td>
-                <td style={{padding:"8px 12px",color:C.muted,fontSize:12,fontWeight:600}}>
-                  {c.reg_prob!=null?(
-                    <span style={{color:c.reg_prob>=0.7?"#16A34A":c.reg_prob>=0.4?"#2563EB":"#9CA3AF"}}>
-                      {(c.reg_prob*100).toFixed(0)}%
-                    </span>
-                  ):"—"}
-                  </td>
                   <td style={{padding:"12px 14px"}}>
                     {c.raw_data?.registration_form_completed
                       ? <span style={{fontSize:11,padding:"3px 10px",borderRadius:99,background:"#DCFCE7",color:"#14532D",fontWeight:700}}>✓ Yes</span>
