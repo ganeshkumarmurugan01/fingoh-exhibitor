@@ -3987,7 +3987,7 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                 setFill(col); doc.rect(margin, y, cw, 7, "F");
                 doc.setFont("helvetica","bold"); doc.setFontSize(9); setColor("#FFFFFF");
                 doc.text(title.toUpperCase(), margin+4, y+5);
-                y += 10;
+                y += 13;
               };
 
               // ── Helper: wrapped text block ──
@@ -3996,8 +3996,8 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                 doc.setFont("helvetica", bold?"bold":"normal");
                 doc.setFontSize(size); setColor(col);
                 const lines = doc.splitTextToSize(String(txt), cw-indent);
-                lines.forEach(line => { checkY(size*0.5); doc.text(line, margin+indent, y); y += size*0.45; });
-                y += 2;
+                lines.forEach(line => { checkY(size*0.6); doc.text(line, margin+indent, y); y += size*0.52; });
+                y += 4;
               };
 
               // ── Helper: label+value row ──
@@ -4014,7 +4014,6 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
 
               // ── PAGE 1: Synthesised Intent + Intelligence Layers ──
               sectionHeader("Synthesised Intent", "#111827");
-              setFill("#111827"); doc.rect(margin, y, cw, 2, "F"); y+=4;
               textBlock(rd?.synthesised_intent||intel?.synth||"No synthesised intent available.", 10, false, "#334155");
               y += 4;
 
@@ -4042,11 +4041,11 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                   // Each signal on its own wrapped line
                   if(l.signals?.length) {
                     doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setColor("#64748B");
-                    doc.text("SIGNALS", margin+4, y); y+=4;
+                    doc.text("SIGNALS", margin+4, y); y+=5.5;
                     doc.setFont("helvetica","normal"); doc.setFontSize(8); setColor("#475569");
                     l.signals.forEach(sig => {
                       const sLines = doc.splitTextToSize("• "+sig, cw-8);
-                      sLines.forEach(line=>{ checkY(5); doc.text(line, margin+4, y); y+=4; });
+                      sLines.forEach(line=>{ checkY(5.5); doc.text(line, margin+4, y); y+=5; });
                     });
                     y+=3;
                   }
@@ -4054,7 +4053,7 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
                   // Inference
                   if(l.inference) {
                     doc.setFont("helvetica","bold"); doc.setFontSize(7.5); setColor("#64748B");
-                    doc.text("INFERENCE", margin+4, y); y+=4;
+                    doc.text("INFERENCE", margin+4, y); y+=5.5;
                     doc.setFont("helvetica","italic"); doc.setFontSize(9); setColor("#1E293B");
                     const iLines = doc.splitTextToSize(l.inference, cw-8);
                     iLines.forEach(line=>{ checkY(5); doc.text(line, margin+4, y); y+=4.5; });
