@@ -2170,6 +2170,35 @@ function VisitorProfile({eventId, contactId, onClose, onDeleted}) {
     else alert("Delete failed — please try again.");
   };
 
+  const [editing, setEditing] = React.useState(false);
+  const [editFields, setEditFields] = React.useState({});
+  const [saving, setSaving] = React.useState(false);
+
+  const startEdit = () => {
+    const c = data?.contact || {};
+    setEditFields({ email: c.email||"", company: c.company||"", designation: c.designation||"", city: c.city||"", country: c.country||"" });
+    setEditing(true);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const {data:{session}} = await supabase.auth.getSession();
+    const token = session?.access_token || "";
+    const res = await fetch(`/api/proxy?slug=v1/audience/contacts/${eventId}/${contactId}`, {
+      method:"PATCH",
+      headers:{"x-fingoh-auth":`Bearer ${token}`,"Content-Type":"application/json"},
+      body: JSON.stringify(editFields)
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setData(prev => ({...prev, contact: {...prev.contact, ...editFields}}));
+      setEditing(false);
+    } else {
+      alert("Save failed — please try again.");
+    }
+    setSaving(false);
+  };
+
   const TIER_COLORS = {T1:"#ef4444",T2:"#f97316",T3:"#3b82f6",T4:"#9ca3af"};
   const TIER_BG    = {T1:"#FEE2E2",T2:"#FEF3C7",T3:"#DBEAFE",T4:"#F1F5F9"};
   const TIER_TEXT  = {T1:"#991B1B",T2:"#92400E",T3:"#1E40AF",T4:"#475569"};
@@ -2204,7 +2233,25 @@ function VisitorProfile({eventId, contactId, onClose, onDeleted}) {
             {loading && <div style={{fontSize:14,color:C.muted}}>Loading…</div>}
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {data?.contact && (
+            {data?.contact && !editing && (
+              <button onClick={startEdit}
+                style={{padding:"6px 14px",background:"none",border:"1px solid #93C5FD",borderRadius:8,color:"#2563EB",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                ✏ Edit
+              </button>
+            )}
+            {editing && (
+              <>
+                <button onClick={handleSave} disabled={saving}
+                  style={{padding:"6px 14px",background:"#16A34A",color:C.white,border:"none",borderRadius:8,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F,opacity:saving?0.6:1}}>
+                  {saving ? "Saving…" : "Save"}
+                </button>
+                <button onClick={()=>setEditing(false)} disabled={saving}
+                  style={{padding:"6px 14px",background:"none",border:"1px solid #E2E8F0",borderRadius:8,color:C.muted,fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+                  Cancel
+                </button>
+              </>
+            )}
+            {data?.contact && !editing && (
               <button onClick={handleDelete}
                 style={{padding:"6px 14px",background:"none",border:"1px solid #FCA5A5",borderRadius:8,color:"#DC2626",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:F}}>
                 Delete
@@ -2255,14 +2302,30 @@ function VisitorProfile({eventId, contactId, onClose, onDeleted}) {
               {/* Contact details */}
               <div style={{marginBottom:20}}>
                 <SectionTitle>Contact Details</SectionTitle>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 20px"}}>
-                  <Field label="Email" value={c.email}/>
-                  <Field label="Phone" value={c.phone}/>
-                  <Field label="Company" value={c.company}/>
-                  <Field label="Designation" value={c.designation}/>
-                  <Field label="City" value={c.city}/>
-                  <Field label="Country" value={c.country}/>
-                </div>
+                {editing ? (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
+                    {[["email","Email"],["company","Company"],["designation","Title / Designation"],["city","City"],["country","Country"]].map(([key,label])=>(
+                      <div key={key}>
+                        <div style={{fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:.04,marginBottom:4}}>{label}</div>
+                        <input
+                          value={editFields[key]||""}
+                          onChange={e=>setEditFields(prev=>({...prev,[key]:e.target.value}))}
+                          style={{width:"100%",padding:"6px 10px",border:"1px solid #93C5FD",borderRadius:6,fontSize:13,color:C.dark,fontFamily:F,outline:"none",boxSizing:"border-box"}}
+                        />
+                      </div>
+                    ))}
+                    <Field label="Phone" value={c.phone}/>
+                  </div>
+                ) : (
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 20px"}}>
+                    <Field label="Email" value={c.email}/>
+                    <Field label="Phone" value={c.phone}/>
+                    <Field label="Company" value={c.company}/>
+                    <Field label="Designation" value={c.designation}/>
+                    <Field label="City" value={c.city}/>
+                    <Field label="Country" value={c.country}/>
+                  </div>
+                )}
                 {rd.enrichment_notes && (
                   <div style={{marginTop:10,padding:"10px 14px",background:"#EFF6FF",borderRadius:8,fontSize:12,color:"#1D4ED8",lineHeight:1.6}}>
                     <strong>Enrichment notes:</strong> {rd.enrichment_notes}
