@@ -3920,7 +3920,7 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
       </div>
     );
     return (
-      <div style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
+      <div id="visitor-detail-panel" style={{background:C.white,border:"1px solid #E2E8F0",borderRadius:14,overflow:"hidden"}}>
         {/* Profile header */}
         <div style={{background:"linear-gradient(135deg,#0D1B3E,#1E2A4A)",padding:"18px 22px",display:"flex",alignItems:"center",gap:14}}>
           <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:C.white,border:"1.5px solid rgba(255,255,255,0.2)",flexShrink:0}}>
@@ -3943,6 +3943,21 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
               <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontWeight:600,letterSpacing:.06,textTransform:"uppercase",marginBottom:1}}>Pre-event</div>
               <ScoreRing score={p.ieiScore} size={44}/>
             </div>
+            <button onClick={()=>{
+              const el = document.getElementById("visitor-detail-panel");
+              if(!el) return;
+              const w = window.open("","_blank");
+              w.document.write(`<!DOCTYPE html><html><head><title>${p.name} — IEI Analysis</title><style>
+                body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;padding:20px;background:#fff;}
+                @media print{body{padding:0;}}
+                *{box-sizing:border-box;}
+              </style></head><body>${el.innerHTML}</body></html>`);
+              w.document.close();
+              w.focus();
+              setTimeout(()=>w.print(),500);
+            }} style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,0.7)",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"3px 8px",cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+              ⬇ Export PDF
+            </button>
             {p.onsite_iei_score && (
               <div style={{textAlign:"center"}}>
                 <div style={{fontSize:9,color:"rgba(255,255,255,0.45)",fontWeight:600,letterSpacing:.06,textTransform:"uppercase",marginBottom:1}}>On-site</div>
@@ -4276,16 +4291,10 @@ const [rescoredMsg, setRescoredMsg] = useState(null);
             )}
           </div>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <button onClick={()=>window.print()}
-            style={{padding:"9px 14px",background:"transparent",color:C.navy,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F,display:"flex",alignItems:"center",gap:6}}>
-            ⬇ Export PDF
-          </button>
-          <button onClick={()=>{setShowAdd(!showAdd);if(!showAdd)setSelId(null);}}
-            style={{padding:"9px 18px",background:showAdd?"transparent":C.navy,color:showAdd?C.navy:C.white,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>
-            {showAdd?"✕ Cancel":"+ Add visitor & analyse"}
-          </button>
-        </div>
+        <button onClick={()=>{setShowAdd(!showAdd);if(!showAdd)setSelId(null);}}
+          style={{padding:"9px 18px",background:showAdd?"transparent":C.navy,color:showAdd?C.navy:C.white,border:`1.5px solid ${C.navy}`,borderRadius:8,fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:F}}>
+          {showAdd?"✕ Cancel":"+ Add visitor & analyse"}
+        </button>
       </div>
 
       <div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:18,minHeight:600}}>
