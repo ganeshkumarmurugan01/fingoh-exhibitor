@@ -10924,10 +10924,52 @@ function RegistrationPage({ eventId }) {
         setFErrors(fe => ({...fe, email: `${data.name || "This person"} is already registered for this event.`}));
       } else if (data.exists) {
         setEmailStatus("exists");
-        setFErrors(fe => ({...fe, email: null})); // In our system but not registered — fine
+        setFErrors(fe => ({...fe, email: null}));
+        // Pre-fill form fields from backend
+        setForm(f => ({
+          ...f,
+          name:      data.name        || f.name,
+          company:   data.company     || f.company,
+          job_title: data.designation || f.job_title,
+          city:      data.city        || f.city,
+          country:   data.country     || f.country,
+        }));
       } else {
         setEmailStatus("new");
         setFErrors(fe => ({...fe, email: null}));
+      }
+    } catch(e) { /* silent fail */ }
+    setEmailChecking(false);
+  };
+
+  const handleEmailContinue = async () => {
+    if (!form.email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(form.email)) {
+      setFErrors(fe => ({...fe, email: "Please enter a valid work email."}));
+      return;
+    }
+    setEmailChecking(true);
+    try {
+      const res = await fetch(`/api/proxy?slug=v1/audience/register/${eventId}/check-email&email=${encodeURIComponent(form.email)}`);
+      const data = await res.json();
+      if (data.already_registered) {
+        setEmailStatus("registered");
+        setFErrors(fe => ({...fe, email: `${data.name || "This person"} is already registered for this event.`}));
+      } else if (data.exists) {
+        setEmailStatus("exists");
+        setFErrors(fe => ({...fe, email: null}));
+        setForm(f => ({
+          ...f,
+          name:      data.name        || f.name,
+          company:   data.company     || f.company,
+          job_title: data.designation || f.job_title,
+          city:      data.city        || f.city,
+          country:   data.country     || f.country,
+        }));
+        setStep(2); window.scrollTo(0, 0);
+      } else {
+        setEmailStatus("new");
+        setFErrors(fe => ({...fe, email: null}));
+        setStep(2); window.scrollTo(0, 0);
       }
     } catch(e) { /* silent fail */ }
     setEmailChecking(false);
@@ -11047,10 +11089,10 @@ function RegistrationPage({ eventId }) {
         if (data.already_registered) {
           // Already registered — show friendly message on step 3
           setResult({...data, already_registered: true});
-          setStep(3);
+          setStep(4);
         } else {
           setResult(data);
-          setStep(3);
+          setStep(4);
         }
         // Clear saved form data after successful submission
         try {
@@ -11130,9 +11172,9 @@ function RegistrationPage({ eventId }) {
           </p>
 
           {/* Progress steps */}
-          {step > 0 && step < 3 && (
+          {step > 0 && step < 4 && (
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 20 }}>
-              {[["1", "Your Details"], ["2", "Visit Intent"]].map(([n, label], i) => {
+              {[["1", "Email"], ["2", "Your Details"], ["3", "Visit Intent"]].map(([n, label], i) => {
                 const active = step === i + 1;
                 const done   = step > i + 1;
                 return (
@@ -11321,11 +11363,52 @@ function RegistrationPage({ eventId }) {
           );
         })()}
 
-        {/* ── Step 1: Details ── */}
+        {/* ── Step 1: Email gate ── */}
         {step === 1 && (
           <div style={{ background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: navy, margin: "0 0 4px" }}>Let's get started</h2>
+            <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 20px" }}>Enter your work email and we'll look up your details.</p>
+
+            {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#DC2626", marginBottom: 16 }}>{error}</div>}
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={lS}>Work email *</label>
+              <div style={{ position: "relative" }}>
+                <input type="email" value={form.email} autoFocus
+                  onChange={e => { upd("email", e.target.value); setEmailStatus(null); setFErrors(fe=>({...fe,email:null})); }}
+                  placeholder="e.g. ravi@tatamotors.com"
+                  style={{ ...iS, borderColor: fErrors.email ? "#DC2626" : emailStatus === "exists" ? "#16A34A" : "#E2E8F0", paddingRight: emailChecking ? 36 : 13 }}
+                  onKeyDown={e => { if (e.key === "Enter") handleEmailContinue(); }}
+                />
+                {emailChecking && (
+                  <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, border: "2px solid #E2E8F0", borderTopColor: "#3B82F6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>
+                )}
+              </div>
+              {fErrors.email && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>⚠ {fErrors.email}</p>}
+              {emailStatus === "exists" && !fErrors.email && <p style={{ color: "#16A34A", fontSize: 11, margin: "3px 0 0" }}>✓ Found your profile — details pre-filled</p>}
+              {emailStatus === "new" && !fErrors.email && <p style={{ color: "#64748B", fontSize: 11, margin: "3px 0 0" }}>New contact — please fill in your details</p>}
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => { setStep(0); window.scrollTo(0, 0); }}
+                style={{ flex: 1, padding: "12px 0", background: "#fff", color: "#64748B", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
+                ← Back
+              </button>
+              <button onClick={handleEmailContinue} disabled={emailChecking}
+                style={{ flex: 2, padding: "12px 0", background: emailChecking ? "#94A3B8" : navy, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: emailChecking ? "not-allowed" : "pointer", fontFamily: F }}>
+                {emailChecking ? "Checking…" : "Continue →"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Details (pre-filled or blank) ── */}
+        {step === 2 && emailStatus !== "registered" && (
+          <div style={{ background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0" }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: navy, margin: "0 0 4px" }}>Your details</h2>
-            <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 20px" }}>Tell us about yourself so we can personalise your visit experience.</p>
+            <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 20px" }}>
+              {emailStatus === "exists" ? "We found your profile — please review and update if needed." : "Tell us about yourself so we can personalise your visit experience."}
+            </p>
 
             {error && <div style={{ background: "#FEF2F2", border: "1px solid #FECACA", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#DC2626", marginBottom: 16 }}>{error}</div>}
 
@@ -11338,19 +11421,9 @@ function RegistrationPage({ eventId }) {
                 {fErrors.name && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>{fErrors.name}</p>}
               </div>
               <div style={{ gridColumn: "span 2" }}>
-                <label style={lS}>Work email *</label>
-                <div style={{ position: "relative" }}>
-                  <input type="email" value={form.email}
-                    onChange={e => { upd("email", e.target.value); setEmailStatus(null); setFErrors(fe=>({...fe,email:null})); }}
-                    onBlur={e => checkEmail(e.target.value)}
-                    placeholder="e.g. ravi@tatamotors.com"
-                    style={{ ...iS, borderColor: fErrors.email ? "#DC2626" : emailStatus === "new" ? "#16A34A" : "#E2E8F0", paddingRight: emailChecking ? 36 : 13 }}/>
-                  {emailChecking && (
-                    <div style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, border: "2px solid #E2E8F0", borderTopColor: "#3B82F6", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>
-                  )}
-                </div>
-                {fErrors.email && <p style={{ color: "#DC2626", fontSize: 11, margin: "3px 0 0" }}>⚠ {fErrors.email}</p>}
-                {emailStatus === "new" && !fErrors.email && <p style={{ color: "#16A34A", fontSize: 11, margin: "3px 0 0" }}>✓ Email verified — not yet registered</p>}
+                <label style={lS}>Work email</label>
+                <input value={form.email} disabled
+                  style={{ ...iS, background: "#F8FAFC", color: "#94A3B8", borderColor: "#E2E8F0" }}/>
               </div>
               <div style={{ gridColumn: "span 2" }}>
                 <label style={lS}>Company *</label>
@@ -11462,11 +11535,11 @@ function RegistrationPage({ eventId }) {
             </div>
 
             <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-              <button onClick={() => { setStep(0); window.scrollTo(0, 0); }}
+              <button onClick={() => { setStep(1); window.scrollTo(0, 0); }}
                 style={{ flex: 1, padding: "12px 0", background: "#fff", color: "#64748B", border: "1px solid #E2E8F0", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: F }}>
                 ← Back
               </button>
-              <button onClick={() => { if (validateStep1()) { setStep(2); window.scrollTo(0, 0); } }}
+              <button onClick={() => { if (validateStep1()) { setStep(3); window.scrollTo(0, 0); } }}
                 style={{ flex: 2, padding: "12px 0", background: navy, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: F }}>
                 Next — Tell us about your visit →
               </button>
@@ -11474,8 +11547,8 @@ function RegistrationPage({ eventId }) {
           </div>
         )}
 
-        {/* ── Step 2: Intent questions ── */}
-        {step === 2 && (
+        {/* ── Step 3: Intent questions ── */}
+        {step === 3 && (
           <div style={{ background: "#fff", borderRadius: 14, padding: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0" }}>
             <h2 style={{ fontSize: 16, fontWeight: 700, color: navy, margin: "0 0 4px" }}>Your visit intent</h2>
             <p style={{ fontSize: 12, color: "#64748B", margin: "0 0 20px" }}>Help {eventInfo.company} prepare for your visit. This takes 60 seconds.</p>
@@ -11598,7 +11671,7 @@ function RegistrationPage({ eventId }) {
         )}
 
         {/* ── Step 3: Success ── */}
-        {step === 3 && result && (
+        {step === 4 && result && (
           <div style={{ background: "#fff", borderRadius: 14, padding: 32, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #E2E8F0", textAlign: "center" }}>
             <div style={{ width: 64, height: 64, borderRadius: "50%", background: result.already_registered ? "#FEF9C3" : "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, margin: "0 auto 16px" }}>
               {result.already_registered ? "ℹ️" : "✓"}
